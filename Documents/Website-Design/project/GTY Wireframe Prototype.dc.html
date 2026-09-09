@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="_ds/modernist-00d6c82a-f1b7-4453-81b8-606a8d26981c/styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f2f0;font-family:Archivo,system-ui,sans-serif;color:#1c1a19}
+a{color:#b30000}a:hover{color:#d80000}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid #d80000;outline-offset:2px}
+.r{display:flex}.c{display:flex;flex-direction:column}
+.wf{background:#fff;border:1px solid #e7e2df;border-radius:16px}
+.bd{border:1.5px dashed #d8d2ce;border-radius:16px}
+.img{background:#ece8e5 center/cover no-repeat;border-radius:16px;display:flex;align-items:flex-end;padding:12px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8a8481;font-weight:700;overflow:hidden;position:relative}
+.ln{height:8px;background:#e4dfdb;border-radius:99px}
+.btn{border:1.5px solid #dad4d0;border-radius:99px;padding:12px 20px;font-size:11.5px;font-weight:700;letter-spacing:.02em;display:flex;align-items:center;justify-content:center;gap:9px;background:#fff;white-space:nowrap;min-height:42px;cursor:pointer;transition:background .15s,box-shadow .15s,transform .15s;color:#1c1a19}
+.btn:hover{background:#fff5f4;border-color:#d80000;color:#d80000}
+.btn.p{background:#d80000;border-color:#d80000;color:#fff;box-shadow:0 6px 16px rgba(216,0,0,.26)}
+.btn.p:hover{background:#b30000;border-color:#b30000;color:#fff;transform:translateY(-1px);box-shadow:0 8px 20px rgba(216,0,0,.32)}
+.btn:active{transform:translateY(0)}
+.chip{border:1.5px solid #e0dad6;border-radius:99px;padding:9px 15px;font-size:11.5px;color:#6b6461;white-space:nowrap;cursor:pointer;background:#fff;transition:.15s}
+.chip:hover{border-color:#1c1a19;color:#1c1a19}
+.chip.on{border-color:#d80000;color:#d80000;font-weight:700;background:#fff1ef}
+.lbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8a8481;font-weight:700}
+.fld{border:1px solid #e4dfdb;border-radius:12px;padding:13px 16px;font-size:12px;color:#a09a97;display:flex;justify-content:space-between;min-height:44px;align-items:center;background:#faf8f7}
+.h{font-weight:800;letter-spacing:-.02em}
+.note{font-family:Caveat,cursive;font-size:17px;font-weight:600;color:#d80000;line-height:1.15}
+.nav{font-size:14.5px;font-weight:500;color:#312e2c;cursor:pointer;padding:5px 0 9px;border-bottom:2.5px solid transparent;white-space:nowrap;transition:color .15s}
+.nav:hover{color:#d80000}
+.nav.on{color:#d80000;font-weight:600;border-bottom-color:#d80000}
+.tab{font-size:13px;font-weight:700;color:#8a8481;padding:4px 2px 10px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.tab:hover{color:#1c1a19}
+.tab.on{color:#d80000;border-bottom-color:#d80000}
+.card{cursor:pointer;transition:transform .18s,box-shadow .18s;border-radius:16px}
+.card:hover{transform:translateY(-4px)}
+.acc{border:1px solid #e7e2df;border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font-size:12px;cursor:pointer;background:#fff;margin-bottom:8px;width:100%}
+.acc:hover{border-color:#d80000;color:#d80000}
+.accb{border:1px solid #e7e2df;border-radius:14px;padding:14px 16px;background:#faf8f7;margin:-4px 0 10px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#8a8481;border-bottom:1px solid #e7e2df;padding:9px 10px}
+.tbl td{border-bottom:1px solid #f0ecea;padding:10px;color:#4a4442}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:#fff5f4}
+.site{--gx:56px;position:relative;width:100%;background:#fff}
+@media (max-width:760px){.site{--gx:18px}}
+@media (max-width:1080px){.popgrid{grid-template-columns:repeat(3,1fr)!important}}
+@media (max-width:640px){.popgrid{grid-template-columns:repeat(2,1fr)!important}}
+.dot{width:7px;height:7px;border-radius:99px;background:rgba(255,255,255,.6)}
+.pdot{width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.55);flex:none}
+.intlrow{display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px}
+.railrow{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;padding:6px 2px 14px}
+.railrow::-webkit-scrollbar{display:none}
+.pchip{display:inline-flex;align-items:center;gap:8px;border:1px solid #e4dfdb;border-radius:99px;padding:10px 18px;font-size:13.5px;font-weight:600;color:#312e2c;background:#fff;white-space:nowrap;cursor:pointer;transition:.15s}
+.pchip .pchipic{color:#d80000;display:flex}
+.pchip:hover{border-color:#d80000;color:#d80000}
+.pchip.on{background:#d80000;border-color:#d80000;color:#fff;box-shadow:0 6px 16px rgba(216,0,0,.3)}
+.pchip.on .pchipic{color:#fff}
+.ctchip{display:inline-flex;align-items:center;gap:7px;border:1px solid #e4dfdb;border-radius:99px;padding:11px 20px;font-size:14px;font-weight:500;color:#312e2c;background:#fff;white-space:nowrap;cursor:pointer;transition:.15s}
+.ctchip:hover{border-color:#d80000;color:#d80000}
+.ctchip.on{border-color:#d80000;background:#fdeceb;color:#d80000;font-weight:700}
+.ctchip .ctchipic{color:#8a8481;display:flex}
+.ctchip.on .ctchipic{color:#d80000}
+.ctgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px}
+.ctplace{position:relative;border:1px solid #eae6e3;border-radius:13px;background:#fff;overflow:hidden;cursor:pointer;text-align:center;transition:.15s;padding:0}
+.ctplace:hover{border-color:#d80000;box-shadow:0 8px 20px rgba(28,26,25,.12)}
+.ctplus{position:absolute;right:8px;top:70px;width:26px;height:26px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.ctplus.on{background:#d80000;color:#fff}
+.tcard,.pcard{background:#fff;box-shadow:0 6px 22px rgba(28,26,25,.11);border-radius:18px;text-align:left;padding:6px 6px 14px;cursor:pointer;transition:box-shadow .18s,transform .18s;align-items:flex-start;overflow:hidden}
+.tcard:hover,.pcard:hover{box-shadow:0 16px 40px rgba(28,26,25,.19);transform:translateY(-3px)}
+.pcard{flex:none;width:300px}
+.intlrow::-webkit-scrollbar{display:none}
+.intlcard{flex:none;width:252px;height:380px;border-radius:20px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 10px 28px rgba(28,26,25,.16);transition:transform .18s,box-shadow .18s;border:0;padding:0}
+.intlcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(28,26,25,.24)}
+@media (max-width:1080px){.pkart{display:none!important}.phfield{border-right:0!important}.ctleft{border-right:0!important;border-bottom:1px solid #efebe8}}
+@media (max-width:760px){.pkhero,.gphero{padding-bottom:70px!important}.pkhero .h,.gphero .h{font-size:36px!important}.intlcard{width:196px;height:296px}.vidplayer{height:230px!important}.pcard{width:250px}.whys{flex-wrap:wrap!important}.whys .whycell{flex:1 0 44%!important;border-left:0!important;padding:26px 12px 22px!important}}
+.pdot.on{background:#fff;width:16px}
+.dot.on{background:#d80000;width:18px}
+.ic{width:38px;height:38px;border-radius:99px;background:#fff1ef;color:#d80000;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.arw{width:38px;height:38px;border-radius:99px;border:1px solid #e0dad6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;background:#fff;transition:.15s}
+.arw:hover{background:#d80000;color:#fff;border-color:#d80000}
+.arw.f{background:#d80000;color:#fff;border-color:#d80000;box-shadow:0 4px 12px rgba(216,0,0,.3)}
+.mark{width:74px;height:56px;overflow:hidden;display:block;flex:none}
+.mark img{width:74px;height:74px;object-fit:cover;object-position:top center}
+@media (max-width:760px){
+.hero{min-height:0!important;background-position:64% 25%!important;display:block!important}
+.herocopy{padding:34px var(--gx) 28px!important;max-width:100%}
+.herocopy .h{font-size:36px!important}
+.herocopy .h span{font-size:44px!important}
+.herostats{position:static!important;width:auto;padding:0 var(--gx) 28px;gap:8px}
+.disco{margin-top:8px!important}
+}
+.mask{position:fixed;inset:0;background:rgba(28,26,25,.55);display:flex;align-items:center;justify-content:center;z-index:60;padding:32px var(--gx);backdrop-filter:blur(2px)}
+.modal{width:440px;max-width:100%;max-height:90vh;overflow:auto;background:#fff;border-radius:22px;box-shadow:0 24px 60px rgba(28,26,25,.4)}
+.sec{padding:44px 56px}
+.hdrnav{display:flex;gap:30px;position:relative;z-index:2;flex:1 1 auto;min-width:0;justify-content:center;flex-wrap:nowrap;overflow:hidden}
+.hdrburger{display:none}
+@media (max-width:1180px){.hdrnav{display:none}.hdrburger{display:flex}}
+@media (max-width:1300px){.ftscript{display:none!important}.ftband{height:150px!important}.wacard{top:44px!important;width:92%!important}}
+@media (max-width:1080px){.ftcol{padding-left:0!important;border-left:0!important;flex:1 1 44%!important;min-width:180px!important}}
+@media (max-width:860px){.ftband{height:150px!important}.ftband svg{opacity:.5}.ftscript{display:none!important}.wacard{top:60px!important;width:92%!important;padding:18px!important;border-radius:18px!important}.wadiv{display:none!important}.wainner{gap:18px!important}}
+@media (max-width:760px){.hdrwrap{padding:10px var(--gx) 8px!important}.hdrbar{border-radius:30px!important;padding:10px 12px 10px 14px!important}.hdrart{display:none!important}}
+</style></helmet>
+
+<div class="site">
+
+<div class="hdrwrap" style="position:sticky;top:0;z-index:30;padding:16px var(--gx) 10px;background:linear-gradient(180deg,#fbfafa 0%,#fbfafa 62%,rgba(251,250,250,0) 100%)">
+  <div class="hdrbar r" style="position:relative;align-items:center;gap:16px;flex-wrap:nowrap;background:#fff;border-radius:44px;padding:14px 16px 14px 22px;box-shadow:0 18px 46px rgba(28,26,25,.13),0 3px 10px rgba(28,26,25,.06);overflow:hidden">
+    <div class="hdrart" style="position:absolute;left:26%;right:14%;top:0;bottom:0;opacity:.5;pointer-events:none"><svg viewBox="0 0 520 90" preserveAspectRatio="none" style="position:absolute;left:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none"><circle cx="46" cy="34" r="17" fill="#f9c9c4" opacity="0.5"/><path d="M0 90 L58 42 L96 90 Z" fill="#cfd3d6" opacity="0.55"/><path d="M52 90 L118 30 L184 90 Z" fill="#b9bfc4" opacity="0.6"/><path d="M104 30 L118 40 L132 30 L118 22 Z" fill="#ffffff"/><path d="M150 90 L206 46 L258 90 Z" fill="#d6dade" opacity="0.5"/><path d="M118 22 L104 32 L112 34 L118 29 L124 34 L132 32 Z" fill="#fff"/><path d="M168 18 q6 -5 12 0 q-6 -2 -12 0" fill="#9aa1a6" opacity="0.6"/><path d="M196 12 q6 -5 12 0 q-6 -2 -12 0" fill="#9aa1a6" opacity="0.6"/><path d="M214 24 q5 -4 10 0 q-5 -2 -10 0" fill="#9aa1a6" opacity="0.6"/></svg></div>
+    <div class="hdrart" style="position:absolute;right:19%;top:0;bottom:0;width:200px;pointer-events:none"><svg viewBox="0 0 200 90" style="position:absolute;right:6px;bottom:2px;width:200px;height:90px;pointer-events:none"><path d="M150 22 L166 34 L188 26 L172 40 L186 56 L164 50 L150 62 L152 42 Z" fill="#f6a9a1" opacity="0.85"/><path d="M8 78 C34 82 52 74 66 62 C82 48 100 44 122 46 C136 47 146 44 152 40" fill="none" stroke="#f6bdb6" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="1 7"/></svg></div>
+
+    <button class="r" style="gap:11px;align-items:center;position:relative;z-index:2;flex:none" onClick="{{ goHome }}"><span class="mark"><img src="uploads/logo-1786287802745-uzil.png" alt="Guruji Travel Yatra"></span><sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}"><span class="c" style="gap:5px;align-items:flex-start"><span class="h" style="font-size:20px;line-height:1;letter-spacing:.005em;white-space:nowrap;color:#1c1a19">GURUJI TRAVEL YATRA</span><span style="font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8a8481;white-space:nowrap">Keep Guessing, Where&#39;s Next Trip?</span></span></sc-if></button>
+
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+    <div class="hdrnav">
+      <button class="nav {{ navHome }}" onClick="{{ goHome }}">Home</button>
+      <button class="nav {{ navPack }}" onClick="{{ goPack }}">Tour Packages</button>
+      <button class="nav {{ navGroup }}" onClick="{{ goGroup }}">Group Tours</button>
+      <button class="nav {{ navCustom }}" onClick="{{ goCustom }}">Customized Tours</button>
+    </div>
+    </sc-if>
+
+    <div class="r" style="margin-left:auto;align-items:center;gap:14px;position:relative;z-index:2;flex:none">
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+      <span style="position:relative;width:50px;height:50px;display:flex;align-items:center;justify-content:center;flex:none">
+        <span style="position:absolute;inset:-5px;border-radius:99px;background:radial-gradient(circle,rgba(216,0,0,.16) 0%,rgba(216,0,0,.06) 55%,rgba(216,0,0,0) 74%)"></span>
+        <span style="position:absolute;inset:1px;border-radius:99px;border:1px solid rgba(216,0,0,.18)"></span>
+        <button style="position:relative;width:40px;height:40px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(216,0,0,.34)" style-hover="background:#b30000" onClick="{{ call }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z"/></svg></button>
+      </span>
+      <span style="width:1px;height:26px;background:#e4dfdb;flex:none"></span>
+      </sc-if>
+      <button class="btn p" style="padding:14px 24px;font-size:13px;box-shadow:0 8px 22px rgba(216,0,0,.3);flex:none" onClick="{{ openEnquire }}">{{ ctaShort }} <span>→</span></button>
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}"><button class="arw hdrburger" onClick="{{ toggleMenu }}">☰</button></sc-if><sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}"><button class="arw" onClick="{{ toggleMenu }}">☰</button></sc-if>
+    </div>
+  </div>
+</div>
+<sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+<div class="c" style="border-bottom:1px solid #efebe8;background:#fff;position:relative;z-index:29">
+  <sc-for list="{{ menu }}" as="m" hint-placeholder-count="8">
+    <button class="r" style="padding:14px 16px;justify-content:space-between;align-items:center;border-bottom:1px solid #eae7e7;font-size:13px;font-weight:700;color:{{ m.color }}" onClick="{{ m.go }}">{{ m.name }} <span style="color:#d80000">→</span></button>
+  </sc-for>
+  <div class="r" style="padding:14px 16px;gap:10px;background:#faf8f7">
+    <button class="btn p" style="flex:1;justify-content:center" onClick="{{ call }}">✆ Call GTY</button>
+    <button class="btn p" style="flex:1;justify-content:center" onClick="{{ openEnquire }}">Enquire Now</button>
+  </div>
+</div>
+</sc-if>
+
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div>
+  <div class="hero" style="position:relative;min-height:620px;display:flex;align-items:flex-start;background-image:{{ heroPhoto }};background-size:cover;background-position:center 18%;background-color:#ece8e5">
+    <div class="scrim" style="position:absolute;inset:0;background:linear-gradient(98deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.16) 32%,rgba(0,0,0,.05) 55%,rgba(0,0,0,0) 72%)"></div>
+    <div class="c herocopy" style="position:relative;z-index:2;padding:56px var(--gx) 190px;gap:24px;max-width:680px">
+      <div class="lbl" style="color:#d80000;font-size:11px;text-shadow:0 2px 8px rgba(255,255,255,.55)">Journeys that stay forever</div>
+      <div class="h" style="font-size:62px;line-height:1.02;text-shadow:0 3px 16px rgba(255,255,255,.55)">Not All Those<br>Who Wander<br><span style="font-family:Caveat,cursive;color:#d80000;font-size:76px">Are Lost</span></div>
+      <div style="font-size:15px;color:#fff;line-height:1.7;max-width:440px;text-shadow:0 2px 10px rgba(255,255,255,.5)">From sacred pilgrimages to breathtaking getaways, we create experiences that touch your soul and memories that last a lifetime.</div>
+      <div class="r" style="gap:14px;flex-wrap:wrap;padding-top:4px">
+        <button class="btn p" style="font-size:12.5px;padding:15px 28px;min-height:54px;box-shadow:0 8px 22px rgba(255,255,255,.35)" onClick="{{ openEnquire }}">Start Your Journey <span>→</span></button>
+        <button class="btn" style="font-size:12.5px;padding:15px 26px;min-height:54px;background:rgba(255,255,255,.92);box-shadow:0 8px 20px rgba(255,255,255,.3)" onClick="{{ watchStory }}">▶ Watch Our Story</button>
+      </div>
+    </div>
+    <div class="r herostats" style="position:absolute;left:var(--gx);bottom:80px;gap:12px;z-index:2;flex-wrap:wrap">
+      <div class="wf" style="padding:14px 18px;box-shadow:0 10px 26px rgba(28,26,25,.12)"><div class="h" style="font-size:20px">10,000+</div><div style="font-size:11px;color:#8a8481">Happy Travellers</div></div>
+      <div class="wf" style="padding:14px 18px;box-shadow:0 10px 26px rgba(28,26,25,.12)"><div class="h" style="font-size:20px">150+</div><div style="font-size:11px;color:#8a8481">Destinations</div></div>
+      <div class="wf" style="padding:14px 18px;box-shadow:0 10px 26px rgba(28,26,25,.12)"><div class="h" style="font-size:20px">8+ Years</div><div style="font-size:11px;color:#8a8481">Of Trust &amp; Service</div></div>
+    </div>
+      </div>
+  <div class="wf disco" style="margin:26px var(--gx) 0;position:relative;z-index:5;box-shadow:0 18px 44px rgba(28,26,25,.14)">
+    <div class="r" style="gap:24px;padding:12px 16px 0;border-bottom:1px solid #efebe8;flex-wrap:wrap">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5"><button class="tab {{ t.cls }}" onClick="{{ t.pick }}">{{ t.name }}</button></sc-for>
+    </div>
+    <div class="r" style="gap:12px;padding:14px 16px;flex-wrap:wrap">
+      <div class="fld" style="flex:2;min-width:170px">{{ searchLabel }} <span>⌕</span></div>
+      <div class="fld" style="flex:1;min-width:130px">Journey Month <span>▤</span></div>
+      <div class="fld" style="flex:1;min-width:120px">2 Travellers <span>▾</span></div>
+      <button class="btn p" onClick="{{ exploreNow }}">Explore Now <span>→</span></button>
+    </div>
+    <div style="padding:0 16px 14px;font-size:11.5px;color:#8a8481">{{ tabHint }}</div>
+  </div>
+
+  <div class="c" style="padding:22px var(--gx);border-top:1px solid #efebe8;gap:14px">
+    <div class="r" style="justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div class="h" style="font-size:24px">Popular <span style="color:#d80000">Destinations</span></div>
+      <button class="nav" onClick="{{ goPack }}">View All Tour Packages →</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px" class="popgrid">
+      <sc-for list="{{ popular }}" as="d" hint-placeholder-count="5">
+        <button class="c tcard" onClick="{{ d.open }}">
+          <span style="position:relative;display:block;width:100%">
+            <span class="img" style="height:250px;width:100%;border-radius:14px;background-image:{{ d.photo }};padding:0"></span>
+            <span class="r" style="position:absolute;left:10px;top:10px;gap:6px;align-items:center;background:rgba(255,255,255,.94);border-radius:99px;padding:6px 12px 6px 9px;font-size:12.5px;font-weight:600;color:#312e2c;box-shadow:0 2px 8px rgba(0,0,0,.18)"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex:none"><path d="M9 3h6v2h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V3zm2 2v1h2V5h-2zm-1 5v2h4v-2h-4z"/></svg></span>{{ d.cat }}</span>
+            <span style="position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.18)"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.4 12 20 12 20z"/></svg></span>
+            <span class="r" style="position:absolute;right:10px;bottom:12px;gap:6px;align-items:center;background:rgba(20,18,17,.55);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:#fff"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex:none"><path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm2 11h14l-4.5-6-3.5 4.5-2.5-3L5 16zm11-6.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>{{ d.photos }} Photos</span>
+          </span>
+          <span class="c" style="padding:14px 10px 6px;gap:8px;width:100%">
+            <span class="r" style="gap:7px;align-items:center;font-size:13.5px;color:#4a4442"><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span>{{ d.dur }}</span>
+            <span class="h" style="font-size:19px;line-height:1.2">{{ d.name }}</span>
+            <span style="font-size:14px;color:#4a4442;line-height:1.4">{{ d.sub }}</span>
+            <span style="height:1px;background:#eae6e3;margin:8px 0 4px"></span>
+            <span class="r"><span class="r" style="gap:7px;align-items:center;border:1px solid #b7e3c6;background:#f1fbf5;color:#178a3d;border-radius:9px;padding:7px 13px;font-size:13.5px;font-weight:700"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.2 14.2l6-6-1.5-1.4-4.5 4.5-2.3-2.3-1.4 1.4 3.7 3.8z"/></svg>Save {{ d.save }}</span></span>
+            <span class="r" style="justify-content:space-between;align-items:center;gap:10px;padding-top:8px">
+              <span class="r" style="gap:9px;align-items:baseline"><span class="h" style="font-size:23px;color:#d80000">{{ d.price }}</span><span style="font-size:14px;color:#b5aeaa;text-decoration:line-through">{{ d.was }}</span></span>
+              <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M13 5l7 7-7 7-1.4-1.4L16.2 13H4v-2h12.2l-4.6-4.6z"/></svg></span>
+            </span>
+          </span>
+        </button>
+      </sc-for>
+    </div>
+    <div class="r" style="gap:6px;justify-content:center;padding-top:4px"><span class="dot on" style="background:#d80000"></span><span class="dot" style="background:#e0dad6"></span><span class="dot" style="background:#e0dad6"></span><span class="dot" style="background:#e0dad6"></span></div>
+  </div>
+
+  <div class="c" style="padding:26px var(--gx) 30px;border-top:1px solid #efebe8;gap:16px;background:#f1efed">
+    <div class="r" style="justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div class="h" style="font-size:24px">International <span style="color:#d80000">Destinations</span></div>
+      <button class="nav" onClick="{{ goPack }}">View All International Tours →</button>
+    </div>
+    <div class="r" style="align-items:center;gap:12px">
+      <div class="intlrow">
+        <sc-for list="{{ intl }}" as="i" hint-placeholder-count="6">
+          <button class="intlcard" onClick="{{ i.open }}">
+            <span class="img" style="position:absolute;inset:0;border-radius:0;padding:0;background-image:{{ i.photo }}"></span>
+            <span style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.42) 0%,rgba(0,0,0,.05) 42%,rgba(0,0,0,.30) 100%)"></span>
+            <span class="h" style="position:absolute;left:0;right:0;top:34px;text-align:center;color:#fff;font-size:26px;letter-spacing:.01em;text-shadow:0 3px 14px rgba(0,0,0,.5)">{{ i.name }}</span>
+          </button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}"><button class="arw" style="flex:none" onClick="{{ scrollIntl }}">›</button></sc-if>
+    </div>
+  </div>
+
+  <div class="r" style="padding:22px var(--gx);border-top:1px solid #efebe8;gap:22px;flex-wrap:wrap">
+    <div class="c" style="width:230px;gap:12px"><div class="lbl" style="color:#d80000">Explore Journeys</div><div class="h" style="font-size:26px;line-height:1.05">Every Journey<br>Tells a Story</div><div style="font-size:11px;color:#8a8481;line-height:1.5">We don't just plan trips,<br>we create lifetime memories.</div><button class="btn p" onClick="{{ goPack }}">Explore All Journeys <span>→</span></button>
+      <div class="wf r" style="align-items:center;gap:8px;padding:6px"><span class="img" style="width:60px;height:44px;border-radius:10px;background-image:{{ ph.spiti }}"></span><span style="font-size:9px;line-height:1.3"><b>Spiti Valley Journey</b><br><span style="color:#8a8481">▶ Watch Full Video</span></span></div>
+    </div>
+    <div class="c" style="flex:1;min-width:300px;gap:10px">
+      <div class="vidplayer" style="position:relative;height:420px;border-radius:18px;overflow:hidden;background:#151312;box-shadow:0 12px 32px rgba(28,26,25,.20)">
+        <div class="img" style="position:absolute;inset:0;border-radius:0;padding:0;background-image:{{ videoPhoto }}"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.05) 40%,rgba(0,0,0,.62) 100%)"></div>
+        <button class="r" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:99px;background:rgba(255,255,255,.94);align-items:center;justify-content:center;color:#d80000;font-size:24px;box-shadow:0 10px 30px rgba(0,0,0,.35)" style-hover="background:#fff" onClick="{{ watchStory }}">▶</button>
+        <div class="c" style="position:absolute;left:20px;right:20px;bottom:18px;gap:5px">
+          <div class="lbl" style="color:#fff;opacity:.85">Recent Trip Film</div>
+          <div class="h" style="font-size:22px;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.5)">{{ videoTitle }}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.82)">{{ videoWhen }}</div>
+        </div>
+        <div style="position:absolute;right:16px;top:16px;background:rgba(255,255,255,.92);border-radius:99px;padding:6px 12px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">GTY video slot</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="c" style="padding:30px var(--gx) 34px;gap:16px;align-items:center;border-top:1px solid #efebe8;background:#f1efed">
+    <div class="r" style="gap:10px;align-items:center"><span style="width:26px;height:1.5px;background:#d80000"></span><span class="lbl">Why Travel With GTY?</span><span style="width:26px;height:1.5px;background:#d80000"></span></div>
+    <div class="r whys" style="width:100%;flex-wrap:nowrap;background:radial-gradient(130% 150% at 50% -10%,#f5442f 0%,#e51612 42%,#c60000 100%);border-radius:24px;box-shadow:0 0 30px 6px rgba(255,90,70,.22),0 22px 48px rgba(198,0,0,.3)">
+      <div class="whycell c" style="flex:1;min-width:0;gap:16px;padding:38px 20px 30px;align-items:center;text-align:center;border-left:1px solid rgba(255,255,255,.26)">
+        <span style="position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center;flex:none">
+          <span style="position:absolute;inset:-16px;border-radius:99px;background:radial-gradient(circle,rgba(255,214,130,.6) 0%,rgba(255,176,72,.22) 46%,rgba(255,176,72,0) 72%)"></span>
+          <span style="position:absolute;inset:0;border-radius:99px;background:conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787);padding:4px;display:flex">
+            <span style="flex:1;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;color:#d80000;position:relative"><svg viewBox="0 0 64 64" width="46" height="46" fill="currentColor"><path d="M32 4 L39 7 L32 10 Z"/><rect x="31" y="4" width="1.6" height="12"/><path d="M32 15 C25 15 22 22 22 27 L42 27 C42 22 39 15 32 15 Z"/><rect x="20" y="27" width="24" height="3"/><rect x="23" y="31" width="3.4" height="16"/><rect x="30.3" y="31" width="3.4" height="16"/><rect x="37.6" y="31" width="3.4" height="16"/><rect x="17" y="47" width="30" height="3.6"/><rect x="13" y="51.5" width="38" height="3.6"/><rect x="9" y="56" width="46" height="4"/></svg></span>
+          </span>
+        </span>
+        <div style="color:#fff;font-weight:800;font-size:16px;letter-spacing:.005em;line-height:1.2">Curated Yatras</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.92);line-height:1.55;max-width:215px">Handpicked spiritual journeys &amp; destinations</div>
+      </div>
+      <div class="whycell c" style="flex:1;min-width:0;gap:16px;padding:38px 20px 30px;align-items:center;text-align:center;border-left:1px solid rgba(255,255,255,.26)">
+        <span style="position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center;flex:none">
+          <span style="position:absolute;inset:-16px;border-radius:99px;background:radial-gradient(circle,rgba(255,214,130,.6) 0%,rgba(255,176,72,.22) 46%,rgba(255,176,72,0) 72%)"></span>
+          <span style="position:absolute;inset:0;border-radius:99px;background:conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787);padding:4px;display:flex">
+            <span style="flex:1;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;color:#d80000;position:relative"><svg viewBox="0 0 64 64" width="46" height="46" fill="currentColor"><path d="M32 4 L35.2 12.4 L44 12.9 L37.1 18.4 L39.4 27 L32 22.1 L24.6 27 L26.9 18.4 L20 12.9 L28.8 12.4 Z"/><circle cx="32" cy="34" r="7"/><circle cx="17" cy="38" r="5.6"/><circle cx="47" cy="38" r="5.6"/><path d="M18 58 C18 47 24 43 32 43 C40 43 46 47 46 58 Z"/><path d="M3 58 C3 49 8.5 45 16 44.6 L16 58 Z"/><path d="M61 58 C61 49 55.5 45 48 44.6 L48 58 Z"/></svg></span>
+          </span>
+        </span>
+        <div style="color:#fff;font-weight:800;font-size:16px;letter-spacing:.005em;line-height:1.2">Trusted Since 8+ Years</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.92);line-height:1.55;max-width:215px">Thousands of happy travellers every year</div>
+      </div>
+      <div class="whycell c" style="flex:1;min-width:0;gap:16px;padding:38px 20px 30px;align-items:center;text-align:center;border-left:1px solid rgba(255,255,255,.26)">
+        <span style="position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center;flex:none">
+          <span style="position:absolute;inset:-16px;border-radius:99px;background:radial-gradient(circle,rgba(255,214,130,.6) 0%,rgba(255,176,72,.22) 46%,rgba(255,176,72,0) 72%)"></span>
+          <span style="position:absolute;inset:0;border-radius:99px;background:conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787);padding:4px;display:flex">
+            <span style="flex:1;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;color:#d80000;position:relative"><svg viewBox="0 0 64 64" width="48" height="48" fill="currentColor"><path d="M32 8 C18.7 8 8 18.7 8 32 L8 37 L14 37 L14 32 C14 22 22 14 32 14 C42 14 50 22 50 32 L50 37 L56 37 L56 32 C56 18.7 45.3 8 32 8 Z"/><path d="M5 34 L15 34 C16.1 34 17 34.9 17 36 L17 48 C17 49.1 16.1 50 15 50 L5 50 C3.9 50 3 49.1 3 48 L3 36 C3 34.9 3.9 34 5 34 Z"/><path d="M49 34 L59 34 C60.1 34 61 34.9 61 36 L61 48 C61 49.1 60.1 50 59 50 L49 50 C47.9 50 47 49.1 47 48 L47 36 C47 34.9 47.9 34 49 34 Z"/><path d="M52 50 L55 50 L55 54 C55 56.8 52.8 59 50 59 L34 59 L34 56 L50 56 C51.1 56 52 55.1 52 54 Z"/></svg><span style="position:absolute;left:0;right:0;top:47%;transform:translateY(-50%);font-size:12.5px;font-weight:800;color:#d80000;letter-spacing:-.02em">24/7</span></span>
+          </span>
+        </span>
+        <div style="color:#fff;font-weight:800;font-size:16px;letter-spacing:.005em;line-height:1.2">24/7 Travel Support</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.92);line-height:1.55;max-width:215px">We&#39;re with you at every step of your journey</div>
+      </div>
+      <div class="whycell c" style="flex:1;min-width:0;gap:16px;padding:38px 20px 30px;align-items:center;text-align:center;border-left:1px solid rgba(255,255,255,.26)">
+        <span style="position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center;flex:none">
+          <span style="position:absolute;inset:-16px;border-radius:99px;background:radial-gradient(circle,rgba(255,214,130,.6) 0%,rgba(255,176,72,.22) 46%,rgba(255,176,72,0) 72%)"></span>
+          <span style="position:absolute;inset:0;border-radius:99px;background:conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787);padding:4px;display:flex">
+            <span style="flex:1;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;color:#d80000;position:relative"><svg viewBox="0 0 64 64" width="46" height="46" fill="currentColor"><path d="M24.5 6.5 C21.5 9 26 12 23.5 15 L22 13.7 C24 11.4 19.8 8.6 23.2 5.4 Z"/><path d="M32.5 4 C29.5 7 34 10.5 31.5 14 L30 12.6 C32 10 27.8 6.7 31.2 3 Z"/><path d="M40.5 6.5 C37.5 9 42 12 39.5 15 L38 13.7 C40 11.4 35.8 8.6 39.2 5.4 Z"/><circle cx="32" cy="19" r="2.6"/><path d="M8 38 C8 26 18.7 20.4 32 20.4 C45.3 20.4 56 26 56 38 Z"/><rect x="5" y="39.5" width="54" height="5" rx="2.5"/><rect x="13" y="47" width="38" height="4" rx="2"/></svg></span>
+          </span>
+        </span>
+        <div style="color:#fff;font-weight:800;font-size:16px;letter-spacing:.005em;line-height:1.2">Pure Veg Meals</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.92);line-height:1.55;max-width:215px">Hygienic &amp; delicious food on all tours</div>
+      </div>
+      <div class="whycell c" style="flex:1;min-width:0;gap:16px;padding:38px 20px 30px;align-items:center;text-align:center;border-left:1px solid rgba(255,255,255,.26)">
+        <span style="position:relative;width:86px;height:86px;display:flex;align-items:center;justify-content:center;flex:none">
+          <span style="position:absolute;inset:-16px;border-radius:99px;background:radial-gradient(circle,rgba(255,214,130,.6) 0%,rgba(255,176,72,.22) 46%,rgba(255,176,72,0) 72%)"></span>
+          <span style="position:absolute;inset:0;border-radius:99px;background:conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787);padding:4px;display:flex">
+            <span style="flex:1;border-radius:99px;background:#fff;display:flex;align-items:center;justify-content:center;color:#d80000;position:relative"><svg viewBox="0 0 64 64" width="46" height="46" fill="currentColor"><path d="M32 4 L55 12 L55 31 C55 45.5 45.4 54.8 32 60 C18.6 54.8 9 45.5 9 31 L9 12 Z"/><path d="M21 31.5 L25.5 27 L29.5 31 L39.5 21 L44 25.5 L29.5 40 Z" fill="#fff"/></svg></span>
+          </span>
+        </span>
+        <div style="color:#fff;font-weight:800;font-size:16px;letter-spacing:.005em;line-height:1.2">Safe &amp; Comfortable</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.92);line-height:1.55;max-width:215px">Well-planned trips with safety &amp; comfort</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="c" style="padding:24px var(--gx);gap:14px;align-items:center;background:#f1efed">
+    <div class="r" style="gap:10px;align-items:center"><span style="width:26px;height:1.5px;background:#d80000"></span><span class="lbl">Testimonials</span><span style="width:26px;height:1.5px;background:#d80000"></span></div>
+    <div class="h" style="font-size:24px">What Our Travellers Say</div>
+    <div class="r" style="gap:12px;width:100%;align-items:center;flex-wrap:wrap">
+      <button class="arw" onClick="{{ noop }}">←</button>
+      <div class="img" style="flex:1;min-width:130px;height:170px;background-image:{{ ph.group }}"></div>
+      <div class="wf" style="flex:1.4;min-width:220px;padding:16px">
+        <div style="font-size:22px;color:#d80000;line-height:.6">“</div>
+        <div style="font-size:11px;color:#4a4442;line-height:1.6;margin:10px 0">The Kedarnath trip with GTY was beyond our expectations. Everything was perfectly managed. Thank you for the memories!</div>
+        <div class="r" style="justify-content:space-between;align-items:flex-end"><div style="font-size:11px;font-weight:800">— Neha &amp; Family<div style="font-weight:400;font-size:11px;color:#8a8481">Kedarnath Yatra</div></div><div style="color:#d80000;font-size:11px">★★★★★</div></div>
+      </div>
+      <div class="img" style="flex:1;min-width:130px;height:170px;background-image:{{ ph.group2 }}"></div>
+      <button class="arw" onClick="{{ noop }}">→</button>
+    </div>
+  </div>
+  <div style="padding:0 var(--gx) 34px;background:#f1efed">
+  <div class="r" style="flex-wrap:wrap;background:#d80000;border-radius:16px;overflow:hidden;box-shadow:0 10px 28px rgba(216,0,0,.24)">
+    <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="5">
+      <div class="c" style="flex:1;min-width:110px;align-items:center;gap:9px;padding:30px 12px"><span class="ic" style="width:36px;height:36px;font-size:16px;background:rgba(255,255,255,.16);color:#fff">{{ m.i }}</span><div class="h" style="font-size:30px;color:#fff">{{ m.n }}</div><div style="font-size:13.5px;color:rgba(255,255,255,.88)">{{ m.l }}</div></div>
+    </sc-for>
+  </div>
+  </div>
+
+</div>
+</sc-if>
+
+<sc-if value="{{ isPack }}" hint-placeholder-val="{{ true }}">
+<div>
+  <div class="pkhero" style="position:relative;background:linear-gradient(180deg,#faf8f7 0%,#f7f4f2 100%);padding:26px var(--gx) 96px;overflow:hidden">
+    <div class="pkart" style="position:absolute;right:0;top:0;bottom:0;width:56%;background-image:{{ ph.himalaya }};background-size:cover;background-position:center 38%;opacity:.5;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.55) 26%,#000 62%);mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.55) 26%,#000 62%)"></div>
+    <div class="pkart" style="position:absolute;left:34%;top:14px;font-family:Caveat,cursive;font-size:33px;line-height:1.12;color:#4a4442;transform:rotate(-7deg);text-align:left">Explore<br><span style="padding-left:12px">Plan</span><br><span style="padding-left:26px">Travel</span><br><span style="padding-left:40px">Repeat</span><span style="display:block;width:120px;height:2px;background:#d80000;border-radius:2px;margin:2px 0 0 42px"></span></div>
+    <div class="pkart" style="position:absolute;right:calc(var(--gx) - 8px);top:34px;font-family:Caveat,cursive;font-size:29px;line-height:1.1;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.45);transform:rotate(4deg);text-align:right">Good<br>Trips<br>Brighter<br>Lives</div>
+    <div class="c" style="position:relative;z-index:2;gap:12px;max-width:640px">
+      <div class="r" style="gap:6px;font-size:13px;color:#8a8481"><button style="color:#8a8481" style-hover="color:#d80000" onClick="{{ goHome }}">Home</button><span>/</span><span style="color:#312e2c">Tour Packages</span></div>
+      <div class="h" style="font-size:52px;line-height:1.02;letter-spacing:-.01em">Tour <span style="color:#d80000">Packages</span></div>
+      <div style="font-size:15.5px;color:#4a4442;line-height:1.6;max-width:520px">Discover handpicked journeys to the most beautiful destinations.<br>Find your perfect trip with easy filters and real-time availability.</div>
+    </div>
+  </div>
+
+  <div style="padding:0 var(--gx);margin-top:-70px;position:relative;z-index:4">
+  <div class="c" style="background:#fff;border-radius:20px;box-shadow:0 18px 46px rgba(28,26,25,.13);overflow:hidden">
+    <div class="r" style="gap:20px;flex-wrap:wrap;align-items:center;padding:20px 24px">
+      <div class="r phfield" style="gap:14px;align-items:center;flex:1 1 250px;min-width:230px;padding-right:20px;border-right:1px solid #eee9e6">
+        <span style="width:46px;height:46px;border-radius:14px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg></span>
+        <span class="c" style="gap:7px;flex:1;min-width:0">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8a8481">Destination</span>
+          <button class="r" style="gap:8px;align-items:center;justify-content:space-between;border:1px solid #e4dfdb;border-radius:11px;padding:11px 13px;font-size:14px;color:#312e2c;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">All destinations</span><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        </span>
+      </div>
+      <div class="r phfield" style="gap:14px;align-items:center;flex:1 1 250px;min-width:230px;padding-right:20px;border-right:1px solid #eee9e6">
+        <span style="width:46px;height:46px;border-radius:14px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span>
+        <span class="c" style="gap:7px;flex:1;min-width:0">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8a8481">Travel month</span>
+          <button class="r" style="gap:8px;align-items:center;justify-content:space-between;border:1px solid #e4dfdb;border-radius:11px;padding:11px 13px;font-size:14px;color:#312e2c;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Any month</span><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        </span>
+      </div>
+      <div class="r phfield" style="gap:14px;align-items:center;flex:1 1 250px;min-width:230px;padding-right:20px">
+        <span style="width:46px;height:46px;border-radius:14px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" style="flex:none"><path d="M6 4h12M6 9h12M6 4c5 0 8 1.6 8 5s-3 5-8 5l9 7"/></svg></span>
+        <span class="c" style="gap:7px;flex:1;min-width:0">
+          <span style="font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8a8481">Price range</span>
+          <button class="r" style="gap:8px;align-items:center;justify-content:space-between;border:1px solid #e4dfdb;border-radius:11px;padding:11px 13px;font-size:14px;color:#312e2c;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">₹15,000 — ₹75,000</span><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        </span>
+      </div>
+      <div class="r" style="gap:12px;align-items:center;flex:none;padding-left:20px;border-left:1px solid #eee9e6">
+        <button class="r" style="gap:9px;align-items:center;border:1px solid #e4dfdb;border-radius:99px;padding:13px 22px;font-size:14px;font-weight:700;color:#312e2c;background:#fff" style-hover="border-color:#d80000;color:#d80000" onClick="{{ clearPackCat }}">Clear <span style="color:#8a8481;font-size:16px">&#215;</span></button>
+        <button class="btn p" style="padding:14px 26px;font-size:14px;box-shadow:0 10px 24px rgba(216,0,0,.3)" onClick="{{ noop }}">Search Tours <span>&#8594;</span></button>
+      </div>
+    </div>
+    <div class="r" style="gap:14px;flex-wrap:wrap;align-items:center;padding:16px 24px 20px;border-top:1px solid #f2eeec">
+      <span class="r" style="gap:9px;align-items:center;flex:none"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm11 0h7v7h-7v-7z"/></svg></span><span style="font-size:11.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#312e2c">Travel Category</span></span>
+      <div class="r" style="gap:10px;flex-wrap:wrap;flex:1">
+        <button class="pchip {{ catAll }}" onClick="{{ pickAll }}">All</button><button class="pchip {{ catSpiritual }}" onClick="{{ pickSpiritual }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2l1.6 3.2h-3.2L12 2zM11 6h2v2h-2V6zM4 20V11l8-4.4L20 11v9h-5v-5.5h-6V20H4z"/></svg></span>Spiritual</button><button class="pchip {{ catAdventure }}" onClick="{{ pickAdventure }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M2 20L9 7l4.2 7.4 2-3.2L22 20H2zm14.2-9.3l1.4-2.4 1.4 2.4-1.4-.8-1.4.8z"/></svg></span>Adventure</button><button class="pchip {{ catFamily }}" onClick="{{ pickFamily }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span>Family</button><button class="pchip {{ catCultural }}" onClick="{{ pickCultural }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M6 3h12a1 1 0 0 1 1 1v17H5V4a1 1 0 0 1 1-1zm6 3.2c-2 0-3.3 1.6-3.3 3.8V18h6.6V10c0-2.2-1.3-3.8-3.3-3.8z"/></svg></span>Cultural</button><button class="pchip {{ catHoneymoon }}" onClick="{{ pickHoneymoon }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.4 12 20 12 20z"/></svg></span>Honeymoon</button><button class="pchip {{ catWildlife }}" onClick="{{ pickWildlife }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><ellipse cx="12" cy="16.5" rx="4" ry="3.4"/><ellipse cx="6" cy="11" rx="2.2" ry="2.8"/><ellipse cx="18" cy="11" rx="2.2" ry="2.8"/><ellipse cx="9.4" cy="6.6" rx="2" ry="2.6"/><ellipse cx="14.6" cy="6.6" rx="2" ry="2.6"/></svg></span>Wildlife</button>
+      </div>
+      <span class="pkart r" style="gap:12px;align-items:center;flex:none;padding-left:18px;border-left:1px solid #eee9e6">
+        <span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 2.6 15 0 18M12 3c-2.6 2.6-2.6 15 0 18"/></svg></span>
+        <span style="font-family:Caveat,cursive;font-size:23px;line-height:1.15;color:#312e2c;transform:rotate(-3deg);white-space:nowrap">Not Just Trips<br>But Lifelong Memories<span style="display:block;width:150px;height:2px;background:#d80000;border-radius:2px;margin-top:2px"></span></span>
+      </span>
+    </div>
+  </div>
+  </div>
+
+  <div class="c" style="padding:26px 0 26px;gap:2px">
+    <sc-for list="{{ packRails }}" as="rail" hint-placeholder-count="4">
+      <div class="c" style="padding:26px var(--gx) 8px;gap:16px;background:{{ rail.bg }}">
+        <div class="r" style="justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap"><div class="h" style="font-size:27px">{{ rail.title }}</div><button class="r" style="gap:8px;align-items:center;font-size:14px;font-weight:700;color:#d80000" style-hover="text-decoration:underline" onClick="{{ noop }}">View All Packages <span>&#8594;</span></button></div>
+        <div class="r" style="align-items:center;gap:12px">
+          <div class="railrow">
+            <sc-for list="{{ rail.items }}" as="p" hint-placeholder-count="5">
+              <button class="pcard c" onClick="{{ p.open }}">
+          <span style="position:relative;display:block;width:100%">
+            <span class="img" style="height:250px;width:100%;border-radius:14px;background-image:{{ p.photo }};padding:0"></span>
+            <span class="r" style="position:absolute;left:10px;top:10px;gap:6px;align-items:center;background:rgba(255,255,255,.94);border-radius:99px;padding:6px 12px 6px 9px;font-size:12.5px;font-weight:600;color:#312e2c;box-shadow:0 2px 8px rgba(0,0,0,.18)"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex:none"><path d="M9 3h6v2h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V3zm2 2v1h2V5h-2zm-1 5v2h4v-2h-4z"/></svg></span>{{ p.cat }}</span>
+            <span style="position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.18)"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.4 12 20 12 20z"/></svg></span>
+            <span class="r" style="position:absolute;right:10px;bottom:12px;gap:6px;align-items:center;background:rgba(20,18,17,.55);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:#fff"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex:none"><path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm2 11h14l-4.5-6-3.5 4.5-2.5-3L5 16zm11-6.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>{{ p.photos }} Photos</span>
+          </span>
+          <span class="c" style="padding:14px 10px 6px;gap:8px;width:100%">
+            <span class="r" style="gap:7px;align-items:center;font-size:13.5px;color:#4a4442"><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span>{{ p.dur }}</span>
+            <span class="h" style="font-size:19px;line-height:1.2">{{ p.name }}</span>
+            <span style="font-size:14px;color:#4a4442;line-height:1.4">{{ p.sub }}</span>
+            <span style="height:1px;background:#eae6e3;margin:8px 0 4px"></span>
+            <span class="r"><span class="r" style="gap:7px;align-items:center;border:1px solid #b7e3c6;background:#f1fbf5;color:#178a3d;border-radius:9px;padding:7px 13px;font-size:13.5px;font-weight:700"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.2 14.2l6-6-1.5-1.4-4.5 4.5-2.3-2.3-1.4 1.4 3.7 3.8z"/></svg>Save {{ p.save }}</span></span>
+            <span class="r" style="justify-content:space-between;align-items:center;gap:10px;padding-top:8px">
+              <span class="r" style="gap:9px;align-items:baseline"><span class="h" style="font-size:23px;color:#d80000">{{ p.price }}</span><span style="font-size:14px;color:#b5aeaa;text-decoration:line-through">{{ p.was }}</span></span>
+              <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M13 5l7 7-7 7-1.4-1.4L16.2 13H4v-2h12.2l-4.6-4.6z"/></svg></span>
+            </span>
+          </span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}"><button class="arw" style="flex:none" onClick="{{ scrollRail }}">›</button></sc-if>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPackDetail }}" hint-placeholder-val="{{ false }}">
+<div>
+  <div class="r" style="gap:6px;padding:6px;flex-wrap:wrap"><div class="img" style="flex:2;min-width:220px;height:260px;background-image:{{ pkgPhoto }}"></div><div class="c" style="flex:1;min-width:120px;gap:6px"><div class="img" style="height:127px;background-image:{{ ph.himalaya }}"></div><div class="img" style="height:127px;background-image:{{ ph.ganges }};color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)">+12 photos</div></div></div>
+  <div class="r" style="padding:32px var(--gx);gap:22px;align-items:flex-start;flex-wrap:wrap">
+    <div class="c" style="flex:2;min-width:300px;gap:14px">
+      <div style="font-size:11.5px;color:#8a8481">Home / Tour Packages / {{ pkgName }}</div>
+      <div class="h" style="font-size:34px;line-height:1.03">{{ pkgName }}</div>
+      <div style="font-size:16px;font-weight:600;color:#6b6461">{{ pkgDur }}</div>
+      <div class="r" style="gap:8px;flex-wrap:wrap"><span class="chip">{{ pkgCat }}</span><span class="chip">Starts {{ pkgStart }}</span><span class="chip">Ends {{ pkgEnd }}</span><span class="chip on">★ 4.8 · 126 reviews</span></div>
+      <div class="c" style="gap:6px;max-width:520px"><div class="ln"></div><div class="ln"></div><div class="ln" style="width:62%"></div></div>
+      <div class="c" style="gap:0;margin-top:6px">
+        <div class="lbl" style="margin-bottom:8px">Day-wise itinerary</div>
+        <sc-for list="{{ days }}" as="d" hint-placeholder-count="4">
+          <div><button class="acc" style="width:100%" onClick="{{ d.toggle }}"><span><b style="color:#d80000">{{ d.no }}</b> &nbsp; {{ d.place }}</span><span>{{ d.sign }}</span></button>
+          <sc-if value="{{ d.open }}" hint-placeholder-val="{{ false }}"><div class="accb c" style="gap:8px"><div class="ln"></div><div class="ln" style="width:78%"></div><div style="font-size:11px;color:#8a8481;margin-top:4px">Hotel · Meals: B, D · Tempo Traveller</div></div></sc-if></div>
+        </sc-for>
+        <div class="wf bd" style="padding:10px;color:#9b9797;font-size:10px">Days 04–10 · same pattern</div>
+      </div>
+      <div class="wf bd" style="height:120px;background:#fbfafa;position:relative;margin-top:8px"><div style="position:absolute;left:6%;top:62%;width:84%;border-top:2px dashed #d80000;transform:rotate(-9deg)"></div><div class="lbl" style="position:absolute;left:10px;top:10px">Route map — animated path</div></div>
+      <div class="c" style="gap:0;margin-top:10px">
+        <sc-for list="{{ sections }}" as="s" hint-placeholder-count="6">
+          <div><button class="acc" style="width:100%" onClick="{{ s.toggle }}"><span style="font-weight:700">{{ s.name }}</span><span>{{ s.sign }}</span></button>
+          <sc-if value="{{ s.open }}" hint-placeholder-val="{{ false }}"><div class="accb c" style="gap:8px"><div class="ln"></div><div class="ln" style="width:70%"></div></div></sc-if></div>
+        </sc-for>
+      </div>
+    </div>
+    <div class="c" style="width:230px;min-width:210px;gap:10px;position:sticky;top:56px">
+      <div class="wf" style="padding:14px;box-shadow:0 12px 32px rgba(28,26,25,.18)">
+        <div style="font-size:11px;color:#8a8481">Starting from</div>
+        <div class="h" style="font-size:26px">{{ pkgPrice }}</div><div style="font-size:11px;color:#8a8481;margin-bottom:10px">per person · twin sharing</div>
+        <div class="c" style="gap:7px;font-size:10px;border-top:1px solid #efebe8;padding-top:10px">
+          <div class="r" style="justify-content:space-between"><span style="color:#8a8481">Dates</span><b>{{ pkgDates }}</b></div>
+          <div class="r" style="justify-content:space-between"><span style="color:#8a8481">Starts</span><b>{{ pkgStart }}</b></div>
+          <div class="r" style="justify-content:space-between"><span style="color:#8a8481">Ends</span><b>{{ pkgEnd }}</b></div>
+          <div class="r" style="justify-content:space-between"><span style="color:#8a8481">Seats</span><b style="color:#d80000">{{ pkgSeats }}</b></div>
+        </div>
+        <div class="c" style="gap:8px;margin-top:12px">
+          <button class="btn p" onClick="{{ openEnquire }}">Enquire Now <span>→</span></button>
+          <button class="btn" onClick="{{ openBrochure }}">Download Brochure <span>↓</span></button>
+          <button class="btn" onClick="{{ whatsapp }}">WhatsApp GTY <span>→</span></button>
+        </div>
+        <div style="font-size:11px;color:#8a8481;margin-top:9px;line-height:1.5">Both forms already know this package — the traveller never picks it again.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGroup }}" hint-placeholder-val="{{ false }}">
+<div>
+  <div class="gphero" style="position:relative;background:linear-gradient(180deg,#faf8f7 0%,#f7f4f2 100%);padding:24px var(--gx) 92px;overflow:hidden">
+    <div class="pkart" style="position:absolute;right:0;top:0;bottom:0;width:58%;background-image:{{ ph.himalaya }};background-size:cover;background-position:center 42%;opacity:.62;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.5) 22%,#000 58%);mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.5) 22%,#000 58%)"></div>
+    <div class="pkart" style="position:absolute;right:16%;top:20px;font-family:Caveat,cursive;font-size:29px;line-height:1.2;color:#312e2c;transform:rotate(-6deg);text-align:left">Good People<br><span style="padding-left:10px">Great Places</span><br><span style="padding-left:20px">Bigger Memories</span><span style="display:block;width:130px;height:2px;background:#d80000;border-radius:2px;margin:3px 0 0 22px"></span></div>
+    <div class="c" style="position:relative;z-index:2;gap:12px;max-width:640px">
+      <div class="r" style="gap:6px;font-size:13px;color:#8a8481"><button style="color:#8a8481" style-hover="color:#d80000" onClick="{{ goHome }}">Home</button><span>/</span><span style="color:#312e2c">Group Tours</span></div>
+      <div style="font-family:Caveat,cursive;font-size:40px;line-height:1;color:#d80000;transform:rotate(-2deg)">Travel Together</div>
+      <div class="h" style="font-size:52px;line-height:1.02;letter-spacing:-.01em;margin-top:-4px">Group Tours</div>
+      <div style="font-size:15.5px;color:#4a4442;line-height:1.6;max-width:520px">Fixed departures, great company and unforgettable journeys.<br>Join a group of like-minded travellers and explore more, together.</div>
+      <div class="r" style="gap:12px;flex-wrap:wrap;padding-top:8px">
+        <span class="r" style="gap:9px;align-items:center;background:#fff;border:1px solid #f0e9e6;border-radius:99px;padding:9px 16px 9px 10px;box-shadow:0 3px 10px rgba(28,26,25,.07)"><span style="width:26px;height:26px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span><span style="font-size:12.5px;font-weight:600;color:#312e2c;white-space:nowrap">Fixed Departures</span></span><span class="r" style="gap:9px;align-items:center;background:#fff;border:1px solid #f0e9e6;border-radius:99px;padding:9px 16px 9px 10px;box-shadow:0 3px 10px rgba(28,26,25,.07)"><span style="width:26px;height:26px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span style="font-size:12.5px;font-weight:600;color:#312e2c;white-space:nowrap">Trusted Tour Manager</span></span><span class="r" style="gap:9px;align-items:center;background:#fff;border:1px solid #f0e9e6;border-radius:99px;padding:9px 16px 9px 10px;box-shadow:0 3px 10px rgba(28,26,25,.07)"><span style="width:26px;height:26px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M8 3v7a3 3 0 0 0 2 2.8V21h2V12.8A3 3 0 0 0 14 10V3h-1.4v6h-1.2V3H10v6H8.8V3H8zm8 0c-1.4 1.3-2 3.4-2 5.6 0 1.9.7 3.2 2 3.7V21h1.6V3H16z"/></svg></span><span style="font-size:12.5px;font-weight:600;color:#312e2c;white-space:nowrap">Pure Veg Meals</span></span><span class="r" style="gap:9px;align-items:center;background:#fff;border:1px solid #f0e9e6;border-radius:99px;padding:9px 16px 9px 10px;box-shadow:0 3px 10px rgba(28,26,25,.07)"><span style="width:26px;height:26px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 3l8 2.6v6c0 5-3.4 8.5-8 9.9-4.6-1.4-8-4.9-8-9.9v-6L12 3zm-1 11.7l5-5-1.4-1.4L11 11.9 9.4 10.3 8 11.7l3 3z"/></svg></span><span style="font-size:12.5px;font-weight:600;color:#312e2c;white-space:nowrap">Safe & Comfortable</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 var(--gx);margin-top:-64px;position:relative;z-index:4">
+    <div class="r" style="background:#fff;border-radius:20px;box-shadow:0 18px 46px rgba(28,26,25,.13);padding:16px 20px;gap:16px;flex-wrap:wrap;align-items:center">
+      <div class="r" style="gap:10px;flex-wrap:wrap;flex:1">
+        <sc-for list="{{ monthChips }}" as="m" hint-placeholder-count="6"><button class="pchip {{ m.cls }}" onClick="{{ m.pick }}"><span class="pchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span>{{ m.name }}</button></sc-for>
+      </div>
+      <div class="r" style="gap:11px;align-items:center;border:1px solid #e4dfdb;border-radius:99px;padding:12px 20px;flex:0 1 340px;min-width:230px">
+        <span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" style="flex:none"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></span>
+        <span style="font-size:14px;color:#a09a97">Search destination or tour…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="c" style="padding:34px var(--gx) 34px;gap:20px">
+    <div class="r" style="justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap">
+      <div class="c" style="gap:7px">
+        <div class="h" style="font-size:33px;line-height:1.05">Upcoming <span style="color:#d80000">Group Tours</span></div>
+        <div style="font-size:14px;color:#4a4442">Handpicked journeys with confirmed departures. Limited seats — book early!</div>
+      </div>
+      <div class="r" style="gap:12px;align-items:center;flex:none">
+        <span style="font-size:13.5px;color:#4a4442">Sort by:</span>
+        <button class="r" style="gap:14px;align-items:center;border:1px solid #e4dfdb;border-radius:11px;padding:11px 15px;font-size:13.5px;color:#312e2c;background:#fff" style-hover="border-color:#d80000" onClick="{{ noop }}">Earliest Departure <span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button>
+      </div>
+    </div>
+
+    <sc-for list="{{ departures }}" as="g" hint-placeholder-count="4">
+      <div class="r gpcard" style="background:#fff;border-radius:20px;box-shadow:0 8px 26px rgba(28,26,25,.11);padding:10px;gap:20px;flex-wrap:wrap;align-items:stretch" style-hover="box-shadow:0 16px 40px rgba(28,26,25,.17)">
+        <div style="position:relative;flex:0 1 340px;min-width:260px;border-radius:14px;overflow:hidden;min-height:200px;background-image:{{ g.photo }};background-size:cover;background-position:center">
+          <span class="r" style="position:absolute;left:12px;top:12px;gap:7px;align-items:center;background:rgba(255,255,255,.94);border-radius:99px;padding:6px 14px 6px 8px;font-size:12.5px;font-weight:600;color:#312e2c;box-shadow:0 2px 8px rgba(0,0,0,.18)"><span style="width:22px;height:22px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="flex:none"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-5.6 6.5-5.6s6.5 2 6.5 5.6z"/></svg></span>{{ g.cat }}</span>
+          <button style="position:absolute;right:12px;top:12px;width:34px;height:34px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.18)" style-hover="background:#fdeceb" onClick="{{ noop }}"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex:none"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.4 12 20 12 20z"/></svg></button>
+          <span style="position:absolute;right:14px;bottom:14px;font-family:Caveat,cursive;font-size:25px;line-height:1.1;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5);text-align:right;white-space:pre-line">{{ g.script }}</span>
+        </div>
+        <div class="c" style="flex:1 1 420px;min-width:300px;gap:14px;padding:12px 12px 12px 0">
+          <div class="r" style="justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            <div class="c" style="gap:9px;flex:1;min-width:240px">
+              <div class="h" style="font-size:21px;line-height:1.2">{{ g.name }}</div>
+              <div class="r" style="gap:20px;flex-wrap:wrap;font-size:13px;color:#4a4442">
+                <span class="r" style="gap:7px;align-items:center"><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"/></svg></span>{{ g.dates }}</span>
+                <span class="r" style="gap:7px;align-items:center"><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.7 2.8 1-1.7-3.7-2.2z"/></svg></span>{{ g.dur }}</span>
+                <span class="r" style="gap:7px;align-items:center"><span style="color:#8a8481;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M3 5h18a1 1 0 0 1 1 1v.4l-10 6.1L2 6.4V6a1 1 0 0 1 1-1zm-1 3.9 10 6.1 10-6.1V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg></span>{{ g.board }}</span>
+              </div>
+            </div>
+            <span style="border:1px solid #f6c9c4;background:#fdeceb;color:#d80000;border-radius:99px;padding:9px 18px;font-size:13px;font-weight:700;white-space:nowrap;flex:none">{{ g.seats }}</span>
+          </div>
+          <div class="r" style="gap:20px;align-items:flex-end;flex-wrap:wrap">
+            <div class="r" style="gap:10px;flex-wrap:wrap;flex:1 1 380px;min-width:280px">
+              <span class="r" style="gap:9px;align-items:center;background:#f7f4f2;border-radius:11px;padding:9px 13px;flex:1 1 130px;min-width:120px"><span style="width:27px;height:27px;border-radius:8px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M4 3h9v18H4V3zm11 6h5v12h-5V9zM6 6v2h2V6H6zm3 0v2h2V6H9zm-3 4v2h2v-2H6zm3 0v2h2v-2H9zm-3 4v2h2v-2H6zm3 0v2h2v-2H9z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:12px;font-weight:600;color:#312e2c;line-height:1.25">Stay</span><span style="font-size:11.5px;color:#8a8481;line-height:1.25">(3&#9733; Hotels)</span></span></span>
+              <span class="r" style="gap:9px;align-items:center;background:#f7f4f2;border-radius:11px;padding:9px 13px;flex:1 1 130px;min-width:120px"><span style="width:27px;height:27px;border-radius:8px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 12c0-2.4 1.6-4 4-4s4 1.6 4 4-1.6 4-4 4-4-1.6-4-4z" fill="#fdeceb"/></svg></span><span class="c" style="gap:1px"><span style="font-size:12px;font-weight:600;color:#312e2c;line-height:1.25">Pure Veg</span><span style="font-size:11.5px;color:#8a8481;line-height:1.25">Meals</span></span></span>
+              <span class="r" style="gap:9px;align-items:center;background:#f7f4f2;border-radius:11px;padding:9px 13px;flex:1 1 130px;min-width:120px"><span style="width:27px;height:27px;border-radius:8px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-5.6 6.5-5.6s6.5 2 6.5 5.6z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:12px;font-weight:600;color:#312e2c;line-height:1.25">Tour</span><span style="font-size:11.5px;color:#8a8481;line-height:1.25">Manager</span></span></span>
+              <span class="r" style="gap:9px;align-items:center;background:#f7f4f2;border-radius:11px;padding:9px 13px;flex:1 1 130px;min-width:120px"><span style="width:27px;height:27px;border-radius:8px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8h-2v3h-2v-3H6v3H4v-3H2V6h2zm2 1v4h12V7H6zm0 6.5a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6zm12 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:12px;font-weight:600;color:#312e2c;line-height:1.25">AC</span><span style="font-size:11.5px;color:#8a8481;line-height:1.25">Transportation</span></span></span>
+            </div>
+            <div class="c" style="gap:3px;align-items:flex-end;flex:none;min-width:170px">
+              <span class="r" style="gap:10px;align-items:baseline"><span class="h" style="font-size:27px;color:#d80000">{{ g.price }}</span><span class="c" style="gap:0;align-items:flex-start"><span style="font-size:12px;color:#4a4442">Per Person</span><span style="font-size:11.5px;color:#8a8481">( Twin Sharing )</span></span></span>
+              <span class="r" style="gap:11px;flex-wrap:wrap;justify-content:flex-end;padding-top:10px">
+                <button class="r" style="gap:10px;align-items:center;border:1px solid #e4dfdb;border-radius:99px;padding:12px 20px;font-size:13.5px;font-weight:700;color:#312e2c;background:#fff" style-hover="border-color:#d80000;color:#d80000" onClick="{{ g.brochure }}">Get Brochure <span>&#8595;</span></button>
+                <button class="btn p" style="padding:13px 22px;font-size:13.5px;box-shadow:0 8px 20px rgba(216,0,0,.28)" onClick="{{ g.book }}">Reserve a Seat <span>&#8594;</span></button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCustom }}" hint-placeholder-val="{{ false }}">
+<div style="background:#f7f5f4">
+  <div class="pkhero" style="position:relative;background:linear-gradient(180deg,#faf8f7 0%,#f5f2f1 100%);padding:26px var(--gx) 30px;overflow:hidden">
+    <div class="pkart" style="position:absolute;right:0;top:0;bottom:0;width:54%;background-image:{{ ph.himalaya }};background-size:cover;background-position:center 40%;opacity:.62;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.5) 24%,#000 60%);mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.5) 24%,#000 60%)"></div>
+    <div class="pkart" style="position:absolute;left:37%;top:22px;font-family:Caveat,cursive;font-size:29px;line-height:1.14;color:#312e2c;transform:rotate(-7deg)">Dream<br><span style="padding-left:10px">Plan</span><br><span style="padding-left:20px">Travel</span><br><span style="padding-left:30px">Your Way</span><span style="display:block;width:118px;height:2px;background:#d80000;border-radius:2px;margin:2px 0 0 32px"></span></div>
+    <div class="pkart" style="position:absolute;right:calc(var(--gx) - 4px);top:26px;font-family:Caveat,cursive;font-size:26px;line-height:1.18;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.4);transform:rotate(3deg);text-align:left">Same<br>Places<br>New<br>Stories<span style="display:block;width:86px;height:2px;background:#d80000;border-radius:2px;margin-top:2px"></span></div>
+    <div class="c" style="position:relative;z-index:2;gap:12px;max-width:660px">
+      <div class="r" style="gap:6px;font-size:13.5px;color:#8a8481"><button style="color:#8a8481" style-hover="color:#d80000" onClick="{{ goHome }}">Home</button><span>/</span><span style="color:#312e2c">Customized Tours</span></div>
+      <div class="h" style="font-size:50px;line-height:1.03;letter-spacing:-.01em">Build Your <span style="color:#d80000">Own Yatra</span></div>
+      <div style="font-size:15.5px;color:#4a4442;line-height:1.6">Tell us what you love. We'll create a personalized journey, just for you.</div>
+      <div class="r" style="gap:14px;flex-wrap:wrap;padding-top:6px">
+        <span class="r" style="gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg></span><span style="font-size:13.5px;font-weight:600;color:#312e2c">Your Places</span></span>
+        <span class="r" style="gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.7 2.8 1-1.7-3.7-2.2z"/></svg></span><span style="font-size:13.5px;font-weight:600;color:#312e2c">Your Pace</span></span>
+        <span class="r" style="gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span style="font-size:13.5px;font-weight:600;color:#312e2c">Your People</span></span>
+        <span class="r" style="gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg></span><span style="font-size:13.5px;font-weight:600;color:#312e2c">Our Expertise</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="r" style="padding:18px var(--gx) 26px;gap:22px;align-items:flex-start;flex-wrap:wrap">
+
+    <div class="c" style="flex:1.9 1 560px;min-width:320px;gap:30px;background:#fff;border-radius:18px;padding:26px;box-shadow:0 8px 28px rgba(28,26,25,.08)">
+
+      <div class="c" style="gap:16px">
+      <div class="r" style="justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <span class="r" style="gap:14px;align-items:flex-start">
+          <span style="width:32px;height:32px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex:none">1</span>
+          <span class="c" style="gap:4px"><span class="h" style="font-size:19px;line-height:1.2">Add Places to Your Trip</span><span style="font-size:13px;color:#8a8481;line-height:1.5">Search destinations, temples, cities or attractions you want to include.</span></span>
+        </span><span style="border:1px solid #f6c9c4;background:#fdeceb;color:#d80000;border-radius:99px;padding:9px 16px;font-size:12.5px;font-weight:600;white-space:nowrap;flex:none">Popular Destinations</span>
+      </div>
+        <div class="r" style="align-items:center;gap:12px;border:1px solid #e4dfdb;border-radius:14px;padding:7px 7px 7px 18px;background:#fdfcfc">
+          <span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="flex:none"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></span>
+          <span style="flex:1;font-size:14px;color:#a09a97">Search a place — temple, hill station, city…</span>
+          <button class="r" style="gap:9px;align-items:center;background:#d80000;color:#fff;border-radius:11px;padding:11px 20px;font-size:14px;font-weight:700;flex:none" style-hover="background:#b30000" onClick="{{ noop }}">Add <span style="font-size:16px">+</span></button>
+        </div>
+        <div class="ctgrid">
+          <sc-for list="{{ placePool }}" as="pl" hint-placeholder-count="8">
+            <button class="ctplace" onClick="{{ pl.add }}">
+              <span style="position:relative;display:block;height:88px;border-radius:12px 12px 0 0;background-image:{{ pl.photo }};background-size:cover;background-position:center"></span>
+              <span class="ctplus {{ pl.cls }}">+</span>
+              <span style="display:block;padding:12px 8px 11px;font-size:13px;font-weight:600;color:#1c1a19;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pl.name }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="c" style="gap:16px">
+      <div class="r" style="justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <span class="r" style="gap:14px;align-items:flex-start">
+          <span style="width:32px;height:32px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex:none">2</span>
+          <span class="c" style="gap:4px"><span class="h" style="font-size:19px;line-height:1.2">Your Route</span><span style="font-size:13px;color:#8a8481;line-height:1.5">Places you add will appear here. You can reorder, edit or remove them.</span></span>
+        </span><button class="r" style="gap:9px;align-items:center;border:1px solid #f6c9c4;background:#fdeceb;color:#d80000;border-radius:99px;padding:9px 17px;font-size:12.5px;font-weight:600;white-space:nowrap;flex:none" style-hover="background:#fbdcd9" onClick="{{ clearTrip }}"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="flex:none"><path d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 8h12l-1 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 8z"/></svg>Clear All</button>
+      </div>
+        <sc-if value="{{ tripEmpty }}" hint-placeholder-val="{{ true }}">
+          <div class="c" style="border:1px dashed #ddd7d3;border-radius:14px;padding:34px 24px;align-items:center;gap:9px;text-align:center">
+            <span style="color:#b5aeaa;display:flex"><svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" style="flex:none"><path d="M6 3a3 3 0 0 1 3 3c0 2-3 5-3 5S3 8 3 6a3 3 0 0 1 3-3zm12 10a3 3 0 0 1 3 3c0 2-3 5-3 5s-3-3-3-5a3 3 0 0 1 3-3zM9 6h5a4 4 0 0 1 0 8h-4a2 2 0 0 0 0 4h5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>
+            <span style="font-size:15px;font-weight:600;color:#312e2c">No places added yet</span>
+            <span style="font-size:13px;color:#a09a97">Add destinations above and they will appear here in your route.</span>
+          </div>
+        </sc-if>
+        <sc-for list="{{ trip }}" as="t" hint-placeholder-count="0">
+          <div class="r" style="border:1px solid #eae6e3;border-radius:14px;padding:14px 16px;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 3px 10px rgba(28,26,25,.05)">
+            <span style="width:30px;height:30px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;flex:none">{{ t.no }}</span>
+            <span class="c" style="flex:1;min-width:140px;gap:2px"><b style="font-size:15px">{{ t.name }}</b><span style="font-size:12.5px;color:#8a8481">{{ t.region }} &#183; {{ t.nights }}</span></span>
+            <span class="r" style="gap:9px;flex-wrap:wrap"><button class="ctchip" onClick="{{ t.less }}">&#8722; night</button><button class="ctchip" onClick="{{ t.more }}">+ night</button><button class="ctchip" onClick="{{ t.remove }}">Remove</button></span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="c" style="gap:18px">
+      <div class="r" style="justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <span class="r" style="gap:14px;align-items:flex-start">
+          <span style="width:32px;height:32px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex:none">3</span>
+          <span class="c" style="gap:4px"><span class="h" style="font-size:19px;line-height:1.2">Trip Preferences</span><span style="font-size:13px;color:#8a8481;line-height:1.5">Help us understand your travel style so we can plan better.</span></span>
+        </span>
+      </div>
+        <div class="r" style="gap:26px;flex-wrap:wrap;align-items:flex-start">
+          <div class="c" style="gap:12px;flex:1 1 320px;min-width:280px">
+            <div style="font-size:13.5px;font-weight:600;color:#312e2c">How would you like to travel?</div>
+            <div class="r" style="gap:11px;flex-wrap:wrap"><sc-for list="{{ styleChips }}" as="c" hint-placeholder-count="4"><button class="ctchip {{ c.cls }}" onClick="{{ c.pick }}"><span class="ctchipic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M9 3h6v2h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V3zm2 2v1h2V5h-2z"/></svg></span>{{ c.name }}</button></sc-for></div>
+          </div>
+          <div class="r" style="gap:14px;flex-wrap:wrap;flex:1 1 340px;min-width:280px">
+            <span class="c" style="gap:8px;flex:1 1 190px;min-width:170px"><span style="font-size:13px;font-weight:600;color:#312e2c">Travel Month</span><button class="r" style="justify-content:space-between;align-items:center;gap:10px;border:1px solid #e4dfdb;border-radius:11px;padding:12px 14px;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span class="r" style="gap:10px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z"/></svg></span><span style="font-size:13.5px;color:#8a8481">Select month</span></span><span style="color:#a09a97;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button></span>
+            <span class="c" style="gap:8px;flex:1 1 190px;min-width:170px"><span style="font-size:13px;font-weight:600;color:#312e2c">Number of Travellers</span><button class="r" style="justify-content:space-between;align-items:center;gap:10px;border:1px solid #e4dfdb;border-radius:11px;padding:12px 14px;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span class="r" style="gap:10px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span style="font-size:13.5px;color:#8a8481">Select travellers</span></span><span style="color:#a09a97;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button></span>
+            <span class="c" style="gap:8px;flex:1 1 190px;min-width:170px"><span style="font-size:13px;font-weight:600;color:#312e2c">Budget (Per Person)</span><button class="r" style="justify-content:space-between;align-items:center;gap:10px;border:1px solid #e4dfdb;border-radius:11px;padding:12px 14px;background:#fff;width:100%" style-hover="border-color:#d80000" onClick="{{ noop }}"><span class="r" style="gap:10px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M6 4h12v2h-3.6c.5.5.8 1.2.9 2H18v2h-2.7c-.4 2.3-2.3 3.8-5 4l6.2 6H13l-6-6v-2h1.8c2 0 3.3-.7 3.7-2H6V8h6.4c-.4-1.2-1.6-2-3.6-2H6V4z"/></svg></span><span style="font-size:13.5px;color:#8a8481">Select budget</span></span><span style="color:#a09a97;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 9l6 6 6-6"/></svg></span></button></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="c" style="gap:16px">
+      <div class="r" style="justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <span class="r" style="gap:14px;align-items:flex-start">
+          <span style="width:32px;height:32px;border-radius:99px;background:#d80000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex:none">4</span>
+          <span class="c" style="gap:4px"><span class="h" style="font-size:19px;line-height:1.2">Additional Preferences (Optional)</span><span style="font-size:13px;color:#8a8481;line-height:1.5">Tell us more to make your trip truly yours.</span></span>
+        </span>
+      </div>
+        <div class="r" style="gap:11px;flex-wrap:wrap"><button class="ctchip" onClick="{{ noop }}"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M4 3h9v18H4V3zm11 6h5v12h-5V9zM6 6v2h2V6H6zm3 0v2h2V6H9zm-3 4v2h2v-2H6zm3 0v2h2v-2H9zm-3 4v2h2v-2H6zm3 0v2h2v-2H9z"/></svg></span>Hotel Type</button><button class="ctchip" onClick="{{ noop }}"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M8 3v7a3 3 0 0 0 2 2.8V21h2V12.8A3 3 0 0 0 14 10V3h-1.4v6h-1.2V3H10v6H8.8V3H8zm8 0c-1.4 1.3-2 3.4-2 5.6 0 1.9.7 3.2 2 3.7V21h1.6V3H16z"/></svg></span>Food Preference</button><button class="ctchip" onClick="{{ noop }}"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8h-2v3h-2v-3H6v3H4v-3H2V6h2zm2 1v4h12V7H6zm0 6.5a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6zm12 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6z"/></svg></span>Vehicle Type</button><button class="ctchip" onClick="{{ noop }}"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17l-5.9 3.2 1.3-6.6L2.5 9l6.6-.8z"/></svg></span>Special Requests</button></div>
+        <div style="position:relative;border:1px solid #e4dfdb;border-radius:12px;padding:16px 18px 26px;background:#fdfcfc">
+          <span style="font-size:13.5px;color:#a09a97">Any special requests? (e.g. senior citizen, wheelchair, photoshoot, special darshan, etc.)</span>
+          <span style="position:absolute;right:14px;bottom:8px;font-size:11.5px;color:#b5aeaa">0/500</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="c" style="flex:1 1 330px;min-width:300px;gap:18px">
+
+      <div class="c" style="position:relative;border-radius:18px;padding:24px;gap:0;background:linear-gradient(180deg,#fef4f3 0%,#fdeceb 100%);box-shadow:0 8px 28px rgba(28,26,25,.08);overflow:hidden">
+        <div class="r" style="gap:10px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M9 3h6v2h3a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3V3zm2 2v1h2V5h-2z"/></svg></span><span style="font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8a8481">Your trip so far</span></div>
+        <div class="pkart" style="position:absolute;right:16px;top:14px;font-family:Caveat,cursive;font-size:21px;color:#d80000;transform:rotate(-6deg);text-align:center;line-height:1.1">Almost There!<span style="display:block;font-size:19px">&#8600;</span></div>
+        <div class="r" style="gap:16px;align-items:center;margin-top:18px">
+          <span style="width:66px;height:66px;border-radius:99px;background:#fff;color:#b5aeaa;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 4px 14px rgba(28,26,25,.08)"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style="flex:none"><path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg></span>
+          <span class="c" style="gap:5px;flex:1;min-width:0"><span class="h" style="font-size:23px;line-height:1.1">{{ tripNights }}</span><span style="font-size:13px;color:#6b6461;line-height:1.5">{{ tripRoute }}</span></span>
+        </div>
+        <div style="border-top:1px dashed #f0b6b1;margin:20px 0 18px"></div>
+        <div class="c" style="gap:14px">
+        <span class="r" style="justify-content:space-between;align-items:center;gap:12px"><span class="r" style="gap:11px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.7 2.8 1-1.7-3.7-2.2z"/></svg></span><span style="font-size:13.5px;color:#312e2c">Total Stops</span></span><b style="font-size:13.5px;color:#1c1a19">{{ tripStops }}</b></span>
+        <span class="r" style="justify-content:space-between;align-items:center;gap:12px"><span class="r" style="gap:11px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span style="font-size:13.5px;color:#312e2c">Travel Style</span></span><b style="font-size:13.5px;color:#1c1a19">{{ tripStyle }}</b></span>
+        <span class="r" style="justify-content:space-between;align-items:center;gap:12px"><span class="r" style="gap:11px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M6 4h12v2h-3.6c.5.5.8 1.2.9 2H18v2h-2.7c-.4 2.3-2.3 3.8-5 4l6.2 6H13l-6-6v-2h1.8c2 0 3.3-.7 3.7-2H6V8h6.4c-.4-1.2-1.6-2-3.6-2H6V4z"/></svg></span><span style="font-size:13.5px;color:#312e2c">Estimated Cost (Per Person)</span></span><b style="font-size:13.5px;color:#1c1a19">{{ tripCost }}</b></span>
+        <span class="r" style="justify-content:space-between;align-items:center;gap:12px"><span class="r" style="gap:11px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z"/></svg></span><span style="font-size:13.5px;color:#312e2c">Travel Month</span></span><b style="font-size:13.5px;color:#1c1a19">&#8212;</b></span>
+        <span class="r" style="justify-content:space-between;align-items:center;gap:12px"><span class="r" style="gap:11px;align-items:center"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span style="font-size:13.5px;color:#312e2c">Travellers</span></span><b style="font-size:13.5px;color:#1c1a19">&#8212;</b></span>
+        </div>
+        <button class="r" style="justify-content:center;align-items:center;gap:10px;margin-top:20px;background:#d80000;color:#fff;border-radius:99px;padding:16px 24px;font-size:14.5px;font-weight:700;box-shadow:0 10px 26px rgba(216,0,0,.3)" style-hover="background:#b30000" onClick="{{ openEnquire }}">Get My Custom Quote <span>&#8594;</span></button>
+        <button class="r" style="justify-content:center;align-items:center;gap:10px;margin-top:12px;background:#fff;color:#1c1a19;border:1px solid #f0dedb;border-radius:99px;padding:15px 24px;font-size:14.5px;font-weight:700" style-hover="border-color:#25d366" onClick="{{ whatsapp }}"><svg viewBox="0 0 32 32" width="19" height="19" fill="#25d366" style="flex:none"><path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.7 6.4L3 29l6.8-1.7c1.9 1 4 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm7.3 18.2c-.3.9-1.8 1.7-2.5 1.8-.6.1-1.4.1-2.3-.2-3.6-1.2-6-4.7-6.2-4.9-.2-.3-1.5-2-1.5-3.9s1-2.8 1.3-3.2c.3-.4.7-.5 1-.5h.7c.2 0 .5 0 .8.6l1 2.4c.1.2.1.4 0 .6l-.4.7c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 1.7 1.3 2 1.4.2.1.4.1.6-.1l.9-1c.2-.2.4-.2.6-.1l2.3 1.1c.3.2.5.3.5.5.1.2.1.9-.4 1.6z"/></svg> Send Route on WhatsApp <span>&#8594;</span></button>
+        <div class="r" style="gap:10px;align-items:flex-start;margin-top:16px"><span style="color:#d80000;display:flex;padding-top:1px"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="flex:none"><path d="M12 2l8 3v6.5c0 5-3.4 8.6-8 10.5-4.6-1.9-8-5.5-8-10.5V5l8-3z"/></svg></span><span style="font-size:12.5px;color:#6b6461;line-height:1.55">A GTY planner will confirm hotels, transport and the final price before anything is booked.</span></div>
+      </div>
+
+      <div class="r" style="gap:16px;align-items:flex-start;background:#fff;border-radius:18px;padding:22px;box-shadow:0 8px 28px rgba(28,26,25,.08);flex-wrap:wrap">
+        <span style="width:74px;height:74px;border-radius:99px;background:#f2efed;color:#a09a97;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor" style="flex:none"><path d="M12 3a8 8 0 0 0-8 8v5a2 2 0 0 0 2 2h2v-8H6v1a6 6 0 1 1 12 0v-1h-2v8h2a2 2 0 0 0 2-2v-5a8 8 0 0 0-8-8z"/></svg></span>
+        <span class="c" style="gap:7px;flex:1;min-width:190px">
+          <span style="font-size:11.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#d80000">Need help planning?</span>
+          <span class="h" style="font-size:19px;line-height:1.2">Talk to our travel expert</span>
+          <span style="font-size:13px;color:#6b6461;line-height:1.55">Get free guidance and a personalized itinerary from our team.</span>
+          <span class="r" style="gap:11px;flex-wrap:wrap;padding-top:8px">
+            <button class="r" style="gap:9px;align-items:center;border:1px solid #f6c9c4;border-radius:99px;padding:11px 18px;font-size:13px;font-weight:600;color:#1c1a19;background:#fff" style-hover="background:#fdeceb" onClick="{{ call }}"><span style="color:#d80000;display:flex"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex:none"><path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z"/></svg></span>+91 90999 57658</button>
+            <button class="r" style="gap:9px;align-items:center;border:1px solid #b6ebc9;border-radius:99px;padding:11px 18px;font-size:13px;font-weight:600;color:#1c1a19;background:#fff" style-hover="background:#f1fbf5" onClick="{{ whatsapp }}"><svg viewBox="0 0 32 32" width="19" height="19" fill="#25d366" style="flex:none"><path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.7 6.4L3 29l6.8-1.7c1.9 1 4 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm7.3 18.2c-.3.9-1.8 1.7-2.5 1.8-.6.1-1.4.1-2.3-.2-3.6-1.2-6-4.7-6.2-4.9-.2-.3-1.5-2-1.5-3.9s1-2.8 1.3-3.2c.3-.4.7-.5 1-.5h.7c.2 0 .5 0 .8.6l1 2.4c.1.2.1.4 0 .6l-.4.7c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 1.7 1.3 2 1.4.2.1.4.1.6-.1l.9-1c.2-.2.4-.2.6-.1l2.3 1.1c.3.2.5.3.5.5.1.2.1.9-.4 1.6z"/></svg> Chat on WhatsApp</button>
+          </span>
+        </span>
+      </div>
+
+      <div class="r" style="gap:16px;align-items:center;background:#f4f1ef;border-radius:18px;padding:22px;flex-wrap:wrap">
+        <span style="width:78px;height:78px;border-radius:99px;background:#fff;color:#c9a227;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 4px 14px rgba(28,26,25,.08)"><svg viewBox="0 0 24 24" width="38" height="38" fill="currentColor" style="flex:none"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg></span>
+        <span class="c" style="gap:7px;flex:1;min-width:190px">
+          <span class="h" style="font-size:19px;line-height:1.2">Not sure where to go?</span>
+          <span style="font-size:13px;color:#6b6461;line-height:1.55">Explore our popular destinations and get inspired to plan your own journey.</span>
+          <button class="r" style="gap:10px;align-items:center;border:1.5px solid #d80000;color:#d80000;border-radius:99px;padding:11px 20px;font-size:13.5px;font-weight:700;background:#fff;margin-top:8px;align-self:flex-start" style-hover="background:#d80000;color:#fff" onClick="{{ goPack }}">Explore Destinations <span>&#8594;</span></button>
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="r" style="margin:0 var(--gx) 30px;background:#fff;border-radius:18px;padding:22px 26px;gap:24px;align-items:center;flex-wrap:wrap;box-shadow:0 8px 28px rgba(28,26,25,.08)">
+    <div class="h" style="font-size:24px;line-height:1.2;flex:0 1 300px;min-width:250px;padding-right:20px;border-right:1px solid #efebe8">Why Plan with <span style="color:#d80000">Guruji Travel Yatra?</span></div>
+    <span class="r" style="gap:12px;align-items:center;flex:1 1 190px;min-width:170px"><span style="width:44px;height:44px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:13.5px;font-weight:600;color:#312e2c;line-height:1.3">Personalized</span><span style="font-size:13.5px;color:#312e2c;line-height:1.3">Itineraries</span></span></span>
+    <span class="r" style="gap:12px;align-items:center;flex:1 1 190px;min-width:170px"><span style="width:44px;height:44px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:none"><path d="M11 2l9 9-9 9-9-9V4a2 2 0 0 1 2-2h7zm-4 3.4A1.6 1.6 0 1 0 7 8.6a1.6 1.6 0 0 0 0-3.2z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:13.5px;font-weight:600;color:#312e2c;line-height:1.3">Best Price</span><span style="font-size:13.5px;color:#312e2c;line-height:1.3">Guarantee</span></span></span>
+    <span class="r" style="gap:12px;align-items:center;flex:1 1 190px;min-width:170px"><span style="width:44px;height:44px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:none"><circle cx="9" cy="7.5" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.6 2.6-5.8 6-5.8s6 2.2 6 5.8H3zM16 20c0-2.4-.7-4.1-1.9-5.2 3.4-.6 6.9 1.1 6.9 5.2h-5z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:13.5px;font-weight:600;color:#312e2c;line-height:1.3">Trusted Travel</span><span style="font-size:13.5px;color:#312e2c;line-height:1.3">Experts</span></span></span>
+    <span class="r" style="gap:12px;align-items:center;flex:1 1 190px;min-width:170px"><span style="width:44px;height:44px;border-radius:99px;background:#fdeceb;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:none"><path d="M12 3a8 8 0 0 0-8 8v5a2 2 0 0 0 2 2h2v-8H6v1a6 6 0 1 1 12 0v-1h-2v8h2a2 2 0 0 0 2-2v-5a8 8 0 0 0-8-8z"/></svg></span><span class="c" style="gap:1px"><span style="font-size:13.5px;font-weight:600;color:#312e2c;line-height:1.3">24/7</span><span style="font-size:13.5px;color:#312e2c;line-height:1.3">Support</span></span></span>
+    <span class="pkart" style="font-family:Caveat,cursive;font-size:22px;line-height:1.15;color:#312e2c;transform:rotate(-5deg);flex:none;padding-left:14px;border-left:1px solid #efebe8">Your Journey<br>Our Responsibility<span style="display:block;width:130px;height:2px;background:#d80000;border-radius:2px;margin-top:2px"></span></span>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAbout }}" hint-placeholder-val="{{ false }}">
+<div>
+  <div class="r" style="padding:26px var(--gx);gap:20px;background:#faf8f7;align-items:center;flex-wrap:wrap">
+    <div class="c" style="flex:1;min-width:260px;gap:12px"><div class="lbl" style="color:#d80000">Our Story</div><div class="h" style="font-size:32px;line-height:1.05">We don't plan trips,<br>we create lifetime<br>memories.</div><div class="c" style="gap:6px;max-width:380px"><div class="ln"></div><div class="ln" style="width:70%"></div></div></div>
+    <div class="img" style="flex:1;min-width:240px;height:230px;background-image:{{ ph.rishikesh }}"></div>
+  </div>
+  <div class="c" style="padding:22px var(--gx);border-top:1px solid #efebe8;gap:14px"><div class="lbl">Our Journey</div>
+    <div class="r" style="gap:0;flex-wrap:wrap">
+      <sc-for list="{{ timeline }}" as="t" hint-placeholder-count="4"><div class="c" style="flex:1;min-width:140px;gap:7px;padding-right:16px"><div style="height:2px;background:#d80000"></div><b style="font-size:12px">{{ t.y }}</b><div style="font-size:11.5px;color:#8a8481;line-height:1.4">{{ t.d }}</div></div></sc-for>
+    </div>
+  </div>
+  <div class="c" style="padding:22px var(--gx);border-top:1px solid #efebe8;gap:12px"><div class="lbl">Our Travellers</div><div class="r" style="gap:8px;flex-wrap:wrap"><div class="img" style="flex:1;min-width:130px;height:130px;background-image:{{ ph.group }}"></div><sc-for list="{{ aboutTiles }}" as="f" hint-placeholder-count="3"><div class="img" style="flex:1;min-width:130px;height:130px;background-image:{{ f.bg }}"></div></sc-for></div></div>
+  <div class="r" style="padding:32px var(--gx);border-top:1px solid #efebe8;align-items:center;gap:16px;background:#faf8f7;flex-wrap:wrap"><div class="h" style="flex:1;min-width:220px;font-size:18px">Where will your journey take you?</div><button class="btn p" onClick="{{ openEnquire }}">Start Your Journey <span>→</span></button></div>
+</div>
+</sc-if>
+
+
+
+<div class="ftrwrap">
+  <div class="ftr" style="position:relative;background:#fff;overflow:hidden">
+    <div class="ftband" style="position:relative;height:210px;background:linear-gradient(180deg,#fafbfb 0%,#eceef0 100%);overflow:hidden">
+      <svg viewBox="0 0 1400 260" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%"><path d="M0 260 L120 150 L210 205 L300 130 L420 260 Z" fill="#d3d7db" opacity="0.55"/><path d="M180 260 L300 118 L400 180 L470 138 L560 260 Z" fill="#c3c8cd" opacity="0.5"/><path d="M270 128 L300 112 L332 130 L316 134 L300 124 L286 134 Z" fill="#fff"/><path d="M900 260 L1010 140 L1090 196 L1180 120 L1290 260 Z" fill="#cfd3d7" opacity="0.5"/><path d="M1120 260 L1230 130 L1330 194 L1400 150 L1400 260 Z" fill="#c3c8cd" opacity="0.45"/><path d="M1200 140 L1230 124 L1262 142 L1246 146 L1230 136 L1216 146 Z" fill="#fff"/><path d="M300 62 q8 -7 16 0 q-8 -3 -16 0" fill="#9aa1a6" opacity="0.55"/><path d="M338 48 q8 -7 16 0 q-8 -3 -16 0" fill="#9aa1a6" opacity="0.55"/><path d="M362 68 q7 -6 14 0 q-7 -3 -14 0" fill="#9aa1a6" opacity="0.55"/><path d="M478 86 q7 -6 14 0 q-7 -3 -14 0" fill="#9aa1a6" opacity="0.5"/></svg>
+      <svg viewBox="0 0 300 130" style="position:absolute;right:150px;top:24px;width:180px;height:80px"><path d="M212 34 L232 50 L262 40 L242 58 L260 78 L232 70 L212 86 L216 60 Z" fill="#8f979d" opacity="0.75"/><path d="M6 118 C42 122 72 108 92 92 C118 70 148 62 180 66 C198 68 206 62 212 56" fill="none" stroke="#a8b0b6" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="1 8"/></svg>
+      <div class="ftscript" style="position:absolute;left:16px;top:14px;font-family:Caveat,cursive;font-size:27px;line-height:1.02;color:#55595e;transform:rotate(-4deg);text-align:center;pointer-events:none">Journeys<br>That Stay<br>Forever<div style="width:54px;height:2px;background:#d80000;border-radius:2px;margin:5px auto 0"></div></div>
+      <div class="ftscript" style="position:absolute;right:16px;top:12px;font-family:Caveat,cursive;font-size:27px;line-height:1.02;color:#55595e;transform:rotate(-4deg);text-align:center;pointer-events:none">Explore<br>Plan<br>Travel<br>Repeat<div style="width:54px;height:2px;background:#d80000;border-radius:2px;margin:5px auto 0"></div></div>
+      <div class="ftscript" style="position:absolute;right:104px;top:150px;font-family:Caveat,cursive;font-size:22px;line-height:1.05;color:#d80000;transform:rotate(-6deg);pointer-events:none">We&#39;re here<br>for you!<span style="position:absolute;left:-42px;top:26px;font-size:26px;color:#d80000">&#8624;</span></div>
+    </div>
+
+    <div class="ftrred" style="position:relative;background:#d80000;padding:44px var(--gx) 28px">
+      <svg viewBox="0 0 1400 110" preserveAspectRatio="none" style="position:absolute;left:0;right:0;bottom:100%;width:100%;height:80px;display:block"><path d="M0 110 L0 44 C220 -6 430 4 700 46 C960 86 1180 66 1400 22 L1400 110 Z" fill="#d80000"/></svg>
+      <div class="r ftcols" style="position:relative;gap:22px 0;flex-wrap:wrap;align-items:flex-start">
+
+        <div class="c" style="flex:2 1 300px;min-width:250px;gap:14px;padding-right:26px">
+          <div class="r" style="gap:16px;align-items:center">
+            <span style="width:82px;height:74px;overflow:hidden;display:block;flex:none;border-radius:10px"><img src="uploads/IMG_2869.PNG" alt="Guruji Travel Yatra" style="width:82px;height:82px;max-width:none;object-fit:cover;object-position:center 22%;display:block"></span>
+            <div class="c" style="gap:6px;align-items:flex-start">
+              <div class="h" style="font-size:21px;line-height:1.08;color:#fff;letter-spacing:.01em">GURUJI<br>TRAVEL YATRA</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px;color:rgba(255,255,255,.95);letter-spacing:.005em;padding-left:2px">Keep Guessing, Where&#39;s Next Trip?</div>
+          <div style="font-size:14px;color:#fff;line-height:1.5;max-width:340px">Creating journeys that touch your soul<br>and memories that last a lifetime.</div>
+          <div class="r" style="gap:10px;flex-wrap:nowrap;padding-top:2px">
+            <button style="width:46px;height:46px;border-radius:99px;background:linear-gradient(135deg,#f9ce34,#ee2a7b 48%,#6228d7);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 5px 14px rgba(0,0,0,.22);font-weight:800;font-size:17px" onClick="{{ noop }}"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.2" fill="#fff" stroke="none"/></svg></button>
+            <button style="width:46px;height:46px;border-radius:99px;background:#ff0000;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 5px 14px rgba(0,0,0,.22);font-weight:800;font-size:17px" onClick="{{ noop }}"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M9.5 8.2v7.6l6.5-3.8z"/></svg></button>
+            <button style="width:46px;height:46px;border-radius:99px;background:#1877f2;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 5px 14px rgba(0,0,0,.22);font-weight:800;font-size:17px" onClick="{{ noop }}"><span style="font-size:20px;font-weight:800;font-family:Georgia,serif">f</span></button>
+            <button style="width:46px;height:46px;border-radius:99px;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 5px 14px rgba(0,0,0,.22);font-weight:800;font-size:17px" onClick="{{ noop }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="#fff"><path d="M17.6 3h3.2l-6.9 7.9L21.5 21h-5.3l-4.2-5.5L7 21H3.8l7.3-8.3L3 3h5.4l3.9 5.2z"/></svg></button>
+            <button style="width:46px;height:46px;border-radius:99px;background:#0a66c2;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.16),0 5px 14px rgba(0,0,0,.22);font-weight:800;font-size:17px" onClick="{{ noop }}"><span style="font-size:16px;font-weight:800">in</span></button>
+          </div>
+          <div class="r" style="gap:8px;align-items:center"><span style="font-family:Caveat,cursive;font-size:24px;color:#fff;transform:rotate(-4deg);white-space:nowrap">Follow Our Journey</span><span style="font-size:21px;color:#fff;transform:rotate(-32deg);flex:none">&#8599;</span></div>
+        </div>
+
+      <div class="c ftcol" style="flex:1 1 140px;min-width:132px;gap:0;padding-left:22px;border-left:1px solid rgba(255,255,255,.26)">
+        <div style="font-size:11.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#fff;white-space:nowrap">Quick Links</div>
+        <div style="width:38px;height:2px;background:rgba(255,255,255,.5);margin:7px 0 14px"></div>
+        <div class="c" style="gap:9px;align-items:flex-start">
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goHome }}">Home</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Tour Packages</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goGroup }}">Group Tours</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goCustom }}">Customized Tours</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goAbout }}">About Us</button>
+        </div>
+      </div>
+      <div class="c ftcol" style="flex:1 1 140px;min-width:132px;gap:0;padding-left:22px;border-left:1px solid rgba(255,255,255,.26)">
+        <div style="font-size:11.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#fff;white-space:nowrap">Top Destinations</div>
+        <div style="width:38px;height:2px;background:rgba(255,255,255,.5);margin:7px 0 14px"></div>
+        <div class="c" style="gap:9px;align-items:flex-start">
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Kedarnath Yatra</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Badrinath Yatra</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Spiti Valley</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Varanasi</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Rameshwaram</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Vaishnodevi</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ goPack }}">Leh Ladakh</button>
+        </div>
+      </div>
+      <div class="c ftcol" style="flex:1 1 140px;min-width:132px;gap:0;padding-left:22px;border-left:1px solid rgba(255,255,255,.26)">
+        <div style="font-size:11.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#fff;white-space:nowrap">Support</div>
+        <div style="width:38px;height:2px;background:rgba(255,255,255,.5);margin:7px 0 14px"></div>
+        <div class="c" style="gap:9px;align-items:flex-start">
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">FAQs</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">Travel Tips</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">Cancellation Policy</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">Terms &amp; Conditions</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">Privacy Policy</button>
+          <button style="font-size:13.5px;color:rgba(255,255,255,.95);text-align:left" style-hover="color:#fff;text-decoration:underline" onClick="{{ noop }}">Refund Policy</button>
+        </div>
+      </div>
+
+      <div class="c ftcol" style="flex:1.3 1 200px;min-width:190px;gap:0;padding-left:22px;border-left:1px solid rgba(255,255,255,.26)">
+        <div style="font-size:11.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#fff;white-space:nowrap">Get In Touch</div>
+        <div style="width:38px;height:2px;background:rgba(255,255,255,.5);margin:7px 0 16px"></div>
+        <div class="c" style="gap:13px;align-items:flex-start">
+        <div class="r" style="gap:14px;align-items:center"><span style="width:29px;height:29px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z"/></svg></span><span style="font-size:13.5px;color:#fff">+91 90999 57658</span></div>
+        <div class="r" style="gap:14px;align-items:center"><span style="width:29px;height:29px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 5h18a1 1 0 0 1 1 1v.4l-10 6.1L2 6.4V6a1 1 0 0 1 1-1zm-1 3.9 10 6.1 10-6.1V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg></span><span style="font-size:13.5px;color:#fff">info@gurujitravelyatra.com</span></div>
+        <div class="r" style="gap:14px;align-items:center"><span style="width:29px;height:29px;border-radius:99px;background:#fff;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg></span><span style="font-size:13.5px;color:#fff">Ahmedabad, Gujarat, India</span></div>
+        </div>
+        <div style="font-family:Caveat,cursive;font-size:25px;line-height:1.05;color:#fff;margin:20px 0 0;transform:rotate(-5deg);transform-origin:left top;display:inline-block;width:max-content;text-align:left">Good<br>Trips<br>Brighter<br>Lives</div>
+      </div>
+      </div>
+    </div>
+
+    <div class="r" style="position:relative;background:#a80000;padding:16px var(--gx);justify-content:space-between;font-size:12.5px;color:rgba(255,255,255,.94);flex-wrap:wrap;gap:10px">
+      <span>&#169; 2026 Guruji Travel Yatra. All Rights Reserved.</span>
+      <span class="r" style="gap:8px;align-items:center">Designed with <span style="color:#ff6b5e;font-size:17px">&#10084;</span> for travellers</span>
+    </div>
+
+    <div class="wacard" style="position:absolute;left:50%;transform:translateX(-50%);top:74px;width:min(860px,70%);background:#fff;border-radius:18px;padding:16px 20px;box-shadow:0 18px 44px rgba(28,26,25,.20);z-index:3">
+      <div class="r wainner" style="gap:18px;align-items:center;flex-wrap:wrap">
+        <div class="r" style="gap:14px;align-items:center;flex:1.15;min-width:250px">
+          <span style="width:58px;height:58px;border-radius:99px;background:#25d366;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 8px 20px rgba(37,211,102,.4)"><svg viewBox="0 0 32 32" width="42" height="42" fill="#fff"><path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.7 6.4L3 29l6.8-1.7c1.9 1 4 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm7.3 18.2c-.3.9-1.8 1.7-2.5 1.8-.6.1-1.4.1-2.3-.2-3.6-1.2-6-4.7-6.2-4.9-.2-.3-1.5-2-1.5-3.9s1-2.8 1.3-3.2c.3-.4.7-.5 1-.5h.7c.2 0 .5 0 .8.6l1 2.4c.1.2.1.4 0 .6l-.4.7c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 1.7 1.3 2 1.4.2.1.4.1.6-.1l.9-1c.2-.2.4-.2.6-.1l2.3 1.1c.3.2.5.3.5.5.1.2.1.9-.4 1.6z"/></svg></span>
+          <div class="c" style="gap:6px;align-items:flex-start">
+            <div class="h" style="font-size:16.5px;line-height:1.15">Let&#39;s Plan Your Next Journey!</div>
+            <div style="font-size:12.5px;color:#4a4442">Chat with us on WhatsApp</div>
+            <div class="h" style="font-size:22px;line-height:1.1;padding-top:1px">+91 90999 57658</div>
+          </div>
+        </div>
+        <span class="wadiv" style="width:1.5px;align-self:stretch;min-height:78px;background:#f0b6b1;flex:none"></span>
+        <div class="r" style="flex:1.35;min-width:260px;gap:8px;justify-content:space-around">
+        <div class="c" style="flex:1;min-width:80px;gap:7px;align-items:center;text-align:center">
+          <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>
+          <span style="font-size:11.5px;color:#312e2c;line-height:1.3">Quick<br>Response</span>
+        </div>
+        <div class="c" style="flex:1;min-width:80px;gap:7px;align-items:center;text-align:center">
+          <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><circle cx="12" cy="8" r="3"/><circle cx="5.5" cy="10" r="2.4"/><circle cx="18.5" cy="10" r="2.4"/><path d="M6 20c0-4 2.7-6 6-6s6 2 6 6z"/><path d="M0.5 20c0-3 1.8-4.6 4.5-4.8V20z"/><path d="M23.5 20c0-3-1.8-4.6-4.5-4.8V20z"/></svg></span>
+          <span style="font-size:11.5px;color:#312e2c;line-height:1.3">Personalized<br>Assistance</span>
+        </div>
+        <div class="c" style="flex:1;min-width:80px;gap:7px;align-items:center;text-align:center">
+          <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M6 2h8l5 5v15H6z"/><path d="M8.5 11h7v1.6h-7zm0 3.4h7V16h-7zm0 3.4h4.6v1.6H8.5z" fill="#fde8e6"/></svg></span>
+          <span style="font-size:11.5px;color:#312e2c;line-height:1.3">Get Itinerary<br>&amp; Quotes</span>
+        </div>
+        <div class="c" style="flex:1;min-width:80px;gap:7px;align-items:center;text-align:center">
+          <span style="width:36px;height:36px;border-radius:99px;background:#fde8e6;color:#d80000;display:flex;align-items:center;justify-content:center;flex:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V5a1 1 0 0 1 1-1z"/><circle cx="9" cy="10" r="1.3" fill="#fde8e6"/><circle cx="12.5" cy="10" r="1.3" fill="#fde8e6"/><circle cx="16" cy="10" r="1.3" fill="#fde8e6"/></svg></span>
+          <span style="font-size:11.5px;color:#312e2c;line-height:1.3">Travel<br>Consultation</span>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+<div class="r" style="position:sticky;bottom:0;border-top:1px solid #efebe8;background:#fff;z-index:40">
+  <button class="btn" style="flex:1;border:0;justify-content:center" onClick="{{ call }}">✆ Call</button>
+  <button class="btn" style="flex:1;border:0;border-left:1px solid #efebe8;justify-content:center" onClick="{{ whatsapp }}">WhatsApp</button>
+  <button class="btn p" style="flex:1.2;justify-content:center" onClick="{{ openEnquire }}">Enquire</button>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+<div class="mask">
+  <div class="modal">
+    <sc-if value="{{ stepForm }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div class="r" style="padding:16px;justify-content:space-between;border-bottom:1px solid #efebe8;gap:12px"><div class="h" style="font-size:18px;line-height:1.15">{{ modalTitle }}</div><button onClick="{{ closeModal }}" style="color:#8a8481;font-size:16px">×</button></div>
+      <div class="c" style="padding:16px;gap:10px">
+        <div style="font-size:11px;color:#8a8481;line-height:1.5">{{ modalDesc }}</div>
+        <div class="wf" style="padding:10px;background:#faf8f7;font-size:11px"><span class="lbl">{{ ctxLabel }}</span><br><b>{{ ctxValue }}</b> <span style="color:#8a8481">· pre-filled from this page</span></div>
+        <div class="fld">Name *</div><div class="fld">Mobile Number *</div><div class="fld">Email</div>
+        <div class="r" style="gap:10px"><div class="fld" style="flex:1">Travel Date</div><div class="fld" style="flex:1">Travellers</div></div>
+        <div class="fld">City</div><div class="fld" style="height:56px;align-items:flex-start">Optional message</div>
+        <button class="btn p" onClick="{{ submitModal }}">{{ modalCta }} <span>→</span></button>
+        <div style="font-size:9px;color:#9b9797;line-height:1.5">We'll only use this to send your journey details. Server-side validated, rate-limited.</div>
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ stepSending }}" hint-placeholder-val="{{ false }}">
+      <div class="c" style="padding:44px var(--gx);gap:12px;align-items:center"><div class="lbl">Sending…</div><div class="wf bd" style="width:200px;height:8px;background:#faf8f7"><div style="height:100%;background:#d80000;width:60%"></div></div><div style="font-size:11px;color:#8a8481">Creating your lead in the CRM</div></div>
+    </sc-if>
+    <sc-if value="{{ stepDone }}" hint-placeholder-val="{{ false }}">
+    <div class="c" style="padding:24px;gap:12px;align-items:flex-start">
+      <div class="wf" style="width:40px;height:40px;border-color:#d80000;color:#d80000;display:flex;align-items:center;justify-content:center;font-size:20px">✓</div>
+      <div class="h" style="font-size:24px;line-height:1.1">Your journey<br>starts here.</div>
+      <div style="font-size:12px;color:#8a8481">{{ doneLine }}</div>
+      <div class="c" style="gap:8px;width:100%;margin-top:6px">
+        <sc-if value="{{ isBrochure }}" hint-placeholder-val="{{ true }}"><div class="c" style="gap:8px"><button class="btn p" onClick="{{ noop }}">View Brochure <span>→</span></button><button class="btn" onClick="{{ noop }}">Download Brochure <span>↓</span></button><div class="r" style="gap:8px"><button class="btn" style="flex:1" onClick="{{ noop }}">Send to Email</button><button class="btn" style="flex:1" onClick="{{ noop }}">On WhatsApp</button></div></div></sc-if>
+        <button class="btn" onClick="{{ closeModal }}">Keep Exploring <span>→</span></button>
+      </div>
+      <div class="wf bd" style="padding:10px;font-size:11.5px;color:#8a8481;width:100%;line-height:1.5">GTY has your details — our team will call you within business hours.</div>
+    </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:900}}">
+const DESTS = [
+  {name:'Kedarnath', region:'Uttarakhand', cat:'Spiritual', line:'Where the mountains hold their breath.', best:'May — Oct', dur:'5 — 7 days', diff:'Moderate', ideal:'Families, pilgrims'},
+  {name:'Badrinath', region:'Uttarakhand', cat:'Spiritual', line:'The last village before the sky.', best:'May — Oct', dur:'5 — 7 days', diff:'Easy', ideal:'Pilgrims, seniors'},
+  {name:'Spiti Valley', region:'Himachal Pradesh', cat:'Mountains', line:'Where the road ends, the adventure begins.', best:'Jun — Oct', dur:'8 — 10 days', diff:'Moderate', ideal:'Friends, couples'},
+  {name:'Varanasi', region:'Uttar Pradesh', cat:'Cultural', line:'A city older than memory.', best:'Oct — Mar', dur:'3 — 4 days', diff:'Easy', ideal:'Everyone'},
+  {name:'Rameshwaram', region:'Tamil Nadu', cat:'Spiritual', line:'Where the land meets its prayer.', best:'Oct — Apr', dur:'3 — 5 days', diff:'Easy', ideal:'Families'},
+  {name:'Kashmir', region:'Jammu & Kashmir', cat:'Family', line:'The valley everyone means when they say beautiful.', best:'Apr — Oct', dur:'6 — 8 days', diff:'Easy', ideal:'Families'},
+  {name:'Nepal', region:'International', cat:'Spiritual', line:'Pashupatinath to the peaks.', best:'Oct — Mar', dur:'7 days', diff:'Easy', ideal:'Pilgrims'},
+  {name:'Leh Ladakh', region:'Ladakh', cat:'Adventure', line:'Thin air, wide horizons.', best:'Jun — Sep', dur:'8 — 10 days', diff:'Challenging', ideal:'Adventurers'}
+];
+const PACKS = [
+  {name:'Spiti Valley Circuit', dest:'Spiti Valley', cat:'Adventure', dur:'9 Nights / 10 Days', meta:'9N / 10D · Starts Delhi · Adventure · 06 Oct 2026', price:'₹42,500', seats:'08 seats left', hot:true, start:'Delhi', end:'Shimla', dates:'06 — 15 Oct 2026'},
+  {name:'Do Dham Yatra — Kedarnath & Badrinath', dest:'Kedarnath', cat:'Spiritual', dur:'6 Nights / 7 Days', meta:'6N / 7D · Starts Haridwar · Spiritual · May–Oct', price:'₹28,900', seats:'Seats open', hot:false, start:'Haridwar', end:'Haridwar', dates:'Weekly · May — Oct'},
+  {name:'Kashi Darshan', dest:'Varanasi', cat:'Cultural', dur:'3 Nights / 4 Days', meta:'3N / 4D · Starts Varanasi · Cultural', price:'₹16,400', seats:'Sold out', hot:false, start:'Varanasi', end:'Varanasi', dates:'Next: Nov 2026'},
+  {name:'Kashmir Family Escape', dest:'Kashmir', cat:'Family', dur:'5 Nights / 6 Days', meta:'5N / 6D · Starts Srinagar · Family · Apr–Oct', price:'₹34,200', seats:'12 seats left', hot:true, start:'Srinagar', end:'Srinagar', dates:'Fortnightly'}
+];
+const TABS = [
+  ['Spiritual Yatra','Showing handpicked yatras — Kedarnath, Badrinath, Varanasi, Rameshwaram.'],
+  ['Group Tour','Showing upcoming departures with seats still open.'],
+  ['Family Holiday','Showing family-paced trips: Kashmir, Nepal, Rameshwaram.'],
+  ['Adventure','Showing Spiti, Leh Ladakh and high-altitude routes.'],
+  ['Custom Trip','Takes you to the trip builder — nine short questions.']
+];
+const GROUPS = [
+  {name:'Do Dham Yatra — Kedarnath & Badrinath', dest:'Kedarnath', dates:'12 — 18 May 2026', month:'May', board:'Ahmedabad · Delhi', dur:'6N / 7D', mgr:'Yes, GTY manager', price:'₹28,900', seats:'14 seats left', hot:true, cat:'Spiritual', script:'Faith\nBrings Us\nTogether'},
+  {name:'Spiti Valley Circuit', dest:'Spiti Valley', dates:'06 — 15 Oct 2026', month:'Oct', board:'Delhi', dur:'9N / 10D', mgr:'Yes, GTY manager', price:'₹42,500', seats:'08 seats left', hot:true, cat:'Adventure', script:'Where\nThe Road\nEnds'},
+  {name:'Chardham Special', dest:'Uttarakhand', dates:'02 — 13 Jun 2026', month:'Jun', board:'Haridwar', dur:'11N / 12D', mgr:'Yes, 2 managers', price:'₹54,000', seats:'22 seats left', hot:false, cat:'Spiritual', script:'Sacred\nSteps'},
+  {name:'Kashi · Ayodhya · Prayagraj', dest:'Varanasi', dates:'18 — 23 Nov 2026', month:'Nov', board:'Ahmedabad', dur:'5N / 6D', mgr:'Yes, GTY manager', price:'₹21,700', seats:'Sold out', hot:false, cat:'Spiritual', script:'Along\nThe Ganga'}
+];
+const PLACES = [
+  {name:'Kedarnath', region:'Uttarakhand'},{name:'Badrinath', region:'Uttarakhand'},{name:'Rishikesh', region:'Uttarakhand'},
+  {name:'Spiti Valley', region:'Himachal Pradesh'},{name:'Manali', region:'Himachal Pradesh'},{name:'Varanasi', region:'Uttar Pradesh'},
+  {name:'Ayodhya', region:'Uttar Pradesh'},{name:'Rameshwaram', region:'Tamil Nadu'},{name:'Dwarka', region:'Gujarat'},
+  {name:'Srinagar', region:'Jammu & Kashmir'},{name:'Leh', region:'Ladakh'},{name:'Kathmandu', region:'Nepal'}
+];
+const SERVICES = [
+  {i:'▤', t:'Hotels', d:'Vetted hotels near the temple, the ghat or the trailhead — booked at rates we hold as a tour operator.', tags:['Pilgrimage stays','City hotels','Twin & family rooms'], cta:'Check Hotel Rates'},
+  {i:'◆', t:'Resorts', d:'Weekend resorts and lakeside properties for families who want one place and no packing.', tags:['Weekend breaks','Family resorts','Corporate offsites'], cta:'See Resort Options'},
+  {i:'✈', t:'Flight Tickets', d:'Domestic and international ticketing, including group fares for departures of ten or more.', tags:['Domestic','International','Group fares'], cta:'Get Flight Quote'},
+  {i:'▬', t:'Train Tickets', d:'Confirmed rail bookings, tatkal assistance and group reservations on pilgrimage routes.', tags:['Confirmed berths','Group bookings','Tatkal help'], cta:'Request Train Booking'},
+  {i:'◍', t:'Cabs & Transfers', d:'Airport pickups, day cabs and tempo travellers with drivers who know the hill routes.', tags:['Airport transfers','Day cabs','Tempo traveller'], cta:'Book A Transfer'},
+  {i:'✔', t:'Visa & Travel Insurance', d:'Documentation help for Nepal, Bhutan and beyond, plus cover for medical and cancellation.', tags:['Visa assistance','Travel insurance','Forex'], cta:'Talk To Us'}
+];
+const GUIDE = [
+  {cat:'Before You Go', img:'packing flatlay', t:'What to pack for a Himalayan yatra', d:'Layers, footwear, medicines and the documents you must not leave behind.', read:'6 min read'},
+  {cat:'Health & Altitude', img:'mountain road', t:'Acclimatising above 10,000 feet', d:'How we pace Spiti and Ladakh itineraries, and what to do on day one.', read:'5 min read'},
+  {cat:'Best Time To Travel', img:'season calendar', t:'When to visit each dham', d:'Opening and closing dates, monsoon windows and the quietest weeks.', read:'8 min read'},
+  {cat:'Temple Etiquette', img:'temple steps', t:'Darshan, dress and queue rules', d:'What to wear, what to carry in, and how the VIP darshan lines actually work.', read:'4 min read'},
+  {cat:'Travelling With Family', img:'family group', t:'Yatras with seniors and children', d:'Palki and pony options, medical support and how to plan rest days.', read:'6 min read'},
+  {cat:'Money & Documents', img:'documents', t:'IDs, cash and connectivity', d:'Which IDs are checked where, ATM coverage on the route and network dead zones.', read:'3 min read'}
+];
+const FAQS = [
+  ['Are your tours pure vegetarian?','Yes. Meals on all yatra and group departures are pure vegetarian, cooked hygienically, and we accommodate Jain food on request.'],
+  ['Is a tour manager with us throughout?','On every group departure, yes. Custom trips get a driver-cum-guide and a planner on call for the whole journey.'],
+  ['Can senior citizens join the Himalayan yatras?','Most of our yatras are senior-friendly. We advise a medical check for Kedarnath and Spiti, and we arrange palki, pony or helicopter assistance.'],
+  ['What is the cancellation policy?','Cancellation is slab-based on days before departure. The exact slab for each tour is printed in that tour brochure and on the package page.'],
+  ['How do I pay, and is it in instalments?','A booking advance confirms your seat, with the balance due before departure. We accept UPI, bank transfer and cards.']
+];
+const SECTIONS = ['Inclusions','Exclusions','Hotels · Meals · Transport','Things to Carry · Important Notes','Cancellation Policy','FAQ'];
+const RAILS = [
+  {t:'Trending Tour Packages', items:[
+    {photos:11, name:'Explore Ladakh', dest:'Leh Ladakh', cat:'Adventure', dur:'7 Days 6 Nights', sub:'with Turtuk & Sham Valley', save:'4,000', price:'₹19,800', was:'₹23,800'},
+    {photos:14, name:'Spiti Valley Circuit', dest:'Spiti Valley', cat:'Adventure', dur:'9 Days 8 Nights', sub:'Shimla - Kaza - Chandratal', save:'5,200', price:'₹42,500', was:'₹47,700'},
+    {photos:8, name:'Do Dham Yatra', dest:'Kedarnath', cat:'Spiritual', dur:'6 Days 5 Nights', sub:'Kedarnath & Badrinath', save:'3,500', price:'₹28,900', was:'₹32,400'},
+    {photos:11, name:'Kashmir Family Escape', dest:'Kashmir', cat:'Family', dur:'6 Days 5 Nights', sub:'Srinagar - Gulmarg - Pahalgam', save:'4,000', price:'₹34,200', was:'₹38,200'},
+    {photos:14, name:'Kashi Darshan', dest:'Varanasi', cat:'Spiritual', dur:'4 Days 3 Nights', sub:'Varanasi - Sarnath - Prayagraj', save:'2,000', price:'₹16,400', was:'₹18,400'}
+  ]},
+  {t:'International Tour Packages', items:[
+    {photos:8, name:'Maldives Escape', dest:'Maldives', cat:'International', dur:'5 Days 4 Nights', sub:'Male - Maafushi - Water Villa', save:'8,000', price:'₹78,500', was:'₹86,500'},
+    {photos:11, name:'Singapore Highlights', dest:'Singapore', cat:'International', dur:'6 Days 5 Nights', sub:'with Sentosa & Universal Studios', save:'6,500', price:'₹64,900', was:'₹71,400'},
+    {photos:14, name:'Thailand Discovery', dest:'Thailand', cat:'International', dur:'7 Days 6 Nights', sub:'Bangkok - Pattaya - Phuket', save:'7,200', price:'₹58,400', was:'₹65,600'},
+    {photos:8, name:'Bali Getaway', dest:'Bali', cat:'International', dur:'6 Days 5 Nights', sub:'Ubud - Kuta - Nusa Penida', save:'6,000', price:'₹61,200', was:'₹67,200'},
+    {photos:11, name:'Dubai City Break', dest:'Dubai', cat:'International', dur:'5 Days 4 Nights', sub:'with Desert Safari & Burj Khalifa', save:'5,500', price:'₹54,800', was:'₹60,300'}
+  ]},
+  {t:'North India Tour Packages', items:[
+    {photos:14, name:'Manali Snow Trip', dest:'Manali', cat:'Family', dur:'5 Days 4 Nights', sub:'Solang - Rohtang - Kasol', save:'3,000', price:'₹18,600', was:'₹21,600'},
+    {photos:8, name:'Vaishno Devi Yatra', dest:'Vaishnodevi', cat:'Spiritual', dur:'4 Days 3 Nights', sub:'Katra - Bhawan - Bhairon', save:'2,200', price:'₹14,900', was:'₹17,100'},
+    {photos:11, name:'Golden Triangle', dest:'Uttarakhand', cat:'Cultural', dur:'6 Days 5 Nights', sub:'Delhi - Agra - Jaipur', save:'3,800', price:'₹26,400', was:'₹30,200'},
+    {photos:14, name:'Rishikesh Adventure', dest:'Rishikesh', cat:'Adventure', dur:'4 Days 3 Nights', sub:'Rafting - Camping - Ganga Aarti', save:'2,400', price:'₹12,800', was:'₹15,200'},
+    {photos:8, name:'Amritsar & Dharamshala', dest:'Uttarakhand', cat:'Cultural', dur:'6 Days 5 Nights', sub:'Golden Temple - Wagah - McLeodganj', save:'3,200', price:'₹24,700', was:'₹27,900'}
+  ]},
+  {t:'South India Tour Packages', items:[
+    {photos:11, name:'Rameshwaram Darshan', dest:'Rameshwaram', cat:'Spiritual', dur:'5 Days 4 Nights', sub:'Madurai - Rameshwaram - Kanyakumari', save:'2,800', price:'₹21,300', was:'₹24,100'},
+    {photos:14, name:'Kerala Backwaters', dest:'Kerala', cat:'Family', dur:'6 Days 5 Nights', sub:'Munnar - Alleppey - Kochi', save:'4,200', price:'₹31,500', was:'₹35,700'},
+    {photos:8, name:'Ooty & Coorg', dest:'Ooty', cat:'Family', dur:'5 Days 4 Nights', sub:'Ooty - Coonoor - Coorg', save:'3,100', price:'₹23,800', was:'₹26,900'},
+    {photos:11, name:'Tirupati Balaji Yatra', dest:'Tirupati', cat:'Spiritual', dur:'4 Days 3 Nights', sub:'Tirumala - Kanipakam - Srikalahasti', save:'2,000', price:'₹17,200', was:'₹19,200'},
+    {photos:14, name:'Goa Beach Holiday', dest:'Goa', cat:'Beach', dur:'5 Days 4 Nights', sub:'North Goa - South Goa - Dudhsagar', save:'3,400', price:'₹22,600', was:'₹26,000'}
+  ]}
+];
+const VIDEOS = [
+  {t:'Spiti Valley Circuit', w:'Departed 06 Oct 2026 · 42 travellers', k:'Spiti_Valley'},
+  {t:'Leh Ladakh Group Trip', w:'Departed 12 Sep 2026 · 28 travellers', k:'Leh'},
+  {t:'Kedarnath Do Dham Yatra', w:'Departed 18 Aug 2026 · 36 travellers', k:'Kedarnath_Temple'},
+  {t:'Kashmir Family Escape', w:'Departed 02 Aug 2026 · 24 travellers', k:'Kashmir_Valley'}
+];
+
+class Component extends DCLogic {
+  scrollRail = (e) => {
+    const btn = e && e.currentTarget;
+    const row = btn && btn.parentElement && btn.parentElement.querySelector('.railrow');
+    if (!row) return;
+    const start = row.scrollLeft, target = start + 320;
+    row.scrollLeft = start + 40;
+    for (let i = 2; i <= 8; i++) setTimeout(() => { row.scrollLeft = start + (target - start) * (i / 8); }, (i - 1) * 28);
+  };
+  scrollIntl = (e) => {
+    const btn = e && e.currentTarget;
+    const row = btn && btn.parentElement && btn.parentElement.querySelector('.intlrow');
+    if (!row) return;
+    const start = row.scrollLeft, target = start + 280;
+    row.scrollLeft = start + 35;
+    for (let i = 2; i <= 8; i++) setTimeout(() => { row.scrollLeft = start + (target - start) * (i / 8); }, (i - 1) * 28);
+  };
+  state = {screen:'home', vid:0, dest:null, pkg:PACKS[0], modal:null, step:'form', tab:0, cat:'All', pcat:null,
+    openDay:1, openSec:null, slide:0, device: (typeof window !== 'undefined' && window.innerWidth < 760) ? 'mobile' : 'desktop', score:1,
+    gmonth:'All', trip:[], tstyle:'Comfort', gcat:'All', faq:null,
+    events:[{t:'19:21', e:'Visited Home', s:'+1'}]};
+
+
+  componentDidMount() {
+    this._rz = () => { const d = window.innerWidth < 760 ? 'mobile' : 'desktop'; if (d !== this.state.device) this.setState({device:d}); };
+    window.addEventListener('resize', this._rz); this._rz();
+    this._slide = setInterval(() => this.setState(x => {
+      const n = (x.slide + 1) % 6;
+      const nx = (this._heroUrls || [])[(n + 1) % 6];
+      if (nx) { const i = new Image(); i.src = nx; }
+      return {slide: n};
+    }), 5000);
+  }
+  componentWillUnmount() { window.removeEventListener('resize', this._rz); clearInterval(this._slide); }
+  now() { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+  ev(e, pts) { this.setState(s => ({score: s.score + (pts||0), events: s.events.concat([{t:this.now(), e, s: pts ? '+' + pts : ''}]).slice(-14)})); }
+  go(screen, e, pts) { this.setState({screen, menu:false}); if (e) this.ev(e, pts); window.scrollTo(0,0); }
+
+  renderVals() {
+    const s = this.state, self = this;
+    const cats = ['All','Spiritual','Mountains','Beach','Adventure','Family','Cultural','International'];
+    const destList = DESTS.filter(d => s.cat === 'All' || d.cat === s.cat);
+    const d = s.dest || DESTS[0], p = s.pkg || PACKS[0];
+    const tripN = s.trip.reduce((a,t) => a + t.n, 0);
+    const SRC = {
+      'Kedarnath_Temple':'1621617249658-f7541ef42a93', 'Badrinath_Temple':'1518002054494-3a6f94352e9d',
+      'Spiti_Valley':'1599751229070-854ae5c90869', 'Varanasi':'1561359313-0639aad49ca6',
+      'Ramanathaswamy_Temple':'1565354785692-9e7523e5a87b', 'Kashmir_Valley':'1601618613229-ec7645fad6fa',
+      'Leh':'1617380613434-7495e9b45dfb', 'Rishikesh':'1613445607898-f46e51645acf', 'Manali':'1584395631446-e41b0fc3f68d',
+      'Himalayas':'1454496522488-7a8e488e8606', 'Ganges':'1596097825168-c9b773f404ff', 'Kathmandu':'1637846959991-18e54d6e2035',
+      'hero':'1607836046730-3317bd58a31b', 'group':'1572109801525-0bb0272e8579',
+      'hotel':'1608412525537-662195e817c5', 'train':'1627894483216-2138af692e32',
+      'Maldives':'1514282401047-d79a71a590e8', 'Singapore':'1525625293386-3f8f99389edd',
+      'Thailand':'1528181304800-259b08848526', 'Malaysia':'1596422846543-75c6fc197f07',
+      'Bali':'1537996194471-e657df975ab4', 'Dubai':'1512453979798-5ea266f8880c',
+      'Kerala':'1602216056096-3b40127fbaa4', 'Ooty':'1580888908280-1a06b30d7fc9',
+      'Tirupati':'1621451537084-482c73073a0f', 'Goa':'1512343879784-a960bf40e7f2',
+      'Vaishnodevi':'1609920658906-8223bd289001'};
+    const url = t => 'url("https://images.unsplash.com/photo-' + (SRC[t] || SRC['Himalayas']) + '?auto=format&fit=crop&w=1400&q=70")';
+    const BY = {'Kedarnath':'Kedarnath_Temple','Badrinath':'Badrinath_Temple','Spiti Valley':'Spiti_Valley','Varanasi':'Varanasi',
+      'Rameshwaram':'Ramanathaswamy_Temple','Kashmir':'Kashmir_Valley','Nepal':'Kathmandu','Leh Ladakh':'Leh','Uttarakhand':'Badrinath_Temple'};
+    const photoFor = name => url(BY[name] || (SRC[name] ? name : 'Himalayas'));
+    const GPH = ['Rishikesh','Himalayas','Spiti_Valley','Kedarnath_Temple','Varanasi','Ganges'];
+    const pool = Object.keys(SRC).slice(0,12).map(url);
+    const label = s.score >= 40 ? 'VERY HOT · ' + s.score : s.score >= 20 ? 'HOT · ' + s.score : s.score >= 8 ? 'WARM · ' + s.score : 'NEW · ' + s.score;
+    const openDest = dd => () => { this.setState({dest:dd, screen:'destDetail'}); this.ev('Viewed ' + dd.name, 2); window.scrollTo(0,0); };
+    const openPack = pp => () => { this.setState({pkg:pp, screen:'packDetail', openDay:1, openSec:null}); this.ev('Viewed ' + pp.name, 3); window.scrollTo(0,0); };
+    const brochureFor = pp => () => { this.setState({pkg:pp, modal:'brochure', step:'form'}); this.ev('Opened brochure form · ' + pp.name, 0); };
+
+    return {
+      heroPhoto: (this._heroUrls = ['hero','Himalayas','Varanasi','Kashmir_Valley','Leh','Rishikesh'].map(k => url(k).slice(5,-2)), 'url("' + this._heroUrls[s.slide % 6] + '")'),
+      ph: {hero: url('hero'), himalaya: url('Himalayas'), ganges: url('Ganges'), rishikesh: url('Rishikesh'),
+        group: url('Rishikesh'), group2: url('Himalayas'), feed: url('Spiti_Valley'), spiti: url('Spiti_Valley')},
+      aboutTiles: Array.from({length:4}, (_,i) => ({bg: pool[(i + 3) % pool.length]})),
+      pkgPhoto: photoFor((s.pkg || PACKS[0]).dest),
+      crumb: {home:'Home', pack:'Tour Packages', packDetail:'Package detail', group:'Group Tours', custom:'Customized Tours', about:'About Us', admin:'Admin'}[s.screen],
+      ctaShort: s.device === 'mobile' ? 'Enquire' : 'Enquire Now',
+      isDesktop: s.device === 'desktop', isMobile: s.device === 'mobile',
+      toTop: () => window.scrollTo({top:0, behavior:'smooth'}),
+
+      isHome: s.screen === 'home',
+      isPack: s.screen === 'pack', isPackDetail: s.screen === 'packDetail', isAbout: s.screen === 'about',
+      isGroup: s.screen === 'group', isCustom: s.screen === 'custom', 
+      navHome: s.screen === 'home' ? 'on' : '',
+      navPack: s.screen === 'pack' || s.screen === 'packDetail' ? 'on' : '',
+      navGroup: s.screen === 'group' ? 'on' : '', navCustom: s.screen === 'custom' ? 'on' : '',
+      navAbout: s.screen === 'about' ? 'on' : '',
+      goHome: () => this.go('home'),
+      goPack: () => this.go('pack', 'Browsed Tour Packages', 2), goAbout: () => this.go('about'),
+      goGroup: () => this.go('group', 'Browsed Group Tours', 2), goCustom: () => this.go('custom', 'Opened trip builder', 3),
+      
+      menuOpen: !!s.menu, toggleMenu: () => this.setState(x => ({menu: !x.menu})),
+      menu: [['home','Home'],['pack','Tour Packages'],['group','Group Tours'],['custom','Customized Tours'],['about','About Us']].map(m => ({
+        name:m[1], color: s.screen === m[0] ? '#d80000' : '#1c1a19', go: () => this.go(m[0])})),
+
+      tabs: TABS.map((t,i) => ({name:t[0], cls: i === s.tab ? 'on' : '', pick: () => this.setState({tab:i})})),
+      tabHint: TABS[s.tab][1],
+      searchLabel: 'Where do you want to go?',
+      exploreNow: () => this.go(s.tab === 4 ? 'custom' : s.tab === 1 ? 'group' : 'pack', 'Used discovery — ' + TABS[s.tab][0], 2),
+      watchStory: () => this.ev('Watched brand film', 1),
+      call: () => this.ev('Clicked Call', 15), whatsapp: () => this.ev('Clicked WhatsApp', 15),
+      noop: () => {},
+
+      whys: [{i:'☸', t:'Curated Yatras', d:'Handpicked spiritual journeys & destinations'},{i:'✷', t:'Trusted Since 8+ Years', d:'Thousands of happy travellers every year'},{i:'◍', t:'24/7 Travel Support', d:"We're with you at every step of your journey"},{i:'♨', t:'Pure Veg Meals', d:'Hygienic & delicious food on all tours'},{i:'✓', t:'Safe & Comfortable', d:'Well-planned trips with safety & comfort'}],
+      metrics: [{i:'☺', n:'10,000+', l:'Happy Travellers'},{i:'◍', n:'150+', l:'Destinations'},{i:'☰', n:'500+', l:'Group Tours'},{i:'✷', n:'8+', l:'Years of Experience'},{i:'♥', n:'98%', l:'Traveller Satisfaction'}],
+      popular: [
+        {name:'Spiti Valley Bike Trip', cat:'Adventure', photos:12, dest:'Spiti Valley', dur:'8 Days 7 Nights', sub:'Delhi - Chitkul - Kaza - Chandratal - Manali', save:'4,000', price:'₹25,800', was:'₹29,800'},
+        {name:'Leh Ladakh Group Trip from Delhi', cat:'Himalaya', photos:14, dest:'Leh Ladakh', dur:'10 Days 9 Nights', sub:'with Umling La & Tso Moriri', save:'4,000', price:'₹33,800', was:'₹37,800'},
+        {name:'Do Dham Yatra', cat:'Spiritual', photos:10, dest:'Kedarnath', dur:'7 Days 6 Nights', sub:'Haridwar - Guptkashi - Kedarnath - Badrinath', save:'3,000', price:'₹28,900', was:'₹31,900'},
+        {name:'Kashmir Family Escape', cat:'Family Trip', photos:14, dest:'Kashmir', dur:'6 Days 5 Nights', sub:'Srinagar - Gulmarg - Pahalgam - Sonmarg', save:'4,000', price:'₹34,200', was:'₹38,200'},
+        {name:'Kashi Darshan', cat:'Pilgrimage', photos:10, dest:'Varanasi', dur:'4 Days 3 Nights', sub:'Varanasi - Sarnath - Prayagraj', save:'2,000', price:'₹16,400', was:'₹18,400'}
+      ].map(t => ({...t, photo: photoFor(t.dest),
+        open: () => { this.setState({pcat:null, screen:'pack'}); this.ev('Viewed ' + t.name, 2); window.scrollTo(0,0); }})),
+
+      scrollIntl: this.scrollIntl,
+      scrollRail: this.scrollRail,
+      packRails: RAILS.map((r,ri) => ({title:r.t, bg: ri % 2 ? '#f1efed' : '#fff',
+        items: r.items.filter(it => !s.pcat || it.cat === s.pcat).map(it => ({...it, photo: photoFor(it.dest),
+          open: () => { this.setState({pkg: PACKS[0], screen:'packDetail'}); this.ev('Opened ' + it.name, 3); window.scrollTo(0,0); }}))
+      })).filter(r => r.items.length),
+      intl: ['Maldives','Singapore','Thailand','Malaysia','Bali','Dubai'].map(n => ({name:n, photo: url(n),
+        open: () => { this.setState({pcat:null, screen:'pack'}); this.ev('Viewed international · ' + n, 2); window.scrollTo(0,0); }})),
+
+      videoPhoto: url(VIDEOS[s.vid % VIDEOS.length].k),
+      videoTitle: VIDEOS[s.vid % VIDEOS.length].t,
+      videoWhen: VIDEOS[s.vid % VIDEOS.length].w,
+      tripVideos: [],
+
+      monthChips: ['All','May','Jun','Oct','Nov','Dec'].map(m => ({name: m === 'All' ? 'All Departures' : m + ' 2026',
+        cls: m === s.gmonth ? 'on' : '', pick: () => this.setState({gmonth:m})})),
+      departures: GROUPS.filter(g => s.gmonth === 'All' || g.month === s.gmonth).map(g => ({
+        name:g.name, dest:g.dest, photo: photoFor(g.dest), dates:g.dates, board: 'Ex ' + g.board.split(' · ')[0], dur:g.dur, mgr:g.mgr, price:g.price, seats:g.seats,
+        cat: g.cat || 'Spiritual', script: g.script || 'Journeys Together',
+        seatCls: g.hot ? 'on' : '',
+        brochure: () => { this.setState({modal:'brochure', step:'form'}); this.ev('Opened brochure form · ' + g.name, 0); },
+        book: () => { this.setState({modal:'enquire', step:'form'}); this.ev('Reserve a seat · ' + g.name, 5); }})),
+
+      clearTrip: () => this.setState({trip: []}),
+      placePool: PLACES.map(pl => ({name:pl.name, photo: photoFor(pl.name), cls: s.trip.some(t => t.name === pl.name) ? 'on' : '',
+        add: () => this.setState(x => x.trip.some(t => t.name === pl.name) ? {} : ({trip: x.trip.concat([{name:pl.name, region:pl.region, n:2}])}))})),
+      trip: s.trip.map((t,i) => ({no: i + 1, name:t.name, region:t.region, nights: t.n + (t.n === 1 ? ' night' : ' nights'),
+        more: () => this.setState(x => ({trip: x.trip.map((y,j) => j === i ? Object.assign({}, y, {n: Math.min(y.n + 1, 9)}) : y)})),
+        less: () => this.setState(x => ({trip: x.trip.map((y,j) => j === i ? Object.assign({}, y, {n: Math.max(y.n - 1, 1)}) : y)})),
+        remove: () => this.setState(x => ({trip: x.trip.filter((y,j) => j !== i)}))})),
+      tripEmpty: s.trip.length === 0,
+      tripStops: String(s.trip.length),
+      tripSummary: s.trip.length ? s.trip.length + (s.trip.length === 1 ? ' stop added' : ' stops added') : 'nothing added yet',
+      tripNights: s.trip.length ? tripN + (tripN === 1 ? ' night' : ' nights') + ' / ' + (tripN + 1) + ' days' : 'Empty Trip',
+      tripRoute: s.trip.length ? s.trip.map(t => t.name).join('  →  ') : 'Your selected places will appear here in order.',
+      tripStyle: s.tstyle,
+      tripCost: s.trip.length ? '₹' + (tripN * (s.tstyle === 'Budget' ? 3200 : s.tstyle === 'Premium' ? 8600 : 5400)).toLocaleString('en-IN') + ' pp' : '—',
+      styleChips: ['Budget','Comfort','Premium','Luxury'].map(c => ({name:c, cls: c === s.tstyle ? 'on' : '', pick: () => this.setState({tstyle:c})})),
+
+      services: SERVICES.map((sv,i) => ({i:sv.i, t:sv.t, d:sv.d, tags:sv.tags, cta:sv.cta, photo: pool[(i + 6) % pool.length]})),
+
+      guideCats: ['All'].concat(GUIDE.map(g => g.cat)).map(c => ({name:c, cls: c === s.gcat ? 'on' : '', pick: () => this.setState({gcat:c})})),
+      guideArticles: GUIDE.filter(g => s.gcat === 'All' || g.cat === s.gcat).map(g => Object.assign({}, g, {photo: url(GPH[GUIDE.indexOf(g)])})),
+      guideFaq: FAQS.map((f,i) => ({q:f[0], a:f[1], open: s.faq === i, sign: s.faq === i ? '−' : '+',
+        toggle: () => this.setState({faq: s.faq === i ? null : i})})),
+
+      ...['All','Spiritual','Adventure','Family','Cultural','Honeymoon','Wildlife'].reduce((o,c) => {
+        o['cat' + c] = (c === 'All' ? !s.pcat : s.pcat === c) ? 'on' : '';
+        o['pick' + c] = () => this.setState({pcat: c === 'All' ? null : (s.pcat === c ? null : c)});
+        return o; }, {}),
+      clearPackCat: () => this.setState({pcat:null}),
+      packCount: RAILS.reduce((a,r) => a + r.items.filter(it => !s.pcat || it.cat === s.pcat).length, 0) + ' journeys',
+
+      pkgName: p.name, pkgDur: p.dur, pkgCat: p.cat, pkgPrice: p.price, pkgSeats: p.seats,
+      pkgStart: p.start, pkgEnd: p.end, pkgDates: p.dates,
+      days: [[1,'Delhi — journey begins'],[2,'Narkanda — overnight stay'],[3,'Kaza — Spiti begins']].map(x => ({
+        no: 'DAY 0' + x[0], place: x[1], open: s.openDay === x[0], sign: s.openDay === x[0] ? '−' : '+',
+        toggle: () => this.setState({openDay: s.openDay === x[0] ? null : x[0]})})),
+      sections: SECTIONS.map(n => ({name:n, open: s.openSec === n, sign: s.openSec === n ? '−' : '+',
+        toggle: () => { this.setState({openSec: s.openSec === n ? null : n}); if (n === 'FAQ') self.ev('Opened FAQ', 1); }})),
+
+      timeline: [{y:'2015', d:'First Kedarnath yatra, 22 travellers'},{y:'2018', d:'Group tours across four states'},{y:'2022', d:'10,000th traveller'},{y:'2026', d:'150+ destinations, 10,000+ travellers'}],
+      submitContact: () => { this.setState({modal:'enquire', step:'done'}); this.ev('Submitted enquiry — Contact page', 20); },
+
+
+      events: s.events, scoreLabel: label, scoreText: String(s.score),
+      modalOpen: !!s.modal, isBrochure: s.modal === 'brochure',
+      stepForm: s.step === 'form', stepSending: s.step === 'sending', stepDone: s.step === 'done',
+      modalTitle: s.modal === 'brochure' ? 'Get Your Complete Travel Brochure' : 'Talk to GTY',
+      modalDesc: s.modal === 'brochure' ? 'Get the complete itinerary, inclusions, pricing and travel information.' : "Tell us where you're headed and we'll shape the journey around you.",
+      modalCta: s.modal === 'brochure' ? 'Get My Brochure' : 'Start Your Journey',
+      ctxLabel: s.modal === 'brochure' ? 'Brochure for' : 'Enquiring about',
+      ctxValue: s.screen === 'custom' ? (s.trip.length ? 'Custom trip · ' + s.trip.map(t => t.name).join(' → ') : 'Custom trip')
+        : s.screen === 'services' ? 'Hotels · tickets · transfers'
+        : s.screen === 'group' ? 'Group departure' : p.name + ' · ' + p.dur,
+      doneLine: s.modal === 'brochure' ? 'Your brochure is ready.' : "We've got it — GTY will call you within business hours.",
+      openEnquire: () => { this.setState({modal:'enquire', step:'form'}); },
+      openBrochure: () => { this.setState({modal:'brochure', step:'form'}); },
+      closeModal: () => this.setState({modal:null, step:'form'}),
+      submitModal: () => {
+        const kind = s.modal === 'brochure' ? 'Requested brochure' : 'Submitted enquiry';
+        this.setState({step:'sending'});
+        setTimeout(() => { this.setState({step:'done'}); this.ev(kind + ' · ' + (s.pkg ? s.pkg.name : ''), s.modal === 'brochure' ? 10 : 20); }, 900);
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

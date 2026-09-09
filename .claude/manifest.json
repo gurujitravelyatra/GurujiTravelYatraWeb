@@ -1,0 +1,116 @@
+{
+  "name": "nestjs-react",
+  "description": "NestJS 10 + React 18 + PNPM monorepo — full-stack multi-agent pack with ADO, Figma, SonarCloud, and localization support.",
+  "version": "1.0.0",
+  "requiredConfig": [
+    "project.name",
+    "user.username",
+    "monorepo.type",
+    "monorepo.apps",
+    "monorepo.packages",
+    "monorepo.appPaths",
+    "stack.backend.framework",
+    "stack.frontend.framework",
+    "stack.testing.unit",
+    "stack.packageManager"
+  ],
+  "optionalIntegrations": [
+    "ado",
+    "sonarcloud",
+    "figma",
+    "localization"
+  ],
+  "agents": {
+    "framework": [
+      "orchestrator",
+      "orchestrator-pipelines",
+      "orchestrator-dag",
+      "orchestrator-pr",
+      "critical-thinker",
+      "monorepo-architect"
+    ],
+    "pack": [
+      "backend",
+      "frontend",
+      "frontend-refactor",
+      "frontend-tests",
+      "backend-tests",
+      "storybook",
+      "ux-design",
+      "ux-to-spec",
+      "func-to-tech-spec",
+      "func-spec-writer",
+      "e2e",
+      "infra",
+      "sonarcloud",
+      "localize",
+      "ado-feature-briefing",
+      "ado-issue-intake",
+      "ado-crawler",
+      "doc-to-ado",
+      "figma-sync",
+      "figma-designer"
+    ],
+    "conditionalAgents": {
+      "ado.enabled": ["ado-feature-briefing", "ado-issue-intake", "ado-crawler", "doc-to-ado"],
+      "figma.enabled": ["figma-sync", "figma-designer"],
+      "sonarcloud.enabled": ["sonarcloud"],
+      "localization.enabled": ["localize"]
+    }
+  },
+  "skills": {
+    "framework": [
+      "brainstorming",
+      "memory-review",
+      "pipeline-learning",
+      "verification-quality",
+      "v3-security-overhaul",
+      "github-code-review",
+      "pr-review-aggregate",
+      "skill-builder"
+    ],
+    "pack": [
+      "ado-fetch",
+      "ado-create-work-items",
+      "spec-template",
+      "spec-update",
+      "impact-analysis",
+      "design-compliance",
+      "design-guidelines-loader",
+      "design-workflow",
+      "figma-audit",
+      "figma-design-intake",
+      "figma-token-mapping",
+      "sonarcloud-analysis"
+    ],
+    "conditionalSkills": {
+      "ado.enabled": ["ado-fetch", "ado-create-work-items"],
+      "figma.enabled": ["design-workflow", "figma-audit", "figma-design-intake", "figma-token-mapping"],
+      "sonarcloud.enabled": ["sonarcloud-analysis"]
+    }
+  },
+  "baseFiles": [
+    "_base-project",
+    "_base-spec",
+    "_base-design",
+    "_base-figma",
+    "_refs"
+  ],
+  "conditionalBaseFiles": {
+    "figma.enabled": ["_base-figma"]
+  },
+  "pipelines": [
+    "feature",
+    "issue",
+    "ux",
+    "spec",
+    "frontend-only",
+    "backend-only",
+    "push",
+    "pr-review",
+    "doc-to-ado",
+    "ideation",
+    "figma-design",
+    "figma-sync"
+  ]
+}

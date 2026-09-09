@@ -1,0 +1,365 @@
+{
+  "attribution": {
+    "commit": "Co-Authored-By: claude-flow <ruv@ruv.net>",
+    "pr": "🤖 Generated with [claude-flow](https://github.com/ruvnet/claude-flow)"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx claude-flow:*)",
+      "Bash(npx @claude-flow/cli:*)",
+      "mcp__claude-flow__:*",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "Bash(npx react-scripts test:*)",
+      "Edit(/.claude/skills/brainstorming/**)",
+      "mcp__azure-devops__repo_list_repos_by_project",
+      "mcp__fluentui__fluent-data-table-pattern",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);[print\\(f'count={r[1]}\\\\n tenants={r[2]}\\\\n error={r[0]}\\\\n'\\) for r in d['tables'][0]['rows']]\")",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);r=d['tables'][0]['rows'];print\\('NONE — tenant 372 not seen in downstream worker logs in window' if not r else '\\\\n'.join\\(f'{x[0]} {x[1]}' for x in r\\)\\)\")",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);r=d['tables'][0]['rows'];print\\('\\\\n'.join\\(f'{x[0]:11} rc={x[1]:3} n={x[3]:4} subj={x[2]}' for x in r\\)\\)\")",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);r=d['tables'][0]['rows'];print\\('\\\\n'.join\\(f'- {x[0]}' for x in r\\)\\)\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest useDeepLinkRequestAction --verbose)",
+      "Bash(awk '/await this\\\\.notificationsService\\\\.send\\\\\\(/{p=1} p{print NR\": \"$0; if \\(/\\\\\\);$/\\)p=0}' /Users/lucalewerenz/ExternalUserManagerAI/backend/src/modules/requests/requests.service.ts)",
+      "Bash(awk '/await this\\\\.notificationsService\\\\.send\\\\\\(/{p=1; line=NR} p{print NR\": \"$0; if \\(/\\\\\\);$/\\)p=0}' /Users/lucalewerenz/ExternalUserManagerAI/backend/src/modules/organization-requests/organization-requests.service.ts)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('---pm---'\\); console.log\\(p.packageManager||'n/a'\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('root scripts:'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('pm:', p.packageManager\\)\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/common/_lib/is-email-address.spec.ts src/modules/notifications/notifications.service.spec.ts src/modules/permissions/notification-recipients.service.spec.ts)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest notification-recipients.service.spec notifications.service.spec)",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-a685cc33ec40857a0 status --short)",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-a685cc33ec40857a0 diff --stat)",
+      "Bash(ls src/workers/activities/__tests__/)",
+      "Bash(ls src/workers/*.spec.ts)",
+      "Bash(git --no-pager diff backend/src/modules/notifications/notifications.service.spec.ts)",
+      "Bash(git --no-pager diff functions/src/shared/mail/sendgrid.transport.spec.ts)",
+      "Bash(git --no-pager diff backend/src/modules/permissions/notification-recipients.service.spec.ts)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(Object.keys\\(p.scripts||{}\\).filter\\(k=>/lint|biome/.test\\(k\\)\\).map\\(k=>k+': '+p.scripts[k]\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-ab4e0337d3e594c7a diff)",
+      "Bash(git -C /tmp/pr-9542 apply --check /tmp/fix-9542.patch)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/common/_lib/is-email-address.spec.ts src/modules/notifications/notifications.service.spec.ts src/modules/permissions/notification-recipients.service.spec.ts)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/shared/mail/sendgrid.transport.spec.ts)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/shared/mail/)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/onboarding/onboarding-config.service.spec.ts -t \"createMedia\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/onboarding/onboarding-config.service.spec.ts)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/onboarding)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('PR #'+str\\(d['pullRequestId']\\)\\); print\\('URL: https://dev.azure.com/solutions2share/External%20User%20Manager/_git/ExternalUserManagerAI/pullrequest/'+str\\(d['pullRequestId']\\)\\)\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);r=d['tables'][0]['rows'];print\\('\\\\n'.join\\(f'{x[0]:10} n={x[3]:4} subj=\\\\\"{x[1]}\\\\\" err={x[2]}' for x in r\\) or 'none'\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(git --no-pager status -b --short)",
+      "Bash(sed -n '2228,2262p' backend/src/modules/access-reviews/access-reviews.service.ts)",
+      "Bash(sed -n '1815,1855p' backend/src/modules/access-reviews/access-reviews.service.ts)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/modules/access-reviews/access-reviews.service.spec.ts)",
+      "mcp__azure-devops__wit_link_work_item_to_pull_request",
+      "mcp__azure-devops__wit_add_work_item_comment",
+      "Bash(pnpm --filter frontend exec tsc --noEmit --project tsconfig.json)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest --testPathPatterns=\"src/components/Eumi/eumiAlertBus\")",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest --testPathPatterns=\"src/components/Eumi/eumiAlertBus\")",
+      "Bash(mkdir -p /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/eumi-resizable-mascot/frontend/src/components/Eumi/__tests__)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest --testPathPatterns=\"Eumi/__tests__\")",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest --testPathPatterns=\"Eumi/__tests__/eumiLauncherSizeBus\" --verbose)",
+      "Bash(awk '/async getTenantGuestPolicy\\\\\\(/,/^  }$/' backend/src/modules/admin-settings/admin-settings.service.ts)",
+      "Bash(az bicep *)",
+      "Bash(rm -f bicep_err.txt)",
+      "Bash(echo \"=== build staging.bicepparam ===\" && az bicep build-params --file parameters/staging.bicepparam --stdout > /dev/null 2>params_err.txt; echo \"exit: $?\"; grep -i \"error\" params_err.txt || echo \"\\(no param errors\\)\"; rm -f params_err.txt; echo \"=== infra jest tests ===\" && pnpm test 2>&1 | tail -25)",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('PR #'+str\\(d['pullRequestId']\\)+': '+d['repository']['webUrl']+'/pullrequest/'+str\\(d['pullRequestId']\\)\\)\")",
+      "Bash(which gh *)",
+      "Read(//usr/local/bin/**)",
+      "Bash(mcp__azure-devops__mcp_ado_repo_create_pull_request --project 'External User Manager' --repositoryId ExternalUserManagerAI --title 'feat\\(eumi\\): earlier auto-shrink + drag-to-resize grip with persistence' --sourceRefName refs/heads/luca/eumi-resizable-mascot --targetRefName refs/heads/master)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/admin-settings/admin-settings.service.spec.ts)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/modules/admin-settings/admin-settings.service.spec.ts)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/common/services/graph-high-token.service.spec.ts src/modules/admin-settings/admin-settings.service.spec.ts)",
+      "Bash(node --experimental-vm-modules /Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/jest src/modules/admin-settings/ src/common/services/graph-high-token.service.spec.ts)",
+      "Bash(/Users/lucalewerenz/ExternalUserManagerAI/node_modules/.bin/tsc -p tsconfig.json --noEmit)",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-a0d62240cd61664c5 add -A -N)",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-a0d62240cd61664c5 diff)",
+      "Bash(git -C /Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/agent-a0d62240cd61664c5 status --short)",
+      "Bash(git -C /tmp/pr-banner apply --check /tmp/fix-banner.patch)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/settings/settings.service.spec.ts -t \"Bug #9559\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/settings/settings.service.spec.ts)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/settings src/modules/unmanaged-externals)",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(echo \"ESLINT_EXIT=$?\")",
+      "Bash(sed -n '1376,1404p' backend/src/modules/unmanaged-externals/unmanaged-externals.service.ts)",
+      "Bash(sed -n '278,294p' functions/src/workers/unmanaged-externals-process-worker.ts)",
+      "Bash(az ad *)",
+      "Bash(az webapp *)",
+      "Bash(awk '/enum RequestState/{f=1} f{print NR\": \"$0} f&&/}/{c++; if\\(c>=1 && /}/\\) exit}' /Users/lucalewerenz/External%20User%20Manager/S2S_ExternalUserManager/Source/Models/Responses/Request.cs)",
+      "Bash(AZURE_APP_URI=fd-eum-staging-endpoint-cvhycfdagwacc4hj.z03.azurefd.net az bicep build-params --file infra/parameters/staging.bicepparam --stdout)",
+      "Bash(python3 -c 'import sys,json *)",
+      "Bash(AZURE_APP_URI=fd-eum-staging-endpoint-cvhycfdagwacc4hj.z03.azurefd.net az bicep build-params --file infra/parameters/staging.bicepparam --outfile /tmp/sp.json)",
+      "Bash(echo \"--- exit $? ---\")",
+      "Bash(python3 -c \"import json;d=json.load\\(open\\('/tmp/sp.json'\\)\\);print\\('VALUE:', d['parameters']['serviceAccountRedirectUri']['value']\\)\")",
+      "Bash(grep \"\\\\.cs$\")",
+      "Bash(awk '$1+$2>0')",
+      "Bash(awk '$1+$2>0 {print}')",
+      "Bash(grep -iA3 \"model Setting\")",
+      "Bash(grep -rln \"tenants/\\\\${.*}/settings\\\\|/settings'\\\\|getTenantSettings\\\\|tenantId: number\" backend/src --include=\"*.ts\")",
+      "Bash(grep -rln \"/settings\\\\`\" backend/src --include=\"*.ts\")",
+      "Bash(grep -iA2 \"model Tenant\")",
+      "Bash(git -C .. branch --show-current)",
+      "Bash(sed -n '203,220p' src/modules/unmanaged-externals/unmanaged-externals-internal.controller.ts)",
+      "Bash(sed -n '/async getBlacklistedTeamIds/,/^  }/p' src/modules/unmanaged-externals/unmanaged-externals.service.ts)",
+      "Bash(echo \"EXIT of grep \\(1=no matches=clean\\): $?\")",
+      "Bash(echo \"ESLINT EXIT: $?\")",
+      "Bash(grep -iE \"findUnique|getBlacklistedTeamIdsByNumericId|getBatchWorkerSettings|TENANT_INTERNAL_ID|NotFoundException|numeric|resolves|coerces|merges|describe|it\\\\\\(|expect|mockResolvedValue|mock|//|\\\\}|\\\\{|async|await|String\\\\\\(|toHave|rejects|\\\\\\)|enable|return|const|tenant:|^\\\\+$|^\\\\-$\")",
+      "mcp__azure-devops__repo_get_pull_request_changes",
+      "Bash(cat)",
+      "Bash(bash /tmp/check_endpoints.sh)",
+      "Bash(cat > *)",
+      "Bash(awk 'NR>=820 && NR<=882 && \\(/private |public |async [a-zA-Z]+\\\\\\(|^  [a-zA-Z].*\\\\\\(/\\)' backend/src/modules/onboarding/onboarding.service.ts)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(r[0], r[1]\\) for r in d['tables'][0]['rows']]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; print\\('NO ROWS' if not rows else ''\\); [print\\(r[2], '|', r[0], '|', r[1]\\) for r in rows]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; cols=[c['name'] for c in d['tables'][0]['columns']]; print\\('NO ROWS' if not rows else ''\\); [print\\('---\\\\n[count]',r[cols.index\\('c'\\)],'| last',r[cols.index\\('last'\\)],'\\\\n',r[cols.index\\('message'\\)]\\) for r in rows]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; print\\('NO ROWS' if not rows else ''\\); [print\\('---',r[0],'\\\\n',r[1]\\) for r in rows]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; cols=[c['name'] for c in d['tables'][0]['columns']]; print\\('NO ROWS' if not rows else ''\\); [print\\(r[0],'| count',r[1],'| first',r[2],'| last',r[3]\\) for r in rows]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; print\\('NO ROWS' if not rows else ''\\); [print\\(r[0],'| count',r[1],'| first',r[2],'| last',r[3]\\) for r in sorted\\(rows\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; print\\('NO ROWS' if not rows else ''\\); [print\\('---',r[0],'\\\\n',r[1][:300]\\) for r in rows]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); rows=d['tables'][0]['rows']; print\\('NO ROWS' if not rows else ''\\); [print\\('---',r[0],'\\\\n',r[1][:500]\\) for r in rows]\")",
+      "Bash(az graph *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(r['name'],'|',r.get\\('kind'\\)\\) for r in d]\")",
+      "Bash(cd /Users/lucalewerenz/ExternalUserManagerAI; sed -n '/private async lookupViaGraph/,/^  }$/p' packages/teams-catalog/src/resolver.ts | head -90)",
+      "Bash(sed -n '636,672p' backend/src/common/services/graph-read.service.ts)",
+      "Bash(sed -n '190,200p' backend/src/common/services/graph-read.service.ts)",
+      "Bash(sed -n '371,432p' backend/src/modules/permissions/notification-recipients.service.ts)",
+      "Bash(sed -n '1800,1835p' backend/src/modules/access-reviews/access-reviews.service.ts)",
+      "Bash(sed -n '2225,2255p' backend/src/modules/access-reviews/access-reviews.service.ts)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); Object.entries\\(p.scripts\\).filter\\(\\([k]\\)=>/test/.test\\(k\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,'=>',v\\)\\)\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/permissions/notification-recipients.service.spec.ts src/common/services/graph-read.service.spec.ts)",
+      "Bash(grep -nE 'describe\\\\\\(|resolveUsers|resolveEmailsByOids|mockFetch|tracedFetch|\\\\$batch' src/common/services/graph-read.service.spec.ts)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/access-reviews/access-reviews.service.spec.ts -t \"never the requester OID\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/permissions/notification-recipients.service.spec.ts src/modules/access-reviews/access-reviews.service.spec.ts src/common/services/graph-read.service.spec.ts)",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/access-reviews/access-reviews.service.spec.ts -t \"resolves the requester OID to a mailbox\")",
+      "Bash(grep -vE \"Nest\\\\]|ERROR|console|^\\\\s*$\")",
+      "Bash(node --experimental-vm-modules ../node_modules/.bin/jest src/modules/access-reviews/access-reviews.service.spec.ts -t triggerReviews)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); Object.entries\\(p.scripts||{}\\).filter\\(\\([k,v]\\)=>/lint|biome|format|check/.test\\(k+v\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,'=>',v\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./backend/package.json'\\); Object.entries\\(p.scripts||{}\\).filter\\(\\([k,v]\\)=>/lint|biome|format|check/.test\\(k+v\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,'=>',v\\)\\)\")",
+      "Bash(../node_modules/.bin/eslint src/common/services/graph-read.service.ts src/modules/permissions/notification-recipients.service.ts src/modules/access-reviews/access-reviews.service.ts src/common/services/graph-read.service.spec.ts src/modules/permissions/notification-recipients.service.spec.ts src/modules/access-reviews/access-reviews.service.spec.ts)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/lucalewerenz/ExternalUserManagerAI/.claude/worktrees/eumi-resizable-mascot/frontend/src/components/Eumi",
+      "/Users/lucalewerenz/ExternalUserManagerAI/infra",
+      "/tmp",
+      "/Users/lucalewerenz/ExternalUserManagerAI/packages/teams-catalog/src"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_INPUT_file_path\" ] && npx @claude-flow/cli@latest hooks pre-edit --file \"$TOOL_INPUT_file_path\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_INPUT_command\" ] && npx @claude-flow/cli@latest hooks pre-command --command \"$TOOL_INPUT_command\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "^Task$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_INPUT_prompt\" ] && npx @claude-flow/cli@latest hooks pre-task --task-id \"task-$(date +%s)\" --description \"$TOOL_INPUT_prompt\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_INPUT_file_path\" ] && npx @claude-flow/cli@latest hooks post-edit --file \"$TOOL_INPUT_file_path\" --success \"${TOOL_SUCCESS:-true}\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_INPUT_command\" ] && npx @claude-flow/cli@latest hooks post-command --command \"$TOOL_INPUT_command\" --success \"${TOOL_SUCCESS:-true}\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "^Task$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$TOOL_RESULT_agent_id\" ] && npx @claude-flow/cli@latest hooks post-task --task-id \"$TOOL_RESULT_agent_id\" --success \"${TOOL_SUCCESS:-true}\" 2>/dev/null || true",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$PROMPT\" ] && npx @claude-flow/cli@latest hooks route --task \"$PROMPT\" || true",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx @claude-flow/cli@latest daemon start --quiet 2>/dev/null || true",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "[ -n \"$SESSION_ID\" ] && npx @claude-flow/cli@latest hooks session-restore --session-id \"$SESSION_ID\" 2>/dev/null || true",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"ok\": true}'",
+            "timeout": 1000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$NOTIFICATION_MESSAGE\" ] && npx @claude-flow/cli@latest memory store --namespace notifications --key \"notify-$(date +%s)\" --value \"$NOTIFICATION_MESSAGE\" 2>/dev/null || true",
+            "timeout": 3000
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "npx @claude-flow/cli@latest hooks statusline 2>/dev/null || node .claude/helpers/statusline.cjs 2>/dev/null || echo \"▊ Claude Flow V3\""
+  },
+  "claudeFlow": {
+    "version": "3.0.0",
+    "enabled": true,
+    "modelPreferences": {
+      "default": "claude-opus-4-5-20251101",
+      "routing": "claude-3-5-haiku-20241022"
+    },
+    "swarm": {
+      "topology": "hierarchical-mesh",
+      "maxAgents": 15
+    },
+    "memory": {
+      "backend": "hybrid",
+      "enableHNSW": true
+    },
+    "neural": {
+      "enabled": true
+    },
+    "daemon": {
+      "autoStart": true,
+      "workers": [
+        "map",
+        "audit",
+        "optimize",
+        "consolidate",
+        "testgaps",
+        "ultralearn",
+        "deepdive",
+        "document",
+        "refactor",
+        "benchmark"
+      ],
+      "schedules": {
+        "audit": {
+          "interval": "1h",
+          "priority": "critical"
+        },
+        "optimize": {
+          "interval": "30m",
+          "priority": "high"
+        },
+        "consolidate": {
+          "interval": "2h",
+          "priority": "low"
+        },
+        "document": {
+          "interval": "1h",
+          "priority": "normal",
+          "triggers": [
+            "adr-update",
+            "api-change"
+          ]
+        },
+        "deepdive": {
+          "interval": "4h",
+          "priority": "normal",
+          "triggers": [
+            "complex-change"
+          ]
+        },
+        "ultralearn": {
+          "interval": "1h",
+          "priority": "normal"
+        }
+      }
+    },
+    "learning": {
+      "enabled": true,
+      "autoTrain": true,
+      "patterns": [
+        "coordination",
+        "optimization",
+        "prediction"
+      ],
+      "retention": {
+        "shortTerm": "24h",
+        "longTerm": "30d"
+      }
+    },
+    "adr": {
+      "autoGenerate": true,
+      "directory": "/docs/adr",
+      "template": "madr"
+    },
+    "ddd": {
+      "trackDomains": true,
+      "validateBoundedContexts": true,
+      "directory": "/docs/ddd"
+    },
+    "security": {
+      "autoScan": true,
+      "scanOnEdit": true,
+      "cveCheck": true,
+      "threatModel": true
+    }
+  }
+}

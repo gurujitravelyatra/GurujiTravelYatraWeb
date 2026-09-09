@@ -1,0 +1,8 @@
+{
+  "enabledMcpjsonServers": [
+    "azure-devops",
+    "sonarcloud",
+    "figma",
+    "fluentui"
+  ]
+}
