@@ -1,0 +1,113 @@
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+import { LeadModal } from '../LeadModal';
+import { leadAdapter } from '@/content/adapters/not-implemented-lead-adapter';
+import type { LeadSubmissionResult } from '@/content/ports';
+
+jest.mock('@/content/adapters/not-implemented-lead-adapter', () => ({
+  leadAdapter: { submitLead: jest.fn() },
+}));
+
+const submitLead = leadAdapter.submitLead as jest.Mock;
+
+const context = { label: 'Package', value: 'Spiti Valley Circuit' };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
+  await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
+}
+
+describe('LeadModal variant="enquiry"', () => {
+  beforeEach(() => {
+    submitLead.mockReset();
+  });
+
+  it('blocks submit when Name/Mobile are missing', async () => {
+    const user = userEvent.setup();
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    expect(await screen.findByText('Please enter your full name.')).toBeInTheDocument();
+    expect(screen.getByText('Please enter your mobile number.')).toBeInTheDocument();
+    expect(submitLead).not.toHaveBeenCalled();
+  });
+
+  it('does not block submit when only the optional fields are empty', async () => {
+    const user = userEvent.setup();
+    const { promise } = deferred<LeadSubmissionResult>();
+    submitLead.mockReturnValue(promise);
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    expect(submitLead).toHaveBeenCalledTimes(1);
+    expect(submitLead).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Asha Patel', mobile: '9876543210', email: undefined })
+    );
+  });
+
+  it('transitions form -> sending -> form-with-error, and the error path preserves every entered value', async () => {
+    const user = userEvent.setup();
+    const { promise, resolve } = deferred<LeadSubmissionResult>();
+    submitLead.mockReturnValue(promise);
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.type(screen.getByLabelText('City'), 'Ahmedabad');
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    // "sending" step
+    expect(await screen.findByText('Creating your lead in the CRM')).toBeInTheDocument();
+
+    await act(async () => {
+      resolve({ status: 'error', retryable: true, message: 'Visitor safe message.' });
+    });
+
+    // Back on the form step, with the error banner and every entered value intact.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Visitor safe message.');
+    expect(screen.getByLabelText('Name *')).toHaveValue('Asha Patel');
+    expect(screen.getByLabelText('Mobile Number *')).toHaveValue('9876543210');
+    expect(screen.getByLabelText('City')).toHaveValue('Ahmedabad');
+  });
+
+  it('"Try Again" re-submits with the same preserved values', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'error', retryable: true, message: 'Visitor safe message.' });
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(submitLead).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(submitLead).toHaveBeenCalledTimes(2);
+    expect(submitLead.mock.calls[1][0]).toEqual(expect.objectContaining({ name: 'Asha Patel', mobile: '9876543210' }));
+  });
+
+  it('transitions form -> sending -> done on a successful submission', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', confirmationMessage: 'All set!' });
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    expect(await screen.findByText('All set!')).toBeInTheDocument();
+    expect(screen.getByText(/Your journey/)).toBeInTheDocument();
+  });
+});
