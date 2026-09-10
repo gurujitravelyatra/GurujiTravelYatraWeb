@@ -43,7 +43,18 @@ jest.mock('framer-motion', () => {
       {
         get: () =>
           React_.forwardRef<HTMLDivElement, Record<string, unknown>>(function MotionMock(props, ref) {
-            const { initial, animate, exit, transition, children, ...rest } = props as CapturedMotionProps & {
+            const {
+              initial,
+              animate,
+              exit,
+              // `transition` is pulled out purely so it is NOT spread onto the
+              // plain <div> below (React would warn about an unknown DOM
+              // attribute); the assertions never read it.
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              transition,
+              children,
+              ...rest
+            } = props as CapturedMotionProps & {
               transition?: unknown;
               children?: React.ReactNode;
             } & Record<string, unknown>;

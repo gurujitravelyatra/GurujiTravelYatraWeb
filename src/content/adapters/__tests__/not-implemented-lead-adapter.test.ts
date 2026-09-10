@@ -38,10 +38,10 @@ describe('NotImplementedLeadAdapter', () => {
     // Install our own stubs and restore them by hand instead — this also means
     // the assertion still holds if a future Node/jsdom bump starts providing
     // fetch natively.
-    const globalWithNet = globalThis as typeof globalThis & {
-      fetch?: unknown;
-      XMLHttpRequest?: unknown;
-    };
+    // Cast through `unknown` to a plain record: an intersection with
+    // `typeof globalThis` would keep the real `XMLHttpRequest` constructor
+    // signature and reject a bare jest.fn() stub.
+    const globalWithNet = globalThis as unknown as Record<string, unknown>;
     const originalFetch = globalWithNet.fetch;
     const originalXhr = globalWithNet.XMLHttpRequest;
 

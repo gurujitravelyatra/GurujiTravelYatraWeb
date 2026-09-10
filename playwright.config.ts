@@ -1,0 +1,53 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const PORT = Number(process.env.PORT ?? 3100);
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+/**
+ * E2E runs against a real production build (`next build` + `next start`)
+ * rather than `next dev`, so the golden paths exercise the same Server /
+ * Client Component split, static params and bundling that ship.
+ *
+ * `testDir: './e2e'` keeps Playwright away from `src/**\/__tests__` (Jest's
+ * territory) and — like jest.config.ts's `roots` — away from the unrelated
+ * projects checked out under `.claude/worktrees`.
+ */
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  /**
+   * Capped at 2. A single `next start` process serving one machine's worth of
+   * default workers starved page loads badly enough that `page.goto` blew the
+   * 30s default waiting for the `load` event — a harness artefact, not a site
+   * problem (the server answers HTML in ~60ms and the optimized logo in
+   * ~700ms when not contended).
+   */
+  workers: 2,
+  timeout: 60_000,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  use: {
+    baseURL: BASE_URL,
+    trace: 'on-first-retry',
+    navigationTimeout: 45_000,
+    // The lead adapter deliberately simulates a 900ms round-trip, so a few
+    // assertions legitimately wait longer than Playwright's 5s default.
+    actionTimeout: 15_000,
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+  webServer: {
+    // Self-contained so `npm run test:e2e` works from a cold checkout.
+    command: `npm run build && npx next start --port ${PORT}`,
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 300_000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  },
+});

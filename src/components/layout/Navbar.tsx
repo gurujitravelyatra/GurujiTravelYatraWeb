@@ -27,6 +27,7 @@ export function Navbar({ activePath, pageLabel }: NavbarProps) {
   return (
     <MobileMenuProvider>
       <div
+        data-testid="site-navbar"
         className="sticky top-0 z-30 px-gx pb-[10px] pt-4 max-760:pb-2 max-760:pt-[10px]"
         style={{
           background:

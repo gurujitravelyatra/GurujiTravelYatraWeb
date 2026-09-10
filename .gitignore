@@ -14,3 +14,9 @@ coverage/
 
 # Agent worktrees are scratch space and must never be committed to this repo.
 .claude/worktrees/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
