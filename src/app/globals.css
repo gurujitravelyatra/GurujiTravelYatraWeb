@@ -79,8 +79,10 @@
   --color-gty-gold-darker: #a3661c;
   --color-gty-green-bg: #f1fbf5; /* "Save ₹" pill fill */
   --color-gty-green-border: #b7e3c6;
+  --color-gty-green-text: #178a3d; /* "Save ₹" pill text/icon — verified against the export, was missing from this layer */
   --color-gty-slate: #9aa1a6; /* header decorative SVG */
   --color-gty-slate-2: #c3c8cd;
+  --color-gty-overlay-dark: rgba(20, 18, 17, 0.55); /* photo-count badge fill on PackageCard — verified against the export, was missing from this layer */
 
   /* --- Radii: the export's exact ladder (99px = pill, used 87x) ----------- */
   --radius-2: 2px;
@@ -150,6 +152,7 @@
   --text-15: 15px;
   --text-15-5: 15.5px;
   --text-16: 16px;
+  --text-16-5: 16.5px; /* BottomContactStrip "Let's Plan Your Next Journey!" — verified against the export, was missing from this layer */
   --text-17: 17px;
   --text-18: 18px;
   --text-19: 19px;
