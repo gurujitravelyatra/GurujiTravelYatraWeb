@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import { Archivo, Caveat } from 'next/font/google';
 import './globals.css';
 
+import { ModalProvider } from '@/components/modals/modal-context';
+import { EnquiryModal } from '@/components/modals/EnquiryModal';
+import { BrochureModal } from '@/components/modals/BrochureModal';
+
 /**
  * Typography, per the design export's font loading:
  *   family=Caveat:wght@600;700 & family=Archivo:wght@400;600;800
@@ -54,7 +58,19 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${archivo.variable} ${caveat.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/*
+          Mounted once at the root (tech spec §4.3): any Server Component
+          tree can open the Enquiry/Brochure modal via useModal() without
+          prop-drilling. Both modal components read their own open/variant
+          state from context and render null when not the active variant.
+        */}
+        <ModalProvider>
+          {children}
+          <EnquiryModal />
+          <BrochureModal />
+        </ModalProvider>
+      </body>
     </html>
   );
 }

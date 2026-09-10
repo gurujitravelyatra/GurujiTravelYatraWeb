@@ -1,67 +1,69 @@
-import Image from 'next/image';
+import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { recentTripPlaceholders } from '@/content/fixtures/recent-trips.fixture';
+
+import { SiteShell } from '@/components/layout/SiteShell';
+import { Hero } from '@/components/home/Hero';
+import { TripFinderBar } from '@/components/home/TripFinderBar';
+import { PopularDestinationsSection } from '@/components/home/PopularDestinationsSection';
+import { InternationalDestinationsRail } from '@/components/home/InternationalDestinationsRail';
+import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
+import { WhyGtyBand } from '@/components/home/WhyGtyBand';
+import { RecentTripsGallery } from '@/components/home/RecentTripsGallery';
+import { TestimonialsCarousel } from '@/components/home/TestimonialsCarousel';
+import { StatsBar } from '@/components/home/StatsBar';
+import { InstagramStrip } from '@/components/home/InstagramStrip';
+import { Newsletter } from '@/components/home/Newsletter';
 
 /**
- * SCAFFOLD PLACEHOLDER — not the real Home page.
+ * Home (`/`) — Server Component, tech spec §4.4. Built in the exact
+ * product-spec §5.1 order, reconciled against the design export per the
+ * tech spec's per-row [EXPORT]/[TOKENS] decisions:
  *
- * The real Home page build is BLOCKED pending product decisions (see
- * documentation/technical-specification/BLOCKERS.md). This placeholder exists
- * so the app builds and so the extracted design tokens are visually verifiable.
- * Replace it wholesale when Home is unblocked.
+ *  1 Navbar               → SiteShell
+ *  2 Hero                 → [EXPORT]
+ *  3 Trip Finder bar      → [EXPORT]
+ *  4 Trust strip          → NOT a separate section — merged into the "Why
+ *                            Travel With GTY?" band at its export position
+ *                            (row 4 decision), rendered after the video
+ *                            block below.
+ *  5/8 Featured Video +
+ *      "Every Journey..."  → [EXPORT, merged] one `JourneyVideoBlock`
+ *  6 Popular Destinations → [EXPORT]
+ *  6b International Dest. → [EXPORT] (not in product-spec's numbered list
+ *                            by name, but real export content — kept)
+ *  7 Domestic Packages    → NOT BUILT — no such section exists in the
+ *                            export distinct from Popular Destinations
+ *                            (tech spec row 7 decision: do not invent it)
+ *  9 Recent Trips gallery → [TOKENS]
+ * 10 Testimonials         → [EXPORT, reconciled]
+ * 11 Stats bar            → [EXPORT]
+ * 12 Instagram strip      → [TOKENS]
+ * 13 Newsletter           → [TOKENS]
+ * 14 Bottom contact strip → SiteShell
+ * 15 Footer               → SiteShell
  */
-export default function Page() {
+export default async function HomePage() {
+  const [popularDestinations, internationalDestinations, featuredVideos, stats, testimonials] = await Promise.all([
+    contentAdapter.getPopularDestinations(),
+    contentAdapter.getInternationalDestinations(),
+    contentAdapter.getFeaturedVideos(),
+    contentAdapter.getStats(),
+    contentAdapter.getTestimonials(),
+  ]);
+
   return (
-    <main className="sec mx-auto max-w-[900px]">
-      <div className="mb-8 flex items-center gap-[11px]">
-        <span className="block h-[56px] w-[74px] flex-none overflow-hidden">
-          <Image
-            src="/logo/gty-logo.png"
-            alt="Guruji Travel Yatra"
-            width={74}
-            height={74}
-            className="h-[74px] w-[74px] object-cover object-top"
-            priority
-          />
-        </span>
-        <span className="flex flex-col items-start gap-[5px]">
-          <span className="text-20 font-extrabold leading-none tracking-nudge text-gty-ink">
-            GURUJI TRAVEL YATRA
-          </span>
-          <span className="text-9 uppercase tracking-widest-gty text-gty-subtle">
-            Keep Guessing, Where&apos;s Next Trip?
-          </span>
-        </span>
-      </div>
-
-      <div className="rounded-16 border border-gty-border bg-gty-white p-6 shadow-gty-card">
-        <p className="text-10 font-bold uppercase tracking-label text-gty-subtle">
-          Scaffold status
-        </p>
-        <h1 className="mt-2 text-29 font-extrabold tracking-tightest text-gty-ink">
-          Design tokens are wired.
-        </h1>
-        <p className="mt-3 text-13-5 leading-relaxed text-gty-body">
-          Next.js + TypeScript + Tailwind v4 + <span className="font-script text-17 text-gty-primary">next/font</span>{' '}
-          are configured, and every colour, radius, shadow and type step from the
-          Claude Design export is available as a token.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <span className="rounded-pill bg-gty-primary px-5 py-3 text-11-5 font-bold text-gty-white shadow-gty-btn">
-            Primary #d80000
-          </span>
-          <span className="rounded-pill border-[1.5px] border-gty-border-3 bg-gty-white px-5 py-3 text-11-5 font-bold text-gty-ink">
-            Pill 99px
-          </span>
-          <span className="rounded-pill bg-gty-red-150 px-5 py-3 text-11-5 font-bold text-gty-primary">
-            Tint #fdeceb
-          </span>
-        </div>
-      </div>
-
-      <p className="mt-8 text-12 text-gty-subtle">
-        Page and component implementation is paused pending product decisions —
-        see <code className="text-gty-ink">documentation/technical-specification/BLOCKERS.md</code>.
-      </p>
-    </main>
+    <SiteShell activePath="/" pageLabel="Home">
+      <Hero />
+      <TripFinderBar />
+      <PopularDestinationsSection packages={popularDestinations} />
+      <InternationalDestinationsRail destinations={internationalDestinations} />
+      <JourneyVideoBlock videos={featuredVideos} />
+      <WhyGtyBand />
+      <RecentTripsGallery trips={recentTripPlaceholders} />
+      <TestimonialsCarousel testimonials={testimonials} />
+      <StatsBar stats={stats} />
+      <InstagramStrip />
+      <Newsletter />
+    </SiteShell>
   );
 }
