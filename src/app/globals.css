@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   GTY DESIGN TOKENS
+   ----------------------------------------------------------------------------
+   Every value below is transcribed EXACTLY from the Claude Design export:
+     Documents/Website-Design/project/GTY Wireframe Prototype.dc.html
+   (the inline <style> block, lines 14-111, plus inline style attributes).
+
+   RULES:
+   - Never approximate a token to a Tailwind default (#d80000 is NOT red-600,
+     18px is NOT p-4). If a value is in the design, it gets a token here.
+   - The export links the "modernist" design-system stylesheet under _ds/ but
+     overrides essentially all of it inline. Modernist (zero-radius, grayscale
+     photography, flat) is NOT the design. These inline values ARE the design.
+   - Tailwind v4 CSS-first config. There is intentionally no tailwind.config.ts.
+   ========================================================================== */
+
+@theme {
+  /* --- Breakpoints: exactly the six the export uses ---------------------- */
+  --breakpoint-640: 640px;
+  --breakpoint-760: 760px;
+  --breakpoint-860: 860px;
+  --breakpoint-1080: 1080px;
+  --breakpoint-1180: 1180px;
+  --breakpoint-1300: 1300px;
+
+  /* --- Brand red ---------------------------------------------------------- */
+  --color-gty-primary: #d80000; /* 168 uses - the brand red */
+  --color-gty-primary-deep: #b30000; /* link hover, primary button hover */
+  --color-gty-primary-darker: #a80000; /* footer copyright bar */
+
+  /* --- Ink / text --------------------------------------------------------- */
+  --color-gty-ink: #1c1a19; /* body text, headings */
+  --color-gty-ink-soft: #312e2c; /* nav links, chips */
+  --color-gty-body: #4a4442; /* table cells, paragraph copy */
+  --color-gty-muted: #6b6461; /* chip text */
+  --color-gty-subtle: #8a8481; /* labels, eyebrow, meta */
+  --color-gty-placeholder: #a09a97; /* form field placeholder */
+  --color-gty-faint: #b5aeaa;
+  --color-gty-faint-2: #9b9797;
+
+  /* --- Surfaces ----------------------------------------------------------- */
+  --color-gty-white: #ffffff;
+  --color-gty-bg: #f4f2f0; /* body background */
+  --color-gty-surface: #fbfafa; /* header gradient backdrop */
+  --color-gty-surface-2: #fdfcfc;
+  --color-gty-surface-3: #faf8f7; /* field fill, accordion body */
+  --color-gty-surface-4: #f7f4f2;
+  --color-gty-surface-5: #f1efed;
+
+  /* --- Borders / dividers (warm grays) ------------------------------------ */
+  --color-gty-border: #e7e2df; /* .wf card border, table rule */
+  --color-gty-border-2: #e4dfdb; /* field border, chip border */
+  --color-gty-border-3: #e0dad6; /* chip, arrow button */
+  --color-gty-border-4: #eae6e3;
+  --color-gty-border-5: #eee9e6;
+  --color-gty-border-6: #efebe8;
+  --color-gty-border-7: #f0e9e6;
+  --color-gty-border-8: #d8d2ce; /* dashed wireframe border */
+  --color-gty-border-9: #dad4d0; /* default button border */
+  --color-gty-line: #e4dfdb; /* .ln placeholder line */
+  --color-gty-line-2: #f0ecea; /* table row rule */
+  --color-gty-img-bg: #ece8e5; /* image placeholder fill */
+
+  /* --- Red tints (backgrounds / hovers) ----------------------------------- */
+  --color-gty-red-50: #fff5f4; /* button hover fill */
+  --color-gty-red-100: #fff1ef; /* icon badge fill */
+  --color-gty-red-150: #fdeceb; /* active chip fill */
+  --color-gty-red-200: #fde8e6;
+  --color-gty-red-300: #f6c9c4;
+  --color-gty-red-400: #f0b6b1;
+
+  /* --- Accents ------------------------------------------------------------ */
+  --color-gty-whatsapp: #25d366;
+  --color-gty-gold: #f8d787; /* star rating */
+  --color-gty-gold-soft: #fdeeb8;
+  --color-gty-gold-deep: #c2842a;
+  --color-gty-gold-darker: #a3661c;
+  --color-gty-green-bg: #f1fbf5; /* "Save ₹" pill fill */
+  --color-gty-green-border: #b7e3c6;
+  --color-gty-slate: #9aa1a6; /* header decorative SVG */
+  --color-gty-slate-2: #c3c8cd;
+
+  /* --- Radii: the export's exact ladder (99px = pill, used 87x) ----------- */
+  --radius-2: 2px;
+  --radius-8: 8px;
+  --radius-9: 9px;
+  --radius-10: 10px;
+  --radius-11: 11px;
+  --radius-12: 12px;
+  --radius-13: 13px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-22: 22px; /* modal */
+  --radius-24: 24px;
+  --radius-30: 30px; /* header bar <=760px */
+  --radius-44: 44px; /* header pill bar */
+  --radius-pill: 99px;
+
+  /* --- Shadows: verbatim, no rounding ------------------------------------- */
+  --shadow-gty-xs: 0 3px 10px rgba(28, 26, 25, 0.05);
+  --shadow-gty-sm: 0 3px 10px rgba(28, 26, 25, 0.07);
+  --shadow-gty-soft: 0 4px 14px rgba(28, 26, 25, 0.08);
+  --shadow-gty-md: 0 8px 28px rgba(28, 26, 25, 0.08);
+  --shadow-gty-lift: 0 10px 26px rgba(28, 26, 25, 0.12);
+  --shadow-gty-lift-2: 0 8px 20px rgba(28, 26, 25, 0.12);
+  --shadow-gty-card: 0 6px 22px rgba(28, 26, 25, 0.11);
+  --shadow-gty-card-hover: 0 16px 40px rgba(28, 26, 25, 0.19);
+  --shadow-gty-intl: 0 10px 28px rgba(28, 26, 25, 0.16);
+  --shadow-gty-intl-hover: 0 18px 40px rgba(28, 26, 25, 0.24);
+  --shadow-gty-header: 0 18px 46px rgba(28, 26, 25, 0.13), 0 3px 10px rgba(28, 26, 25, 0.06);
+  --shadow-gty-wacard: 0 18px 44px rgba(28, 26, 25, 0.2);
+  --shadow-gty-modal: 0 24px 60px rgba(28, 26, 25, 0.4);
+  --shadow-gty-dark-sm: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --shadow-gty-dark-xs: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-gty-ring: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 5px 14px rgba(0, 0, 0, 0.22);
+  --shadow-gty-btn: 0 6px 16px rgba(216, 0, 0, 0.26);
+  --shadow-gty-btn-hover: 0 8px 20px rgba(216, 0, 0, 0.32);
+  --shadow-gty-btn-alt: 0 6px 16px rgba(216, 0, 0, 0.3);
+  --shadow-gty-btn-strong: 0 6px 16px rgba(216, 0, 0, 0.34);
+  --shadow-gty-red-sm: 0 4px 12px rgba(216, 0, 0, 0.3);
+  --shadow-gty-red-md: 0 8px 22px rgba(216, 0, 0, 0.3);
+  --shadow-gty-red-lg: 0 8px 20px rgba(216, 0, 0, 0.28);
+  --shadow-gty-whatsapp: 0 8px 20px rgba(37, 211, 102, 0.4);
+  --shadow-gty-white-sm: 0 8px 20px rgba(255, 255, 255, 0.3);
+  --shadow-gty-white-md: 0 8px 22px rgba(255, 255, 255, 0.35);
+
+  /* --- Type ---------------------------------------------------------------
+     Archivo = UI + headings. Caveat = script accent ONLY.
+     Georgia = editorial serif accent (system font, no loading).
+     next/font sets --font-archivo / --font-caveat in layout.tsx.          */
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  --font-script: var(--font-caveat), cursive;
+  --font-serif-editorial: Georgia, serif;
+
+  /* Font sizes present in the export, to the half-pixel */
+  --text-9: 9px;
+  --text-10: 10px;
+  --text-11: 11px;
+  --text-11-5: 11.5px;
+  --text-12: 12px;
+  --text-12-5: 12.5px;
+  --text-13: 13px;
+  --text-13-5: 13.5px; /* most-used body size (65 uses) */
+  --text-14: 14px;
+  --text-14-5: 14.5px;
+  --text-15: 15px;
+  --text-15-5: 15.5px;
+  --text-16: 16px;
+  --text-17: 17px;
+  --text-18: 18px;
+  --text-19: 19px;
+  --text-20: 20px;
+  --text-21: 21px;
+  --text-22: 22px;
+  --text-23: 23px;
+  --text-24: 24px;
+  --text-25: 25px;
+  --text-26: 26px;
+  --text-27: 27px;
+  --text-29: 29px;
+  --text-33: 33px;
+  --text-36: 36px;
+  --text-52: 52px;
+  --text-62: 62px;
+  --text-76: 76px;
+
+  /* Letter-spacing ladder from the export */
+  --tracking-tightest: -0.02em;
+  --tracking-tighter: -0.01em;
+  --tracking-nudge: 0.005em;
+  --tracking-tiny: 0.01em;
+  --tracking-btn: 0.02em;
+  --tracking-img: 0.08em;
+  --tracking-th: 0.1em;
+  --tracking-eyebrow: 0.13em;
+  --tracking-eyebrow-2: 0.14em;
+  --tracking-eyebrow-3: 0.15em;
+  --tracking-label: 0.16em;
+  --tracking-widest-gty: 0.2em;
+
+  /* --- Motion -------------------------------------------------------------
+     The export contains NO @keyframes and NO cubic-bezier. All motion is CSS
+     `transition` at .15s (color/bg/border) or .18s (card transform+shadow),
+     using the CSS default `ease` timing function. Framer Motion must use
+     these exact values - do NOT substitute springs or other durations.     */
+  --ease-gty: cubic-bezier(0.25, 0.1, 0.25, 1); /* === CSS `ease` */
+  --duration-gty-fast: 150ms;
+  --duration-gty-card: 180ms;
+}
+
+/* ============================================================================
+   Layout rhythm: the export's --gx gutter and .sec section padding
+   ========================================================================== */
+:root {
+  --gx: 56px;
+}
+@media (max-width: 760px) {
+  :root {
+    --gx: 18px;
+  }
+}
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-gty-bg);
+    font-family: var(--font-sans);
+    color: var(--color-gty-ink);
+  }
+
+  a {
+    color: var(--color-gty-primary-deep);
+  }
+  a:hover {
+    color: var(--color-gty-primary);
+  }
+
+  /* Themed focus ring, exactly as the export defines it. Never the browser default. */
+  :focus-visible {
+    outline: 2px solid var(--color-gty-primary);
+    outline-offset: 2px;
+  }
+
+  /* Accessibility: honour prefers-reduced-motion globally. Framer Motion
+     components additionally use the useReducedMotion() hook so they skip
+     transforms rather than merely running them instantly. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* The export's horizontal page gutter */
+  .px-gx {
+    padding-left: var(--gx);
+    padding-right: var(--gx);
+  }
+  /* .sec { padding: 44px 56px } */
+  .sec {
+    padding: 44px var(--gx);
+  }
+  /* Rails scroll horizontally with no visible scrollbar (.railrow/.intlrow) */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

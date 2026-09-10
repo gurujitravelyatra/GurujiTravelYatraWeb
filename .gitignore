@@ -9,4 +9,5 @@ build/
 .vercel
 next-env.d.ts
 coverage/
+*.tsbuildinfo
 .claude-flow/

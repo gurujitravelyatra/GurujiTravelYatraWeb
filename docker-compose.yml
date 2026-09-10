@@ -1,0 +1,26 @@
+# NOTE: never executed — Docker is not installed on the authoring machine.
+# See the header comment in ./Dockerfile.
+#
+# There is deliberately NO database service here. This site stores no lead or
+# tour data of its own (CLAUDE.md §1, §6, §7) — it is a read client of the ERP
+# API and a one-way write for lead submission. Do not add a DB to this compose
+# file; if you think you need one, that is a signal the architecture boundary
+# is being crossed.
+
+services:
+  web:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      # Bind-mount source for hot reload, but keep container-side node_modules
+      # and .next so host artifacts (and host-arch binaries) don't leak in.
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev

@@ -1,0 +1,30 @@
+# Keep host build artifacts and host-arch binaries out of the image.
+# Without this, the Dockerfile's `COPY . .` overwrites the node_modules
+# installed by `npm ci` in the deps stage with the host's copy.
+node_modules
+.next
+out
+build
+coverage
+
+.git
+.gitignore
+.github
+
+.env*
+!.env.example
+
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Agent tooling and project docs are not part of the runtime image.
+.claude
+.claude-flow
+Documents
+documentation
+
+*.log
+*.tsbuildinfo
+.DS_Store
+README.md
