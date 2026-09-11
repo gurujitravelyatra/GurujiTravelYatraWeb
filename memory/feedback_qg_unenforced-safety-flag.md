@@ -6,7 +6,7 @@ type: feedback
 
 Pattern: asked not to guess at unconfirmed data, agents do the right first half — add a field like `pricingUnverified`, a `TODO(confirm)` comment, a doc block explaining the risk — and then never write the consumer that acts on it. The flag reads as a fix in review and in the diff, but at runtime the unsafe record renders exactly like a confirmed one. Documentation is mistaken for enforcement.
 
-Occurrences: 3
+Occurrences: 4
 Last seen: 2026-09-11
 Affected agents: frontend, backend, func-to-tech-spec
 Pipeline: SPEC (GTY website)
@@ -17,7 +17,23 @@ Examples:
 
 - [RESOLVED `edc328f`] Third variant — enforcement that stops at the pixel. `isPlaceholder` DID render an asterisk on all three stats surfaces, so it looked enforced. But `WhyGtyBand` marked its asterisk `aria-hidden` while giving the footnote no `id`, and `Hero` had neither an `id` nor an `aria-describedby`: for a screen-reader user the marker was suppressed AND the explanation was never associated, so an unconfirmed figure read as settled fact — strictly worse than no marker. `StatsBar`'s pairing was itself only correct on paper: `aria-describedby` sat on a bare `<div>` with no role, which assistive tech routinely ignores.
 
+- [OPEN — BLOCKERS.md item 9] Fourth variant, and the first where the enforcement
+  itself is correct: the gate is scoped to one fixture while a sibling fixture holds
+  the same entity. `public-listing.ts` withholds "Do Dham Yatra" (₹28,900,
+  `pricingUnverified`) from Home and `/tour-packages`, and 404s its detail route — but
+  `group-departures.fixture.ts` transcribes the same tour from a different part of the
+  export, carries the same ₹28,900, and `/group-tours` (built later) renders it as the
+  card's most prominent figure. The gate only knows about `Package`, so the new surface
+  bypassed it. Tellingly, the *duration* conflict for this same record WAS carried across
+  (`durationUnverified`); the price was not.
+
 Tell-tale in review: `grep` the flag name. If the only hits are the definition, the data, and a test asserting the flag exists, nothing enforces it. If the flag renders a *visual* marker, check the marker reaches assistive tech too — an `aria-hidden` glyph plus an unreferenced footnote is an un-enforced flag wearing a costume.
 
 **Why:** flagging feels like compliance with "don't fabricate", so the agent stops there. A test that asserts the flag is set passes whether or not the flag does anything.
 **How to apply:** when an agent flags data as unverified/placeholder, require in the same change: (1) a consumer that withholds or visibly marks it, ideally at the query/adapter boundary rather than per-component, and (2) a test asserting the *rendered/returned* result excludes or marks it — never a test that only asserts the flag's presence. Decide explicitly what a direct URL to withheld content does (404 vs marked page).
+
+**Also (from variant 4):** when adding a NEW public surface, check whether any entity it
+renders already carries a safety flag in another fixture. Gates get written against the
+type in front of the agent (`Package`) and silently do not cover a sibling type
+(`GroupDeparture`) holding the same real-world entity. Grep the entity *name*, not just
+the flag.

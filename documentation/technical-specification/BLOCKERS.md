@@ -344,6 +344,32 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    tour in `GROUPS` than in `RAILS` (Do Dham Yatra, Spiti Valley Circuit). Both
    records are surfaced with a visible marker rather than a silently-picked winner.
    Greppable via `TODO(duration-confirm)`.
+9. **`/group-tours` publishes a price the catalogue deliberately withholds** — NEW,
+   needs a product decision. `public-listing.ts` withholds "Do Dham Yatra" from Home
+   and `/tour-packages` (and 404s its detail route) because `pricingUnverified` marks
+   its ₹28,900 as unconfirmed. But `group-departures.fixture.ts` is a *separate*
+   transcription of the same tour from the export's `GROUPS` const, it carries the
+   same ₹28,900, and `GroupDepartureCard` renders it as the card's most prominent
+   figure. The public-listing gate only covers `Package` records, so the
+   later-built `/group-tours` page bypasses it entirely.
+
+   The site therefore suppresses a figure as untrustworthy on one surface and
+   publishes it on another. Note the duration conflict for this same record *was*
+   carried across (item 8, `durationUnverified`) — the price was not.
+
+   Two defensible fixes, and which one applies is a business call:
+   - extend the gate so a `pricingUnverified` tour's departures are withheld too
+     (consistent with `/tour-packages`, but empties a quarter of the departures page); or
+   - mark the price with the asterisk + `aria-describedby` footnote used by
+     `StatsBar` / `WhyGtyBand` / `AboutTimeline` (the established treatment for an
+     unconfirmed *standalone* figure; the full withholding gate exists because a
+     fabricated "was ₹X / Save ₹Y" discount badge was at stake, and
+     `GroupDepartureCard` shows no such badge).
+
+   Simplest real resolution: GTY confirms the Do Dham Yatra price, and the flag goes.
 5. **Social media URLs** — still `href="#"` with `TODO(social-links)`.
 6. **Docker** — `Dockerfile` / `docker-compose.yml` are written but **unvalidated**;
-   Docker is not installed in this environment.
+   Docker is not installed in this environment. The **standalone artefact** the image
+   depends on is now exercised, though: the Playwright suite boots
+   `.next/standalone/server.js` with the same asset layout the runner stage builds
+   (`scripts/start-standalone.mjs`), so that part is no longer untested.

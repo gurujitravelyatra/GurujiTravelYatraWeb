@@ -35,8 +35,16 @@ Gate status at `617f8d8`: `tsc --noEmit` clean, `eslint` clean, `next build` cle
 
 Gate status at `21067e1`: `tsc --noEmit` clean, `eslint` clean, `next build` clean, Jest **29 suites / 302 tests** pass, Playwright **58/58** pass. Zero admin/login/CMS surface and the pricing gate both still verified by E2E.
 
+- `853b29e`..`0cc96e2`: **the three primary nav routes built and covered** (Decision G2 reversed Decision G for them — the Navbar/Footer/mobile menu linked to `/group-tours`, `/customize-tours` and `/about-us` with no pages behind them, i.e. three real 404s found in manual testing).
+  - `853b29e` content models, `2d0f6c8` the three pages, `08b2047` E2E (incl. `nav-routes.spec.ts`, which fails if any nav link outlives its page), `24051c4` 66 unit tests.
+  - `2e683f0`: Jest `testTimeout: 30_000`. Three pre-existing suites were failing in full runs and passing alone — `userEvent` + large client components crossing the 5s default under worker contention. The timeout was measuring machine load, not correctness.
+  - `10dabca`: **E2E now boots the standalone server the Dockerfile ships.** `playwright.config.ts` ran `next start`, which Next rejects under `output: "standalone"` — it warned and served a non-standalone server anyway, so the suite was green against a server production never runs. `scripts/start-standalone.mjs` mirrors the runner stage's asset layout; `npm start` delegates to it.
+
+Gate status at `0cc96e2`: `tsc --noEmit` clean, `eslint` clean (0/0), `next build` clean, Jest **41 suites / 371 tests** pass, Playwright **84/84** pass against the standalone server.
+
 ## Still open before merge
-1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.)
+1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either.
+1b. **`/group-tours` publishes the ₹28,900 the catalogue withholds** — found in the post-build content spot-check, recorded as BLOCKERS.md item 9. The `pricingUnverified` gate covers `Package` only; `group-departures.fixture.ts` holds the same tour and the new page bypasses it. Needs a product decision (withhold vs asterisk-mark) or a confirmed price.
 2. **Legal copy is placeholder** — written by the build, not reviewed by counsel. It must go to GTY's lawyer before launch, and the banner + `robots: index=false` stay until it does.
 3. **Four Support links still 404 by Decision G**: `/legal/faqs`, `/legal/travel-tips`, `/legal/cancellation-policy`, `/legal/refund-policy`. Deliberate — invented cancellation terms would be worse than a 404. Pinned by `e2e/legal.spec.ts`.
 4. **`pricingUnverified` still needs real figures** for "Do Dham Yatra", "Kashmir Family Escape", "Kashi Darshan". No longer a correctness risk (withheld from every listing, 404 by slug) and no longer a layout risk as of `ac1ffc5` (grid, dots and arrows all track the real count), but Home's Popular rail and the Trending rail each show only 2 cards until this is confirmed. Same for `stats.fixture.ts`'s `isPlaceholder` figures, which render with an asterisk + "pending confirmation" footnote.
