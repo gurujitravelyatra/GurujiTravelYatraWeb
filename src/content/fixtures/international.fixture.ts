@@ -10,8 +10,9 @@
 // catalogue with zero matching journeys — the same "don't feature what you
 // can't back with real data" rule that already removed the Honeymoon and
 // Wildlife filter chips (BLOCKERS.md Decision C). Restore it here the moment a
-// real Malaysia tour exists; `international-destinations.test.ts` fails if a
-// name here has no matching publicly-listable tour, so this cannot drift.
+// real Malaysia tour exists; the "international destinations" suite in
+// `src/content/__tests__/public-listing.test.ts` fails if a name here has no
+// matching publicly-listable tour, so this cannot drift.
 import type { Destination } from '../types';
 import { slugify } from '../slug';
 

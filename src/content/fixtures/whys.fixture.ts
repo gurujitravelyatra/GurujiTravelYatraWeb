@@ -21,6 +21,19 @@ export type { WhyItem };
 const yearsOfExperience = getStatByLabel('Years of Experience');
 
 /**
+ * NO UNQUANTIFIED-BUT-UNBACKED CLAIMS IN THE DESCRIPTIONS EITHER. This item's
+ * description used to read "Thousands of happy travellers every year" — the
+ * same class of unbacked figure as the stats bar's "10,000+ Happy Travellers",
+ * but phrased so it slipped past the `isPlaceholder` marking that covers the
+ * title. There is no booking or departure record behind it, and "thousands …
+ * every year" is a strictly stronger claim than the (already unconfirmed)
+ * lifetime figure. Replaced with copy that only describes the catalogue the
+ * site actually lists — group yatras, family journeys, and destinations in
+ * India and abroad — so nothing here needs a placeholder marker at all.
+ */
+const TRUST_DESCRIPTION = 'Group yatras and family journeys across India and beyond';
+
+/**
  * The band's trust item, built from the canonical years figure. Falls back to
  * figure-free copy if that stat ever disappears, rather than inventing a
  * number or rendering "Trusted Since undefined Years".
@@ -29,10 +42,10 @@ const trustedSince: WhyItem = yearsOfExperience
   ? {
       icon: '✷',
       title: `Trusted Since ${yearsOfExperience.value} Years`,
-      description: 'Thousands of happy travellers every year',
+      description: TRUST_DESCRIPTION,
       isPlaceholder: yearsOfExperience.isPlaceholder,
     }
-  : { icon: '✷', title: 'Trusted For Years', description: 'Thousands of happy travellers every year' };
+  : { icon: '✷', title: 'Trusted For Years', description: TRUST_DESCRIPTION };
 
 export const whyItems: WhyItem[] = [
   { icon: '☸', title: 'Curated Yatras', description: 'Handpicked spiritual journeys & destinations' },
