@@ -1,5 +1,8 @@
 import type { ContentPort } from '../ports';
+import { aboutMilestones } from '../fixtures/about.fixture';
+import { groupDepartures } from '../fixtures/group-departures.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
+import { tripPlaceOptions } from '../fixtures/places.fixture';
 import { featuredVideos } from '../fixtures/videos.fixture';
 import { statMetrics } from '../fixtures/stats.fixture';
 import { testimonials } from '../fixtures/testimonials.fixture';
@@ -46,6 +49,27 @@ export class FixtureContentAdapter implements ContentPort {
 
   getTestimonials() {
     return Promise.resolve(testimonials);
+  }
+
+  /**
+   * NOT routed through `public-listing.ts`. That gate withholds records
+   * flagged `pricingUnverified` because they would otherwise render a
+   * "was ₹X / Save ₹Y" savings badge the data cannot support. A departure
+   * renders a single price and no savings badge, and its date/seat count are
+   * real regardless — so the contested-duration records are surfaced with a
+   * visible marker (`durationUnverified`) instead of being withheld, which
+   * would drop half the page's departures.
+   */
+  getGroupDepartures() {
+    return Promise.resolve(groupDepartures);
+  }
+
+  getTripPlaceOptions() {
+    return Promise.resolve(tripPlaceOptions);
+  }
+
+  getAboutMilestones() {
+    return Promise.resolve(aboutMilestones);
   }
 }
 

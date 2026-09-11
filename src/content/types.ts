@@ -1,8 +1,15 @@
 /**
  * Content model types — tech spec §6.1, corrected per
  * documentation/technical-specification/BLOCKERS.md §3 ("Data-model defects
- * in the spec"). Do not add back `GroupTour` or `Honeymoon`/`Wildlife`
- * categories without re-checking that file: both were removed deliberately.
+ * in the spec"). Do not add back `Honeymoon`/`Wildlife` categories without
+ * re-checking that file: they were removed deliberately.
+ *
+ * `GroupTour` WAS removed in §3 on the grounds that `/group-tours` was a
+ * Sprint 3-6 route with no `ContentPort` method behind it. That route now
+ * exists (BLOCKERS.md Decision G2 — the user reversed Decision G after
+ * hitting the 404s in manual testing), so the departure model is back as
+ * `GroupDeparture` below, this time WITH a port method. §3's objection is
+ * satisfied, not ignored.
  */
 
 /**
@@ -128,6 +135,84 @@ export interface FeaturedVideo {
   title: string;
   whenLabel: string;
   thumbnailKey: string;
+}
+
+/**
+ * One fixed-departure group tour — product-spec §5.4, design export
+ * `const GROUPS` (line ~934). This is the ONLY source of departure-specific
+ * data in the project: `dateRangeLabel`, `seatsLabel`, `boardingPoints` and
+ * `tourManagerLabel` appear in no other fixture, spec section or export
+ * constant. Nothing here is derived from the tour catalogue.
+ *
+ * Deliberately NOT `extends Package`. The tech spec §6.1 drafted it that way,
+ * but a departure carries no `priceWas`/`savingsLabel`/`photosCount` in the
+ * export, and inheriting them would invite a component to render a
+ * "Save ₹X" badge this data cannot support. The two models overlap by
+ * coincidence of subject, not by contract.
+ */
+export interface GroupDeparture {
+  slug: string;
+  name: string;
+  destinationName: string;
+  category: DestinationCategory;
+  photoUrl: string;
+  /** e.g. "12 — 18 May 2026" — verbatim from the export. */
+  dateRangeLabel: string;
+  /** Month key the export's own chip filter groups by, e.g. "May". */
+  month: string;
+  /** e.g. "6N / 7D" — the departure's own duration string. */
+  durationLabel: string;
+  /** Full list, e.g. "Ahmedabad · Delhi". Components derive the "Ex X" short form. */
+  boardingPoints: string;
+  /** e.g. "Yes, GTY manager" | "Yes, 2 managers". */
+  tourManagerLabel: string;
+  /** e.g. "₹28,900" — pre-formatted, per-person twin-sharing. */
+  priceFrom: string;
+  /** e.g. "14 seats left" | "Sold out". */
+  seatsLabel: string;
+  /** True when `seatsLabel` reads "Sold out" — derived once, not re-parsed per component. */
+  isSoldOut: boolean;
+  /** Caveat-script accent the export overlays on the photo, e.g. "Faith\nBrings Us\nTogether". */
+  scriptAccent: string;
+  /**
+   * True when this departure's `durationLabel` contradicts the same tour's
+   * duration in the package catalogue (`packages.fixture.ts`). Same contract as
+   * `Package.pricingUnverified` and `StatMetric.isPlaceholder`: the export
+   * transcribed the tour twice with disagreeing values and neither is
+   * authoritative, so consumers MUST visibly mark it rather than pick a winner
+   * silently. Unlike `pricingUnverified` this does NOT withhold the record —
+   * a departure's date and seat count are still real and useful, and hiding
+   * half the departures would empty the page.
+   */
+  durationUnverified?: boolean;
+}
+
+/**
+ * A place a visitor can add to a custom trip — design export `const PLACES`
+ * (line ~940). Name + region only: that is all the export stores, and a
+ * per-place description/price/duration would have to be invented.
+ */
+export interface TripPlaceOption {
+  slug: string;
+  name: string;
+  region: string;
+  photoUrl: string;
+}
+
+/**
+ * One entry in the About Us "Our Journey" timeline — design export
+ * `timeline` (line ~1182). `year`/`description` map to the export's `y`/`d`.
+ *
+ * Every entry is `isPlaceholder` for the same reason `StatMetric` is: the
+ * milestones quote the same unconfirmed traveller/destination counts that
+ * Assumption A3 records as contested ("10,000th traveller", "150+
+ * destinations, 10,000+ travellers"), and "First Kedarnath yatra, 22
+ * travellers / 2015" is a company-history claim nobody at GTY has confirmed.
+ */
+export interface AboutMilestone {
+  year: string;
+  description: string;
+  isPlaceholder?: boolean;
 }
 
 export interface Review {

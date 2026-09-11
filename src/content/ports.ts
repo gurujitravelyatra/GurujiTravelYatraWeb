@@ -1,10 +1,13 @@
 import type {
+  AboutMilestone,
   Destination,
   FeaturedVideo,
+  GroupDeparture,
   Package,
   PackageRail,
   Review,
   StatMetric,
+  TripPlaceOption,
 } from './types';
 
 /**
@@ -38,6 +41,32 @@ export interface ContentPort {
   getFeaturedVideos(): Promise<FeaturedVideo[]>;
   getStats(): Promise<StatMetric[]>;
   getTestimonials(): Promise<Review[]>;
+
+  /**
+   * Fixed departures for `/group-tours` — product-spec §5.4.
+   *
+   * A SEPARATE method from `getAllTours()` on purpose. "Group Tour" appears in
+   * this codebase in two unrelated senses and conflating them is the trap here:
+   *
+   *  1. `tabs.fixture.ts` — a Home trip-finder tab, i.e. a way of ARRANGING a
+   *     trip ("Showing upcoming departures with seats still open"). It filters
+   *     the tour catalogue.
+   *  2. This method — actual dated departures with seat counts and boarding
+   *     points, which the catalogue has no fields for.
+   *
+   * `/group-tours` is sense 2. It is NOT `/tour-packages?category=Group Tour`:
+   * there is no such category in `DestinationCategory`, and no `Package`
+   * record carries a departure date or a seat count. Routing it through the
+   * `?category=` mechanism would render the right tours with all the
+   * urgency data — the entire point of the page — missing.
+   */
+  getGroupDepartures(): Promise<GroupDeparture[]>;
+
+  /** Places selectable in the `/customize-tours` trip builder — product-spec §5.5. */
+  getTripPlaceOptions(): Promise<TripPlaceOption[]>;
+
+  /** "Our Journey" milestones for `/about-us` — product-spec §5.8. */
+  getAboutMilestones(): Promise<AboutMilestone[]>;
 }
 
 /**
