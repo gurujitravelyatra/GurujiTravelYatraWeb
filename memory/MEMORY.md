@@ -3,8 +3,9 @@
 | File | Type | Summary |
 |---|---|---|
 | `project_gty_pipeline_environment.md` | project | No git remote / no `gh` in this repo — CREATE-PR cannot run. Configured QG skills are claude-flow-specific; real gate is tsc + eslint + build. |
-| `project_gty_sprint_state.md` | project | SPEC pipeline state on `feat/gty-site-setup`: gates green through `85acf9b`, blocked pre-merge on duplicate-slug prices + false export copy + 404 legal pages. |
+| `project_gty_sprint_state.md` | project | SPEC pipeline state on `feat/gty-site-setup`: gates green through `80d46e3`; 2 criticals fixed. Open: Trip Finder tab copy, 404 legal pages, unverified prices. |
 | `feedback_qg_export-verbatim-false-copy.md` | feedback | Pixel-fidelity mandates get misapplied to copy, shipping claims that aren't true. Inject when dispatching frontend/spec agents with a design export. |
+| `feedback_qg_duplicate-fixture-transcription.md` | feedback | One entity shown twice in an export becomes two conflicting fixture records, then a merge helper silently picks a winner. Inject with any design-export transcription. |
 
 ## Not stored here (live in the repo instead)
 
