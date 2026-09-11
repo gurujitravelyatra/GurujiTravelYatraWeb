@@ -30,15 +30,34 @@
 // are derived, see `get-category-chips.ts`) may point at that chip. `Group
 // Tour` and `Custom Trip` have no matching category, so they make no filter
 // claim.
+import type { DestinationCategory } from '../types';
+
 export interface TripFinderTab {
   name: string;
   hint: string;
+  /**
+   * The catalogue category this tab deep-links to, via
+   * `/tour-packages?category=<category>`.
+   *
+   * OMITTED, NOT GUESSED, when the tab's theme has no matching category:
+   * "Group Tour" and "Custom Trip" describe how a trip is arranged, not a
+   * destination category, and no `Package` record carries such a category — so
+   * those tabs keep the plain `/tour-packages` link rather than pointing at a
+   * chip that does not exist and would silently fall back to "All" anyway
+   * (`resolveCategory` in `app/tour-packages/page.tsx`).
+   *
+   * Every value here is asserted to be a real DERIVED chip by
+   * `TripFinderBar.test.tsx`, so a category that stops matching any listable
+   * tour fails the build rather than shipping a dead deep link.
+   */
+  category?: DestinationCategory;
 }
 
 export const tripFinderTabs: TripFinderTab[] = [
   {
     name: 'Spiritual Yatra',
     hint: 'Vaishno Devi, Rameshwaram and Tirupati yatras — filter by Spiritual on Tour Packages.',
+    category: 'Spiritual',
   },
   {
     name: 'Group Tour',
@@ -47,10 +66,12 @@ export const tripFinderTabs: TripFinderTab[] = [
   {
     name: 'Family Holiday',
     hint: 'Family-paced trips: Manali, Kerala and Ooty — filter by Family on Tour Packages.',
+    category: 'Family',
   },
   {
     name: 'Adventure',
     hint: 'Spiti Valley, Leh Ladakh and Rishikesh routes — filter by Adventure on Tour Packages.',
+    category: 'Adventure',
   },
   {
     name: 'Custom Trip',

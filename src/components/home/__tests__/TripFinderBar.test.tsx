@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 
 import { TripFinderBar } from '../TripFinderBar';
 import { tripFinderTabs } from '@/content/fixtures/tabs.fixture';
-import { toursRenderedOnCataloguePage } from '@/content/public-listing';
+import { publiclyListedRails, toursRenderedOnCataloguePage } from '@/content/public-listing';
+import { getCategoryChips } from '@/content/get-category-chips';
 
 /**
  * Copy-fidelity regression suite for the Trip Finder tab hints, in the same
@@ -59,17 +60,92 @@ describe('TripFinderBar', () => {
     expect(screen.getByRole('button', { name: 'Custom Trip' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('keeps the SAME /tour-packages CTA on every tab — no tab has its own destination', async () => {
-    const user = userEvent.setup();
-    render(<TripFinderBar />);
+  /**
+   * F5 — the CTA now deep-links per tab.
+   *
+   * It used to be one static `/tour-packages` link on all five tabs, and the
+   * file said so in a comment asserting the route "takes no category query
+   * param either". That stopped being true when the page started reading
+   * `?category=`/`?destination=` from `searchParams`: the hints could honestly
+   * say "filter by Spiritual on Tour Packages" while the button dropped the
+   * visitor on the unfiltered catalogue to hunt for the chip themselves. The
+   * International rail's "View All International Tours" link and the footer's
+   * Top Destinations column already deep-linked — this bar was the last surface
+   * that did not.
+   */
+  describe('"Explore Now" deep-links to the active tab\'s category', () => {
+    it('carries ?category= for every tab that maps to a real chip', async () => {
+      const user = userEvent.setup();
+      render(<TripFinderBar />);
 
-    // This is why no hint may promise a pre-filtered or tab-specific result
-    // set: the button never changes. If a future change does wire per-tab
-    // routing, this test should be updated deliberately, alongside the copy.
-    for (const tab of tripFinderTabs) {
-      await user.click(screen.getByRole('button', { name: tab.name }));
-      expect(screen.getByRole('link', { name: /Explore Now/ })).toHaveAttribute('href', '/tour-packages');
-    }
+      for (const tab of tripFinderTabs.filter((candidate) => candidate.category)) {
+        await user.click(screen.getByRole('button', { name: tab.name }));
+        expect(screen.getByTestId('trip-finder-cta')).toHaveAttribute(
+          'href',
+          `/tour-packages?category=${encodeURIComponent(tab.category!)}`
+        );
+      }
+    });
+
+    it('falls back to the plain catalogue for tabs with no matching category', async () => {
+      const user = userEvent.setup();
+      render(<TripFinderBar />);
+
+      const unmapped = tripFinderTabs.filter((candidate) => !candidate.category);
+      // "Group Tour" and "Custom Trip" describe how a trip is arranged, not a
+      // destination category — pointing them at a made-up chip would be
+      // validated away to "All" server-side anyway, i.e. a silently dead link.
+      expect(unmapped.length).toBeGreaterThan(0);
+
+      for (const tab of unmapped) {
+        await user.click(screen.getByRole('button', { name: tab.name }));
+        expect(screen.getByTestId('trip-finder-cta')).toHaveAttribute('href', '/tour-packages');
+      }
+    });
+
+    it('changes the link when the tab changes, rather than leaving a stale href', async () => {
+      const user = userEvent.setup();
+      render(<TripFinderBar />);
+
+      const hrefs = new Set<string>();
+      for (const tab of tripFinderTabs) {
+        await user.click(screen.getByRole('button', { name: tab.name }));
+        hrefs.add(screen.getByTestId('trip-finder-cta').getAttribute('href')!);
+      }
+
+      expect(hrefs.size).toBeGreaterThan(1);
+    });
+
+    it('names only categories that genuinely render a chip on the catalogue page', () => {
+      // The guard that keeps this honest: a category that stops matching any
+      // publicly-listable tour fails here instead of shipping a deep link to a
+      // filter the page cannot offer.
+      const chips = getCategoryChips(publiclyListedRails);
+
+      for (const tab of tripFinderTabs) {
+        if (!tab.category) continue;
+        expect(chips).toContain(tab.category);
+      }
+    });
+
+    it('deep-links to a category that actually has listable journeys behind it', () => {
+      for (const tab of tripFinderTabs) {
+        if (!tab.category) continue;
+        const matches = toursRenderedOnCataloguePage.filter((tour) => tour.category === tab.category);
+        expect(matches.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('matches the deep-link shape the International rail and footer already use', () => {
+      // Consistency, not coincidence: one URL grammar across every surface that
+      // sends a visitor to a filtered catalogue.
+      for (const tab of tripFinderTabs) {
+        if (!tab.category) continue;
+        expect(`/tour-packages?category=${encodeURIComponent(tab.category)}`).toMatch(
+          /^\/tour-packages\?category=[A-Za-z0-9%]+$/
+        );
+      }
+    });
   });
 
   describe('hint copy asserts nothing the product cannot back', () => {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-import { tripFinderTabs } from '@/content/fixtures/tabs.fixture';
+import { tripFinderTabs, type TripFinderTab } from '@/content/fixtures/tabs.fixture';
 import { cn } from '@/lib/utils';
 
 /**
@@ -20,13 +20,31 @@ import { cn } from '@/lib/utils';
  * says "Soon". Real destination filtering exists one click away, on
  * `/tour-packages` (`PackagesFilterBar`'s destination select).
  *
- * NOTE for future copy edits: the "Explore Now" CTA below is the SAME static
- * `/tour-packages` link on every tab — the active tab changes only the hint
- * line. `/tour-packages` takes no category query param either (its filter is
- * local `useState` in `PackagesCatalogue`, defaulting to "All"). So no hint
- * in `tabs.fixture.ts` may claim the button lands on a pre-filtered or
- * tab-specific result set. See that file's COPY FIDELITY RULE header.
+ * NOTE for future copy edits: the "Explore Now" CTA below now DEEP-LINKS per
+ * tab — `/tour-packages?category=<tab.category>` for the three tabs that map
+ * onto a real derived chip, plain `/tour-packages` for the two that do not.
+ *
+ * The previous version of this note claimed "`/tour-packages` takes no category
+ * query param either", and every tab shared one static link. That stopped being
+ * true when the route started reading `?category=`/`?destination=` from
+ * `searchParams` — so the hints could honestly say "filter by Spiritual on Tour
+ * Packages" while the button dropped the visitor on the unfiltered catalogue
+ * and left them to find the chip themselves. The International rail's "View All
+ * International Tours" link and the footer's Top Destinations column already
+ * deep-linked; this bar was the last surface that did not.
+ *
+ * A hint may still only claim what the tab's own `category` can back: an
+ * unrecognised value is validated away to "All" server-side
+ * (`resolveCategory`), so a made-up category would silently produce exactly the
+ * unfiltered page the old comment described. See `tabs.fixture.ts`'s COPY
+ * FIDELITY RULE header.
  */
+
+/** The catalogue URL a tab's CTA points at — filtered when the tab maps to a real chip. */
+function ctaHref(tab: TripFinderTab): string {
+  return tab.category ? `/tour-packages?category=${encodeURIComponent(tab.category)}` : '/tour-packages';
+}
+
 export function TripFinderBar() {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeTab = tripFinderTabs[activeIndex];
@@ -66,7 +84,8 @@ export function TripFinderBar() {
         <DecorativeField className="min-w-[130px] flex-1" label="Journey Month" glyph="▤" />
         <DecorativeField className="min-w-[120px] flex-1" label="2 Travellers" glyph="▾" />
         <Link
-          href="/tour-packages"
+          href={ctaHref(activeTab)}
+          data-testid="trip-finder-cta"
           className="inline-flex min-h-[42px] items-center justify-center gap-[9px] whitespace-nowrap rounded-pill border-[1.5px] border-gty-primary bg-gty-primary px-5 py-3 text-11-5 font-bold tracking-btn text-gty-white shadow-gty-btn transition-[background-color,transform] duration-gty-fast ease-gty hover:-translate-y-px hover:bg-gty-primary-deep"
         >
           Explore Now <span aria-hidden="true">→</span>
