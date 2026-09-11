@@ -6,6 +6,7 @@ import type { DestinationCategory, PackageRail as PackageRailData } from '@/cont
 import { getDestinationOptions, getPriceRange } from '@/content/public-listing';
 import { PackagesFilterBar, type CategoryFilter, type DestinationFilter } from './PackagesFilterBar';
 import { PackageRail } from './PackageRail';
+import { FilteredResults } from './FilteredResults';
 
 export interface PackagesCatalogueProps {
   rails: PackageRailData[];
@@ -28,6 +29,14 @@ export interface PackagesCatalogueProps {
  * the destination cards, the "View All International Tours" link and the
  * footer's Top Destinations column honest — they used to send every visitor to
  * the same unfiltered catalogue regardless of what they clicked.
+ *
+ * TWO LAYOUTS, chosen by whether anything is filtered:
+ *  - nothing filtered → the four themed rails (Trending / International /
+ *    North India / South India), which is the browsing surface they exist for;
+ *  - anything filtered → ONE consolidated `FilteredResults` section.
+ * The rails filtered independently, so `?destination=goa` used to draw the one
+ * matching card in its rail and three empty-state boxes beside it. The rails
+ * carry no meaning once a visitor has named what they want.
  *
  * Known limitation, stated rather than hidden: subsequent filter changes are
  * local state only and do NOT rewrite the URL, so the address bar can lag
@@ -58,6 +67,21 @@ export function PackagesCatalogue({ rails, categories, initialCategory, initialD
 
   const visibleItems = useMemo(() => filteredRails.flatMap((rail) => rail.items), [filteredRails]);
   const visibleCount = visibleItems.length;
+
+  const isFiltered = selected !== 'All' || selectedDestination !== 'All';
+
+  /**
+   * What the consolidated section calls itself, composed from the active
+   * filters. Both values are derived from the tour data and validated before
+   * they reach this component, so this can only name a real category and a
+   * real destination — see `FilteredResults`.
+   */
+  const resultsHeading = useMemo(() => {
+    const destinationName = destinations.find((option) => option.slug === selectedDestination)?.name;
+    if (selected !== 'All' && destinationName) return `${selected} journeys in ${destinationName}`;
+    if (destinationName) return `Journeys in ${destinationName}`;
+    return `${selected} journeys`;
+  }, [selected, selectedDestination, destinations]);
 
   // Reports the real bounds of what is currently listed, so the readout can
   // never contradict the cards on screen (it used to be a hardcoded band).
@@ -111,7 +135,16 @@ export function PackagesCatalogue({ rails, categories, initialCategory, initialD
           <p className="mx-gx rounded-16 border border-dashed border-gty-border-8 bg-gty-surface-3 px-4 py-8 text-center text-14 text-gty-subtle">
             No journeys match this filter yet.
           </p>
+        ) : isFiltered ? (
+          /*
+            FILTERED → ONE section. Keeping the four-rail split here rendered
+            the matching card in its own rail plus a "No journeys match this
+            filter yet." box for each of the other three, so a deep link that
+            worked looked like a page that did not. See `FilteredResults`.
+          */
+          <FilteredResults items={visibleItems} heading={resultsHeading} onClearFilters={handleViewAll} />
         ) : (
+          /* UNFILTERED → the four themed rails, which is what they are for. */
           filteredRails.map((rail, index) => (
             <PackageRail
               key={rail.title}

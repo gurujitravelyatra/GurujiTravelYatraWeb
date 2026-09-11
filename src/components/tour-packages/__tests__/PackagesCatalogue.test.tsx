@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PackagesCatalogue } from '../PackagesCatalogue';
 import { getCategoryChips } from '@/content/get-category-chips';
 import { publiclyListedRails, toursRenderedOnCataloguePage } from '@/content/public-listing';
+import { gridColumnsForCount } from '@/lib/card-grid';
 
 const categories = getCategoryChips(publiclyListedRails);
 const TOTAL = toursRenderedOnCataloguePage.length;
@@ -156,6 +157,101 @@ describe('"Search Tours" applies the current selection and shows the results', (
 
     expect(screen.getByText('1 journey found')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Beach$/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+/**
+ * F6 — a deep link that worked looked like a page that did not.
+ *
+ * The four themed rails each filtered independently, so
+ * `/tour-packages?destination=goa` rendered the one matching card inside the
+ * rail that happened to contain it, plus THREE "No journeys match this filter
+ * yet." boxes for the rails that did not. Filtering is now a single
+ * consolidated results section; the rails are reserved for the unfiltered
+ * browsing view they exist for.
+ */
+describe('a filtered view renders ONE results section, not four near-empty rails', () => {
+  const EMPTY_RAIL_COPY = /No journeys match this filter yet\./;
+
+  it('renders exactly one results section and zero empty-rail boxes for a single-destination deep link', () => {
+    renderCatalogue({ initialDestination: 'goa' });
+
+    expect(screen.getAllByTestId('packages-filtered-results')).toHaveLength(1);
+    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
+    expect(screen.getByRole('link', { name: /Goa Beach Holiday/ })).toBeInTheDocument();
+  });
+
+  it('shows every match in that one section, and nothing else', () => {
+    renderCatalogue({ initialCategory: 'International' });
+
+    const results = screen.getByTestId('packages-filtered-results');
+    const expected = toursRenderedOnCataloguePage.filter((tour) => tour.category === 'International');
+
+    expect(within(results).getAllByRole('link')).toHaveLength(expected.length);
+    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
+  });
+
+  it('titles the section from the active filter, naming only real derived values', () => {
+    renderCatalogue({ initialDestination: 'goa' });
+    expect(screen.getByRole('heading', { name: 'Journeys in Goa' })).toBeInTheDocument();
+
+    cleanup();
+    renderCatalogue({ initialCategory: 'International' });
+    expect(screen.getByRole('heading', { name: 'International journeys' })).toBeInTheDocument();
+
+    cleanup();
+    renderCatalogue({ initialCategory: 'International', initialDestination: 'dubai' });
+    expect(screen.getByRole('heading', { name: 'International journeys in Dubai' })).toBeInTheDocument();
+  });
+
+  it('sizes the results grid to the number of matches, so one card does not sit in a five-column row', () => {
+    renderCatalogue({ initialDestination: 'goa' });
+
+    const grid = screen.getByTestId('filtered-results-grid');
+    expect(grid.className).toContain(gridColumnsForCount(1));
+    expect(grid.className).not.toMatch(/grid-cols-[2-9]/);
+  });
+
+  it('keeps the four rails for the unfiltered default view', () => {
+    renderCatalogue();
+
+    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /View All Packages/ })).toHaveLength(publiclyListedRails.length);
+  });
+
+  it('switches to the consolidated view when the visitor clicks a chip, not only on deep links', async () => {
+    const user = userEvent.setup();
+    renderCatalogue();
+
+    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
+
+    // Clicking "Beach" used to produce 1 card and 3 empty-state boxes — the
+    // same defect as the deep link, reached a different way.
+    expect(screen.getAllByTestId('packages-filtered-results')).toHaveLength(1);
+    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
+  });
+
+  it('returns to the four-rail view when the filters are cleared', async () => {
+    const user = userEvent.setup();
+    renderCatalogue({ initialCategory: 'International' });
+
+    await user.click(screen.getByRole('button', { name: /View All Packages/ }));
+
+    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /View All Packages/ })).toHaveLength(publiclyListedRails.length);
+  });
+
+  it('still shows the single catalogue-level empty state when nothing matches at all', async () => {
+    const user = userEvent.setup();
+    renderCatalogue();
+
+    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
+    await user.selectOptions(screen.getByLabelText('Destination'), 'maldives');
+
+    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
+    expect(screen.getAllByText(EMPTY_RAIL_COPY)).toHaveLength(1);
   });
 });
 
