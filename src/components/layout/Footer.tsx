@@ -327,11 +327,24 @@ function SocialRow() {
   );
 }
 
-/** `.r` copyright bar — export lines 825-828. */
+/**
+ * `.r` copyright bar — export lines 825-828. The year is computed, never
+ * hardcoded as the export's literal `2026` was.
+ *
+ * `Footer` is a Server Component and every route here is statically
+ * prerendered, so this resolves at build time: the year is correct as of each
+ * deploy rather than as of whenever someone last edited this file. A site
+ * that is not rebuilt for over a year would still show the build's year —
+ * accepted deliberately, because the alternatives (forcing these pages
+ * dynamic, or computing the year on the client) cost either static rendering
+ * or a hydration mismatch for a single line of chrome.
+ */
 function CopyrightBar() {
+  const year = new Date().getFullYear();
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-[10px] bg-gty-primary-darker px-gx py-4 text-12-5 text-gty-white/94">
-      <span>© 2026 Guruji Travel Yatra. All Rights Reserved.</span>
+      <span>© {year} Guruji Travel Yatra. All Rights Reserved.</span>
       <span className="flex items-center gap-2">
         Designed with <span className="text-17 text-[#ff6b5e]">❤</span> for travellers
       </span>

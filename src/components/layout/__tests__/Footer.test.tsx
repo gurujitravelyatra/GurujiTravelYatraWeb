@@ -93,9 +93,25 @@ describe('Footer', () => {
     expect(container.textContent).not.toMatch(/\b(admin|log ?in|sign ?in|dashboard)\b/i);
   });
 
-  it('renders the copyright bar', () => {
+  it('renders the copyright bar with the CURRENT year, not a hardcoded one', () => {
     render(<Footer />);
-    expect(screen.getByText(/© 2026 Guruji Travel Yatra\. All Rights Reserved\./)).toBeInTheDocument();
+
+    // Regression guard: the year was hardcoded to 2026 and would have read
+    // wrong from 1 Jan onward. It must be derived from the clock.
+    const currentYear = new Date().getFullYear();
+    expect(
+      screen.getByText(new RegExp(`© ${currentYear} Guruji Travel Yatra\\. All Rights Reserved\\.`))
+    ).toBeInTheDocument();
+  });
+
+  it('computes the copyright year from the clock (proved by moving the clock)', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2031-03-04T10:00:00Z'));
+    try {
+      render(<Footer />);
+      expect(screen.getByText(/© 2031 Guruji Travel Yatra/)).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('marks the decorative mountain art as hidden from assistive tech', () => {
