@@ -6,6 +6,7 @@
 | `project_gty_sprint_state.md` | project | SPEC pipeline state on `feat/gty-site-setup`: gates green through `9177ffd`. Open: independent adversary gate, placeholder legal copy, unverified prices. |
 | `feedback_qg_export-verbatim-false-copy.md` | feedback | Pixel-fidelity mandates get misapplied to copy, shipping claims that aren't true (2x). Fix that works is data-derived copy tests. Inject with any design export. |
 | `feedback_qg_duplicate-fixture-transcription.md` | feedback | One entity shown twice in an export becomes two conflicting fixture records, then a merge helper silently picks a winner. Inject with any design-export transcription. |
+| `feedback_qg_unenforced-safety-flag.md` | feedback | Agent flags unverified data (`pricingUnverified`) and ships it rendering normally — documentation mistaken for enforcement (2x). Inject whenever data is flagged. |
 
 ## Not stored here (live in the repo instead)
 

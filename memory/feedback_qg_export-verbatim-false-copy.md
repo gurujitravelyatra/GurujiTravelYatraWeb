@@ -6,20 +6,17 @@ type: feedback
 
 Pattern: when a design export is the source of truth for pixel fidelity, agents transcribe its **copy** verbatim too — including sentences that assert a capability or fact the build does not have. A wireframe's filler text is not a specification of truth.
 
-Occurrences: 2
+Occurrences: 3
 Last seen: 2026-09-11
 Affected agents: frontend, func-to-tech-spec
 Pipeline: SPEC (GTY website)
 
-Examples:
-- [RESOLVED `80d46e3`] `src/components/modals/LeadModal.tsx` — "Server-side validated, rate-limited." There is no server, no API route, no rate limiter; validation is client-side Zod only. Said to someone about to type their mobile and email.
-- [RESOLVED `80d46e3`] `src/components/modals/LeadModal.tsx` — "Creating your lead in the CRM", shown on a path that by design always fails.
-- [RESOLVED `80d46e3`] `src/content/fixtures/videos.fixture.ts` — "Departed 06 Oct 2026" rendered on 2026-09-11, i.e. a trip that has not left yet described in the past tense.
-- [RESOLVED `893ccaf`] `src/content/fixtures/tabs.fixture.ts` — every Trip Finder tab hint asserted a filter that does not run: "Showing upcoming departures with seats still open" (no departure/seat data exists anywhere in the model), "Showing family-paced trips: Kashmir, Nepal, Rameshwaram" (Nepal is in no fixture), "Takes you to the trip builder — nine short questions" (no trip builder exists; the CTA is a static `<Link href="/tour-packages">` identical on every tab).
+Examples (most recent first):
+- [RESOLVED `3862a5d`/`617f8d8`] Third occurrence, found by an independent pre-merge adversary AFTER the first two were fixed: `TourPackagesHero` "easy filters and real-time availability" (no availability data exists at all); `JourneyVideoBlock` "▶ Watch Full Video" (no video asset anywhere); `not-found.tsx` "This page is coming soon" on every 404 including typos; `LeadModal` promising pre-submit that "our team will review your enquiry" on a path that always fails; an invented Instagram handle `@guruji_travel_yatra`.
+- [RESOLVED `893ccaf`] `tabs.fixture.ts` — hints asserting seat availability, a Nepal trip (in no fixture) and a nine-question "trip builder" that does not exist.
+- [RESOLVED `80d46e3`] `LeadModal.tsx` "Server-side validated, rate-limited." / "Creating your lead in the CRM"; `videos.fixture.ts` "Departed 06 Oct 2026" rendered before that date.
 
-A regression test now pins the resolved cases: `LeadModal.enquiry.test.tsx` asserts the rendered modal matches none of /server-side/i, /rate.?limit/i, /\bCRM\b/, /encrypted/i; `fixture-content-adapter.test.ts` asserts no video caption contains a year, "departed" or "travellers"; `TripFinderBar.test.tsx` asserts no hint matches seats/departures/availability/trip-builder/question patterns AND that every capitalised place word in a hint appears in the tour data (the check that catches "Nepal" generically rather than by name).
+**The third occurrence's real lesson — ENFORCEMENT SCOPE, not prompt strictness.** The COPY FIDELITY RULE and its data-derived test already existed when occurrence 3 shipped. They caught nothing because the test was scoped to ONE fixture file (`tabs.fixture.ts`), so a false claim hardcoded in JSX was invisible to it. Worse, that test checked place names against all 22 fixture records while the CTA it describes lands on a page rendering ~17 — so it green-lit hints naming tours a visitor could not reach.
 
-Note on the second occurrence: the fix that worked was **structural** copy tests, not a stricter prompt. A test that derives its expectation from the data ("this place must exist in `allTours`") survives copy rewrites; a test pinning exact sentences does not.
-
-**Why:** an anti-fabrication rule that covers *data* (prices, names, reviews) does not automatically cover *assertions in copy*, so agents satisfy the rule and still ship falsehoods. Three distinct classes slipped through in one sprint.
-**How to apply:** when dispatching `frontend` or `func-to-tech-spec` with a design export, add: "Pixel fidelity governs layout, spacing, type and colour — NOT the truth of copy. Any sentence in the export that asserts a capability (validation, rate limiting, CRM writes, search, 'showing results'), a date, or a statistic must be verified against what the build actually does. If it isn't true, flag it as a product decision rather than transcribing it."
+**Why:** an anti-fabrication rule that covers *data* does not automatically cover *assertions in copy*, and a copy test that covers one file does not cover a page.
+**How to apply:** when dispatching `frontend` or `func-to-tech-spec` with a design export, add: "Pixel fidelity governs layout, spacing, type and colour — NOT the truth of copy. Any sentence asserting a capability, date or statistic must be verified against what the build does; if it isn't true, flag it as a product decision. Copy-fidelity tests must scan RENDERED output of the whole page and derive expectations from the data the visitor will actually see at the link's destination — never from a single fixture file."
