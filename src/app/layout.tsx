@@ -31,7 +31,21 @@ const caveat = Caveat({
   display: 'swap',
 });
 
+/**
+ * Base origin every relative URL in a `metadata` export resolves against —
+ * required for `/tour-packages`'s `alternates.canonical` to emit a real
+ * absolute canonical instead of Next's `http://localhost:3000` default.
+ *
+ * NOT hardcoded to a guessed production domain: no live origin for this site
+ * is confirmed anywhere in the source material (the design export gives a
+ * phone number and an email, not a website URL). Deployment supplies
+ * `NEXT_PUBLIC_SITE_URL`; until it does, this resolves exactly as Next already
+ * did, so nothing regresses and nothing is invented.
+ */
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default: "Guruji Travel Yatra — Keep Guessing, Where's Next Trip?",
     template: '%s · Guruji Travel Yatra',
