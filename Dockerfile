@@ -37,6 +37,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 # Requires `output: 'standalone'` in next.config.ts for these paths to exist.
+# This three-COPY layout (public + standalone root + .next/static) is mirrored by
+# scripts/start-standalone.mjs, which is what the Playwright suite boots — so the
+# layout itself is exercised on every E2E run even though this image is not.
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

@@ -4,9 +4,18 @@ const PORT = Number(process.env.PORT ?? 3100);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 /**
- * E2E runs against a real production build (`next build` + `next start`)
- * rather than `next dev`, so the golden paths exercise the same Server /
- * Client Component split, static params and bundling that ship.
+ * E2E runs against a real production build rather than `next dev`, so the
+ * golden paths exercise the same Server / Client Component split, static
+ * params and bundling that ship.
+ *
+ * Specifically it runs the **standalone** server (`npm start` ->
+ * scripts/start-standalone.mjs), which is the one ./Dockerfile actually
+ * deploys. This previously ran `next start`, which Next rejects under
+ * `output: "standalone"` ("next start" does not work with "output: standalone"
+ * configuration) — it fell back to a non-standalone server, so the suite was
+ * green against a server production never runs and could not catch a
+ * standalone-only regression such as a dependency missed by output file
+ * tracing.
  *
  * `testDir: './e2e'` keeps Playwright away from `src/**\/__tests__` (Jest's
  * territory) and — like jest.config.ts's `roots` — away from the unrelated
@@ -43,7 +52,11 @@ export default defineConfig({
   ],
   webServer: {
     // Self-contained so `npm run test:e2e` works from a cold checkout.
-    command: `npm run build && npx next start --port ${PORT}`,
+    command: 'npm run build && npm start',
+    // PORT/HOSTNAME are passed as env rather than CLI flags because the
+    // standalone entrypoint takes no arguments — it reads both from the
+    // environment, exactly as the Dockerfile's `ENV PORT=3000` does.
+    env: { PORT: String(PORT), HOSTNAME: '127.0.0.1' },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
