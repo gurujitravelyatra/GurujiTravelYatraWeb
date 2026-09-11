@@ -1,9 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
-
 import type { Package } from '@/content/types';
 import { PackageCard } from '@/components/cards/PackageCard';
+import { useHorizontalOverflow } from '@/hooks/use-horizontal-overflow';
 
 export interface PackageRailProps {
   title: string;
@@ -24,8 +23,9 @@ const SCROLL_AMOUNT_PX = 320;
 
 /**
  * Export lines 396-427, tech spec §4.4 "Four package rails". `use client`
- * for the scroll-arrow button (§4.5). Right-edge arrow only ≥1080px,
- * matching the export's `.pkart{display:none}` rule at that breakpoint.
+ * for the scroll-arrow button (§4.5). Right-edge arrow only ≥1080px, matching
+ * the export's `.pkart{display:none}` rule at that breakpoint — AND only when
+ * the row actually overflows (see `canScroll`).
  *
  * Defensive empty state (BLOCKERS.md Decision C): even though no chip
  * empties the WHOLE page, an individual rail absolutely can end up with 0
@@ -33,7 +33,8 @@ const SCROLL_AMOUNT_PX = 320;
  * the South India rail — the other 3 rails render this empty state).
  */
 export function PackageRail({ title, items, background, onViewAll }: PackageRailProps) {
-  const rowRef = useRef<HTMLDivElement>(null);
+  // The arrow renders only when the row genuinely overflows — see the hook.
+  const { ref: rowRef, hasOverflow: canScroll } = useHorizontalOverflow<HTMLDivElement>([items]);
 
   const scrollNext = () => {
     rowRef.current?.scrollBy({ left: SCROLL_AMOUNT_PX, behavior: 'smooth' });
@@ -71,14 +72,16 @@ export function PackageRail({ title, items, background, onViewAll }: PackageRail
               </div>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={scrollNext}
-            aria-label={`Scroll ${title}`}
-            className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white 1080:flex"
-          >
-            ›
-          </button>
+          {canScroll && (
+            <button
+              type="button"
+              onClick={scrollNext}
+              aria-label={`Scroll ${title}`}
+              className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white 1080:flex"
+            >
+              ›
+            </button>
+          )}
         </div>
       )}
     </div>

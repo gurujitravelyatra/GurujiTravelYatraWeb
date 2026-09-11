@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
 import Link from 'next/link';
 
 import type { Destination } from '@/content/types';
 import { DestinationCard } from '@/components/cards/DestinationCard';
+import { useHorizontalOverflow } from '@/hooks/use-horizontal-overflow';
 
 export interface InternationalDestinationsRailProps {
   destinations: Destination[];
@@ -17,9 +17,14 @@ const SCROLL_AMOUNT_PX = 268;
  * Export lines 221-238, tech spec §4.4 row 6b. `use client` only because of
  * the scroll-arrow button (§4.5 "rail scroll-arrow buttons" is client) —
  * `DestinationCard` itself stays a plain presentational component.
+ *
+ * The arrow is gated on MEASURED overflow, not just the ≥1180px breakpoint —
+ * this rail is fed by `international.fixture.ts`, which shrank when Malaysia
+ * was removed for having no backing tour, and would otherwise offer the same
+ * scrolls-nothing button `PackageRail` had. Same hook, one behaviour.
  */
 export function InternationalDestinationsRail({ destinations }: InternationalDestinationsRailProps) {
-  const rowRef = useRef<HTMLDivElement>(null);
+  const { ref: rowRef, hasOverflow: canScroll } = useHorizontalOverflow<HTMLDivElement>([destinations]);
 
   const scrollNext = () => {
     rowRef.current?.scrollBy({ left: SCROLL_AMOUNT_PX, behavior: 'smooth' });
@@ -50,14 +55,16 @@ export function InternationalDestinationsRail({ destinations }: InternationalDes
             <DestinationCard key={destination.slug} destination={destination} />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={scrollNext}
-          aria-label="Scroll international destinations"
-          className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white 1180:flex"
-        >
-          ›
-        </button>
+        {canScroll && (
+          <button
+            type="button"
+            onClick={scrollNext}
+            aria-label="Scroll international destinations"
+            className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white 1180:flex"
+          >
+            ›
+          </button>
+        )}
       </div>
     </section>
   );

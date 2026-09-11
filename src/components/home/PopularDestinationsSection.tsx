@@ -2,6 +2,8 @@ import Link from 'next/link';
 
 import type { Package } from '@/content/types';
 import { PackageCard } from '@/components/cards/PackageCard';
+import { gridColumnsForCount } from '@/lib/card-grid';
+import { cn } from '@/lib/utils';
 
 export interface PopularDestinationsSectionProps {
   packages: Package[];
@@ -13,9 +15,10 @@ export interface PopularDestinationsSectionProps {
  * (price/duration/savings/heart), not the minimal `DestinationCard` — that
  * one is reserved for the International rail below.
  *
- * Dot pagination (5 dots, first active) is presentational-only per tech
- * spec: "no working pagination logic required this sprint since all 5
- * fixture items fit on screen."
+ * Dot pagination is presentational-only per tech spec ("no working pagination
+ * logic required this sprint since all fixture items fit on screen") and
+ * renders ONE DOT PER CARD ACTUALLY RENDERED — the tech spec's "5 dots" was
+ * written when the rail had 5 items and is not a fixed count.
  */
 export function PopularDestinationsSection({ packages }: PopularDestinationsSectionProps) {
   return (
@@ -29,13 +32,16 @@ export function PopularDestinationsSection({ packages }: PopularDestinationsSect
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-[18px] 640:grid-cols-3 1080:grid-cols-5">
+      <div
+        data-testid="popular-destinations-grid"
+        className={cn('grid gap-[18px]', gridColumnsForCount(packages.length))}
+      >
         {packages.map((pkg) => (
           <PackageCard key={pkg.slug} package={pkg} />
         ))}
       </div>
 
-      <div aria-hidden="true" className="flex justify-center gap-[6px] pt-1">
+      <div aria-hidden="true" data-testid="popular-destinations-dots" className="flex justify-center gap-[6px] pt-1">
         {packages.map((pkg, index) => (
           <span
             key={pkg.slug}
