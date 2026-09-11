@@ -25,7 +25,23 @@ test.describe('/ (Home)', () => {
     // ...but it is reachable from the footer.
     await expect(page.getByRole('contentinfo').getByRole('link', { name: 'About Us', exact: true })).toBeVisible();
 
-    await expect(page.getByText(/© 2026 Guruji Travel Yatra/)).toBeVisible();
+    // Year is computed at render time (Footer.tsx CopyrightBar), so this
+    // assertion tracks the clock instead of pinning a year that goes stale.
+    await expect(page.getByText(new RegExp(`© ${new Date().getFullYear()} Guruji Travel Yatra`))).toBeVisible();
+  });
+
+  test('Trip Finder tabs swap the hint without promising features that do not exist', async ({ page }) => {
+    const bar = page.getByTestId('section-3-trip-finder');
+
+    await bar.getByRole('button', { name: 'Custom Trip' }).click();
+    await expect(bar.getByRole('button', { name: 'Custom Trip' })).toHaveAttribute('aria-pressed', 'true');
+
+    // The Custom Trip hint used to advertise "the trip builder — nine short
+    // questions". No such flow exists: the CTA is the same static link on
+    // every tab.
+    await expect(bar).not.toContainText(/trip builder/i);
+    await expect(bar).not.toContainText(/seats? (still )?open|departures/i);
+    await expect(bar.getByRole('link', { name: /Explore Now/ })).toHaveAttribute('href', '/tour-packages');
   });
 
   test('navigates to Tour Packages from the navbar', async ({ page }) => {

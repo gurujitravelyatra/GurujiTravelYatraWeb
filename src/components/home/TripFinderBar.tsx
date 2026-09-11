@@ -19,6 +19,13 @@ import { cn } from '@/lib/utils';
  * repo doesn't have yet and would still have nowhere real to submit to —
  * kept pixel-accurate and inert instead, matching the Tour Packages page's
  * identical fields.
+ *
+ * NOTE for future copy edits: the "Explore Now" CTA below is the SAME static
+ * `/tour-packages` link on every tab — the active tab changes only the hint
+ * line. `/tour-packages` takes no category query param either (its filter is
+ * local `useState` in `PackagesCatalogue`, defaulting to "All"). So no hint
+ * in `tabs.fixture.ts` may claim the button lands on a pre-filtered or
+ * tab-specific result set. See that file's COPY FIDELITY RULE header.
  */
 export function TripFinderBar() {
   const [activeIndex, setActiveIndex] = useState(0);
