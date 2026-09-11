@@ -17,7 +17,7 @@ Examples:
 
 - [RESOLVED `edc328f`] Third variant — enforcement that stops at the pixel. `isPlaceholder` DID render an asterisk on all three stats surfaces, so it looked enforced. But `WhyGtyBand` marked its asterisk `aria-hidden` while giving the footnote no `id`, and `Hero` had neither an `id` nor an `aria-describedby`: for a screen-reader user the marker was suppressed AND the explanation was never associated, so an unconfirmed figure read as settled fact — strictly worse than no marker. `StatsBar`'s pairing was itself only correct on paper: `aria-describedby` sat on a bare `<div>` with no role, which assistive tech routinely ignores.
 
-- [OPEN — BLOCKERS.md item 9] Fourth variant, and the first where the enforcement
+- [RESOLVED `af92be2`] Fourth variant, and the first where the enforcement
   itself is correct: the gate is scoped to one fixture while a sibling fixture holds
   the same entity. `public-listing.ts` withholds "Do Dham Yatra" (₹28,900,
   `pricingUnverified`) from Home and `/tour-packages`, and 404s its detail route — but
@@ -25,7 +25,13 @@ Examples:
   export, carries the same ₹28,900, and `/group-tours` (built later) renders it as the
   card's most prominent figure. The gate only knows about `Package`, so the new surface
   bypassed it. Tellingly, the *duration* conflict for this same record WAS carried across
-  (`durationUnverified`); the price was not.
+  (`durationUnverified`); the price was not. Fixed with `GroupDeparture.priceUnverified`
+  + the marker/footnote treatment (user chose marking over withholding: no fabricated
+  discount badge on that card), plus a fixture cross-check test asserting the two
+  fixtures flag the same tours with the same price string — the flags can no longer
+  drift apart in either direction. The fix also caught a variant-3 relapse one line
+  away: the existing `durationUnverified` marker had its `aria-describedby` on an
+  unroled `<span>`.
 
 Tell-tale in review: `grep` the flag name. If the only hits are the definition, the data, and a test asserting the flag exists, nothing enforces it. If the flag renders a *visual* marker, check the marker reaches assistive tech too — an `aria-hidden` glyph plus an unreferenced footnote is an un-enforced flag wearing a costume.
 
@@ -37,3 +43,16 @@ renders already carries a safety flag in another fixture. Gates get written agai
 type in front of the agent (`Package`) and silently do not cover a sibling type
 (`GroupDeparture`) holding the same real-world entity. Grep the entity *name*, not just
 the flag.
+
+**And pair the flags with a test, not just a comment (variant 4's fix):** where the same
+entity legitimately lives in two models, a test that cross-checks the two fixtures'
+flags against each other is what stops the drift — in both directions. The dangerous
+direction is not only "a new surface misses the flag" but "the price gets confirmed and
+only one of the two flags is cleared", which silently re-publishes the other.
+
+**Choosing withhold vs. mark (the product half, user-decided):** withhold when the
+unconfirmed figure is wrapped in a *claim* the data cannot support (a "was ₹X / Save ₹Y"
+badge); mark when it is a standalone figure. All four variants above are the same
+mistake, but the proportionate remedy differs, and it is a business call, not the
+agent's — put both options to the user with the consequence of each (here: withholding
+would have emptied a quarter of the departures page).
