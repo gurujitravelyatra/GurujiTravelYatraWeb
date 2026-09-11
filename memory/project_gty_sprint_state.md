@@ -24,11 +24,22 @@ Branch: `feat/gty-site-setup`. No git remote, no `gh` — PR creation is skipped
 
 Gate status at `617f8d8`: `tsc --noEmit` clean, `eslint` clean, `next build` clean (19 SSG tour paths — down from 22, the 3 withheld), Jest **25 suites / 242 tests** pass, Playwright **55/55** pass.
 
+- `edc328f`..`21067e1`: **THIRD fix round — second independent pre-merge review's 8 findings (F1-F8) all closed.** All were downstream ripples of the earlier fixes, not new defects; see `feedback_qg_stale-invariant-after-fix.md`.
+  - F1 no code change (product decision: naming a withheld tour is fine, showing its price never is) — pinned by a new regression test.
+  - F2 placeholder footnotes now reach assistive tech on all three surfaces (id + `aria-describedby` on a **roled** group + visible asterisk).
+  - F3 `alternates.canonical: '/tour-packages'` + `metadataBase` from `NEXT_PUBLIC_SITE_URL` (no guessed domain).
+  - F4 `src/lib/card-grid.ts` drives columns from item count; one dot per card; `src/hooks/use-horizontal-overflow.ts` gates both rails' scroll arrows on measured overflow.
+  - F5 Trip Finder CTA deep-links per tab; stale "takes no category param" comment corrected.
+  - F6 a filtered view renders ONE `FilteredResults` section; the 4 rails are the unfiltered view only.
+  - F7/F8 stale test reference and "Thousands of happy travellers every year" removed.
+
+Gate status at `21067e1`: `tsc --noEmit` clean, `eslint` clean, `next build` clean, Jest **29 suites / 302 tests** pass, Playwright **58/58** pass. Zero admin/login/CMS surface and the pricing gate both still verified by E2E.
+
 ## Still open before merge
-1. **Independent verification of the fix pass** on `ce244e4..617f8d8` — a fresh `edge-case-adversary` owns this; the implementer must not self-review.
+1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.)
 2. **Legal copy is placeholder** — written by the build, not reviewed by counsel. It must go to GTY's lawyer before launch, and the banner + `robots: index=false` stay until it does.
 3. **Four Support links still 404 by Decision G**: `/legal/faqs`, `/legal/travel-tips`, `/legal/cancellation-policy`, `/legal/refund-policy`. Deliberate — invented cancellation terms would be worse than a 404. Pinned by `e2e/legal.spec.ts`.
-4. **`pricingUnverified` still needs real figures** for "Do Dham Yatra", "Kashmir Family Escape", "Kashi Darshan". No longer a correctness risk (they are withheld from every listing and 404 by slug), but Home's Popular rail shows only 2 cards and the Trending rail only 2 until this is confirmed. Same for `stats.fixture.ts`'s `isPlaceholder` figures, which render with an asterisk + "pending confirmation" footnote.
+4. **`pricingUnverified` still needs real figures** for "Do Dham Yatra", "Kashmir Family Escape", "Kashi Darshan". No longer a correctness risk (withheld from every listing, 404 by slug) and no longer a layout risk as of `ac1ffc5` (grid, dots and arrows all track the real count), but Home's Popular rail and the Trending rail each show only 2 cards until this is confirmed. Same for `stats.fixture.ts`'s `isPlaceholder` figures, which render with an asterisk + "pending confirmation" footnote.
 5. Consolidation side effect to confirm with the user: Home now shows the rails categorisation for two tours (`Family`, `Spiritual`) rather than the `popular` one (`Family Trip`, `Pilgrimage`). One record means one category; neither transcription is confirmed. `Family Trip`/`Pilgrimage`/`Mountains` now match zero records and so produce no filter chip.
 6. Contact-constant duplication **partly fixed**: `src/lib/gty-contact.ts` now owns phone/WhatsApp/email/address/Instagram, and `Footer`, `BottomContactStrip`, `MobileActionBar`, `InstagramStrip` use it. `HeaderControls`, `MobileMenu` and the two legal pages still hold local copies — finish the pass when next in those files.
 7. Non-Instagram social handles (`YouTube`, `Facebook`, `X`, `LinkedIn`) remain `href="#"` — still unconfirmed, deliberately not invented.
