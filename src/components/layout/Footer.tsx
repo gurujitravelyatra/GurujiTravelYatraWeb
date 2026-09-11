@@ -2,10 +2,14 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-const GTY_PHONE_TEL = '+919099957658';
-const GTY_PHONE_DISPLAY = '+91 90999 57658';
-const GTY_EMAIL = 'info@gurujitravelyatra.com';
-const GTY_ADDRESS = 'Ahmedabad, Gujarat, India';
+import { getDestinationOptions, toursRenderedOnCataloguePage } from '@/content/public-listing';
+import {
+  GTY_ADDRESS,
+  GTY_EMAIL,
+  GTY_INSTAGRAM_URL,
+  GTY_PHONE_DISPLAY,
+  GTY_PHONE_TEL,
+} from '@/lib/gty-contact';
 
 const QUICK_LINKS = [
   { label: 'Home', href: '/' },
@@ -15,17 +19,41 @@ const QUICK_LINKS = [
   { label: 'About Us', href: '/about-us' },
 ] as const;
 
-// The export sends every one of these to `goPack` (i.e. `/tour-packages`) —
-// none of them are real per-destination routes this sprint.
-const TOP_DESTINATIONS = [
-  'Kedarnath Yatra',
-  'Badrinath Yatra',
+/**
+ * The export's own ordering preference for this column. It is a PREFERENCE,
+ * not the list: names are kept only if a publicly-listed journey actually goes
+ * there, and the column is topped up from the real destination data if fewer
+ * than `TOP_DESTINATIONS_LIMIT` survive.
+ *
+ * Two things were wrong before. Every entry linked to the bare
+ * `/tour-packages`, so the column was seven links to one identical page. And
+ * the list named Kedarnath, Badrinath and Varanasi — destinations whose only
+ * tours are the `pricingUnverified` ones now withheld from every public
+ * listing, so those links advertised journeys the catalogue cannot show.
+ */
+const PREFERRED_TOP_DESTINATIONS = [
+  'Kedarnath',
+  'Badrinath',
   'Spiti Valley',
   'Varanasi',
   'Rameshwaram',
   'Vaishnodevi',
   'Leh Ladakh',
 ] as const;
+
+const TOP_DESTINATIONS_LIMIT = 7;
+
+const LISTED_DESTINATIONS = getDestinationOptions(toursRenderedOnCataloguePage);
+
+const TOP_DESTINATIONS = (() => {
+  const byName = new Map(LISTED_DESTINATIONS.map((destination) => [destination.name, destination]));
+  const preferred = PREFERRED_TOP_DESTINATIONS.map((name) => byName.get(name)).filter(
+    (destination): destination is NonNullable<typeof destination> => destination !== undefined
+  );
+  const chosen = new Set(preferred.map((destination) => destination.slug));
+  const remainder = LISTED_DESTINATIONS.filter((destination) => !chosen.has(destination.slug));
+  return [...preferred, ...remainder].slice(0, TOP_DESTINATIONS_LIMIT);
+})();
 
 // The export renders these as no-op buttons with no route at all. Tech spec
 // §4.3 directs building them as real `<Link>`s to future slugs instead
@@ -178,9 +206,13 @@ function RedBand() {
         </FooterColumn>
 
         <FooterColumn title="Top Destinations">
-          {TOP_DESTINATIONS.map((name) => (
-            <Link key={name} href="/tour-packages" className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline">
-              {name}
+          {TOP_DESTINATIONS.map((destination) => (
+            <Link
+              key={destination.slug}
+              href={`/tour-packages?destination=${encodeURIComponent(destination.slug)}`}
+              className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline"
+            >
+              {destination.name}
             </Link>
           ))}
         </FooterColumn>
@@ -257,8 +289,9 @@ function ContactRow({ label, href, children }: { label: string; href?: string; c
 const SOCIAL_LINKS = [
   {
     label: 'Instagram',
-    // TODO(social-links): real handle/URL not confirmed — placeholder href.
-    href: '#',
+    // The ONE confirmed account (see `@/lib/gty-contact`). Every other handle
+    // below is still unconfirmed — TODO(social-links).
+    href: GTY_INSTAGRAM_URL,
     className: 'bg-[linear-gradient(135deg,#f9ce34,#ee2a7b_48%,#6228d7)]',
     icon: (
       <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
@@ -313,16 +346,23 @@ const SOCIAL_LINKS = [
 function SocialRow() {
   return (
     <div className="flex flex-nowrap gap-[10px] pt-[2px]">
-      {SOCIAL_LINKS.map((social) => (
-        <a
-          key={social.label}
-          href={social.href}
-          aria-label={social.label}
-          className={`flex h-[46px] w-[46px] flex-none items-center justify-center rounded-pill shadow-gty-ring ${social.className}`}
-        >
-          {social.icon}
-        </a>
-      ))}
+      {SOCIAL_LINKS.map((social) => {
+        // Only the confirmed profile is a real outbound link; the unconfirmed
+        // `#` stubs must not open a blank tab.
+        const isExternal = social.href.startsWith('http');
+        return (
+          <a
+            key={social.label}
+            href={social.href}
+            aria-label={social.label}
+            target={isExternal ? '_blank' : undefined}
+            rel={isExternal ? 'noopener noreferrer' : undefined}
+            className={`flex h-[46px] w-[46px] flex-none items-center justify-center rounded-pill shadow-gty-ring ${social.className}`}
+          >
+            {social.icon}
+          </a>
+        );
+      })}
     </div>
   );
 }

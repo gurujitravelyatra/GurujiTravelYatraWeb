@@ -9,6 +9,14 @@ export interface PackageRailProps {
   title: string;
   items: Package[];
   background: 'white' | 'cream';
+  /**
+   * Clears every active filter and returns the visitor to the results — see
+   * `PackagesCatalogue.handleViewAll`. Required, not optional: this button
+   * shipped as a `<button type="button">` with no handler at all, four times
+   * per page, and making the prop mandatory means a caller cannot reintroduce
+   * that by omission.
+   */
+  onViewAll: () => void;
 }
 
 /** How far the row scrolls per arrow click — one card width (300px) + its gap (20px). */
@@ -24,7 +32,7 @@ const SCROLL_AMOUNT_PX = 320;
  * items under a given category filter (e.g. "Beach" only matches 1 item in
  * the South India rail — the other 3 rails render this empty state).
  */
-export function PackageRail({ title, items, background }: PackageRailProps) {
+export function PackageRail({ title, items, background, onViewAll }: PackageRailProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
   const scrollNext = () => {
@@ -43,6 +51,7 @@ export function PackageRail({ title, items, background }: PackageRailProps) {
         <h3 className="text-27 font-extrabold tracking-tightest text-gty-ink">{title}</h3>
         <button
           type="button"
+          onClick={onViewAll}
           className="flex items-center gap-2 text-14 font-bold text-gty-primary transition-[text-decoration] duration-gty-fast ease-gty hover:underline"
         >
           View All Packages <span aria-hidden="true">→</span>

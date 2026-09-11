@@ -1,3 +1,4 @@
+import type { StatMetric } from '@/content/types';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import { HeroCtas } from './HeroCtas';
 
@@ -12,13 +13,39 @@ import { HeroCtas } from './HeroCtas';
  */
 const HERO_PHOTO_KEY = 'Himalayas';
 
-const HERO_STATS = [
-  { value: '10,000+', label: 'Happy Travellers' },
-  { value: '150+', label: 'Destinations' },
-  { value: '8+ Years', label: 'Of Trust & Service' },
-] as const;
+/**
+ * Which of the canonical stats the hero strip surfaces, by label, in order.
+ *
+ * The hero used to hold its OWN `HERO_STATS` literal ("10,000+", "150+",
+ * "8+ Years") while `StatsBar` — on the same page — rendered
+ * `contentAdapter.getStats()`. Two sources of truth for one set of numbers,
+ * guaranteed to drift the first time someone edited one of them. The hero now
+ * SELECTS from the same array; it never restates a figure.
+ */
+const HERO_STAT_LABELS = ['Happy Travellers', 'Destinations', 'Years of Experience'] as const;
 
-export function Hero() {
+export interface HeroProps {
+  /** The same `getStats()` result the `StatsBar` renders — passed from the page. */
+  stats: StatMetric[];
+}
+
+/**
+ * Picks the hero's three figures out of the canonical list. Missing labels are
+ * skipped rather than substituted, and if none of the preferred labels exist
+ * the hero falls back to the first three stats — it never invents a number and
+ * never renders an empty card.
+ */
+function selectHeroStats(stats: StatMetric[]): StatMetric[] {
+  const preferred = HERO_STAT_LABELS.map((label) => stats.find((stat) => stat.label === label)).filter(
+    (stat): stat is StatMetric => stat !== undefined
+  );
+  return preferred.length > 0 ? preferred : stats.slice(0, 3);
+}
+
+export function Hero({ stats }: HeroProps) {
+  const heroStats = selectHeroStats(stats);
+  const hasPlaceholder = heroStats.some((stat) => stat.isPlaceholder);
+
   return (
     <section data-testid="section-2-hero" className="relative flex min-h-[420px] items-start overflow-hidden bg-gty-img-bg 760:min-h-[620px]">
       <PhotoPlaceholder
@@ -60,16 +87,35 @@ export function Hero() {
         <HeroCtas />
       </div>
 
-      <div className="static flex flex-wrap gap-2 px-gx pb-7 760:absolute 760:bottom-20 760:left-gx 760:z-[2] 760:flex-nowrap 760:px-0 760:pb-0">
-        {HERO_STATS.map((stat) => (
+      <div
+        data-testid="hero-stats"
+        className="static flex flex-wrap items-start gap-2 px-gx pb-7 760:absolute 760:bottom-20 760:left-gx 760:z-[2] 760:flex-nowrap 760:px-0 760:pb-0"
+      >
+        {heroStats.map((stat) => (
           <div
             key={stat.label}
             className="rounded-16 border border-gty-border bg-gty-white px-[18px] py-[14px] shadow-gty-lift"
           >
-            <div className="text-20 font-extrabold tracking-tightest text-gty-ink">{stat.value}</div>
+            <div className="text-20 font-extrabold tracking-tightest text-gty-ink">
+              {stat.value}
+              {stat.isPlaceholder && (
+                <span data-testid={`hero-stat-placeholder-${stat.label}`} className="align-super text-11 text-gty-subtle">
+                  *
+                </span>
+              )}
+            </div>
             <div className="text-11 text-gty-subtle">{stat.label}</div>
           </div>
         ))}
+        {hasPlaceholder && (
+          <p
+            data-testid="hero-stats-placeholder-note"
+            className="w-full self-center text-9 text-gty-white 760:w-auto 760:self-end 760:pb-[6px] 760:pl-1"
+            style={{ textShadow: '0 2px 8px rgba(0,0,0,.45)' }}
+          >
+            *Figures pending confirmation
+          </p>
+        )}
       </div>
     </section>
   );

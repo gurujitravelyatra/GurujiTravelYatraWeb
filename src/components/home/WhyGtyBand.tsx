@@ -62,6 +62,12 @@ const WHY_ICONS: readonly ReactNode[] = [
 ];
 
 export function WhyGtyBand() {
+  // "Trusted Since 8+ Years" quotes the canonical years-of-service stat, which
+  // is not confirmed (stats.fixture.ts). Marked here with the same asterisk +
+  // footnote treatment the stats bar uses, so the same number is never settled
+  // fact in one band and a placeholder in another.
+  const hasPlaceholder = whyItems.some((item) => item.isPlaceholder);
+
   return (
     <section
       data-testid="section-why-gty-trust-strip"
@@ -108,11 +114,28 @@ export function WhyGtyBand() {
                 </span>
               </span>
             </span>
-            <p className="text-16 font-extrabold leading-[1.2] tracking-nudge text-gty-white">{item.title}</p>
+            <p className="text-16 font-extrabold leading-[1.2] tracking-nudge text-gty-white">
+              {item.title}
+              {item.isPlaceholder && (
+                <span
+                  aria-hidden="true"
+                  data-testid={`why-placeholder-marker-${item.title}`}
+                  className="align-super text-11 font-bold text-gty-white/70"
+                >
+                  *
+                </span>
+              )}
+            </p>
             <p className="max-w-[215px] text-13-5 leading-[1.55] text-gty-white/92">{item.description}</p>
           </div>
         ))}
       </div>
+
+      {hasPlaceholder && (
+        <p data-testid="why-placeholder-note" className="text-11 text-gty-subtle">
+          *These figures are pending confirmation and are shown as placeholders.
+        </p>
+      )}
     </section>
   );
 }

@@ -50,7 +50,9 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
     notFound();
   }
 
-  const destinationName = pkg.destinationSlug.replace(/-/g, ' ');
+  // The record's own display name ("Leh Ladakh"), not a de-slugified guess
+  // ("leh ladakh" / "vaishnodevi").
+  const destinationName = pkg.destinationName;
 
   return (
     <SiteShell activePath="/tour-packages" pageLabel={pkg.name}>

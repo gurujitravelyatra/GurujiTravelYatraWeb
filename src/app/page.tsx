@@ -53,7 +53,13 @@ export default async function HomePage() {
 
   return (
     <SiteShell activePath="/" pageLabel="Home">
-      <Hero />
+      {/*
+        `Hero` and `StatsBar` below are both fed by the SAME `getStats()`
+        result — the hero used to carry its own hardcoded copy of these
+        numbers, so one page showed two independently-maintained versions of
+        the same figures.
+      */}
+      <Hero stats={stats} />
       <TripFinderBar />
       <PopularDestinationsSection packages={popularDestinations} />
       <InternationalDestinationsRail destinations={internationalDestinations} />

@@ -26,7 +26,7 @@ export function PackageCard({ package: pkg }: PackageCardProps) {
       <span className="relative block w-full">
         <PhotoPlaceholder
           photoKey={pkg.photoUrl}
-          alt={`${pkg.name} — ${pkg.destinationSlug.replace(/-/g, ' ')}`}
+          alt={`${pkg.name} — ${pkg.destinationName}`}
           className="h-[250px] w-full rounded-14"
         />
         <span className="absolute left-[10px] top-[10px] flex items-center gap-[6px] rounded-pill bg-gty-white/94 py-[6px] pl-[9px] pr-3 text-12-5 font-semibold text-gty-ink-soft shadow-gty-dark-sm">

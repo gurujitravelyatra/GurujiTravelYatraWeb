@@ -48,7 +48,7 @@ test.describe('/ (Home)', () => {
     await page.getByTestId('site-navbar').getByRole('link', { name: 'Tour Packages', exact: true }).click();
 
     await expect(page).toHaveURL(/\/tour-packages$/);
-    await expect(page.getByText('20 journeys found')).toBeVisible();
+    await expect(page.getByText('17 journeys found')).toBeVisible();
   });
 
   test('"Watch Our Story" scrolls to the journey video block rather than navigating away', async ({ page }) => {
@@ -56,6 +56,44 @@ test.describe('/ (Home)', () => {
 
     await expect(page).toHaveURL(/#journey-video$/);
     await expect(page.locator('#journey-video')).toBeInViewport();
+  });
+
+  /** C2 — the strip showed `@guruji_travel_yatra`, a handle nobody confirmed. */
+  test('shows the confirmed Instagram handle, linked to the real profile', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: '@gurujitravelyatra' })).toBeVisible();
+    await expect(page.getByText('@guruji_travel_yatra')).toHaveCount(0);
+
+    const follow = page.getByRole('link', { name: /Follow Our Journey/ });
+    await expect(follow).toHaveAttribute('href', 'https://www.instagram.com/gurujitravelyatra/');
+  });
+
+  /** H2/H3 — one source for the figures, and every unconfirmed figure marked. */
+  test('states its statistics once, and marks them as pending confirmation', async ({ page }) => {
+    await expect(page.getByTestId('stats-placeholder-note')).toContainText(/pending confirmation/i);
+    await expect(page.getByTestId('hero-stats-placeholder-note')).toContainText(/pending confirmation/i);
+
+    // The hero used to hardcode "8+ Years / Of Trust & Service" alongside the
+    // stats bar's own "8+ / Years of Experience" — same number, two sources.
+    await expect(page.getByText('Of Trust & Service')).toHaveCount(0);
+    await expect(page.getByTestId('hero-stats').getByText('10,000+')).toBeVisible();
+    await expect(page.getByTestId('section-11-stats').getByText('10,000+')).toBeVisible();
+  });
+
+  /** M4 — the desktop card invited a WhatsApp chat but offered no way to start one. */
+  test('offers a real WhatsApp link in the desktop contact strip', async ({ page }) => {
+    const link = page.getByRole('link', { name: 'Chat with Guruji Travel Yatra on WhatsApp' });
+
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', 'https://wa.me/919099957658');
+  });
+
+  /** M7 — a play button on a page with no video asset. */
+  test('promises no video playback, since no video exists', async ({ page }) => {
+    const block = page.getByTestId('section-5-8-journey-video');
+
+    await expect(block.getByText(/Watch Full Video/i)).toHaveCount(0);
+    await expect(block.getByText(/Trip films coming soon/i)).toBeVisible();
+    await expect(block.getByRole('button', { name: /watch/i })).toHaveCount(0);
   });
 
   test('testimonials ship as visibly-marked placeholders, never as fabricated reviews (Decision H)', async ({

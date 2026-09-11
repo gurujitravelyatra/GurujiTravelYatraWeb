@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 
 import { Footer } from '../Footer';
+import { getDestinationOptions, toursRenderedOnCataloguePage } from '@/content/public-listing';
+import { GTY_INSTAGRAM_URL } from '@/lib/gty-contact';
 
 const PHONE_DISPLAY = '+91 90999 57658';
 const EMAIL = 'info@gurujitravelyatra.com';
@@ -22,24 +24,47 @@ describe('Footer', () => {
     }
   });
 
-  it('sends every Top Destinations entry to /tour-packages (no invented per-destination routes)', () => {
-    render(<Footer />);
+  describe('Top Destinations column', () => {
+    const listed = getDestinationOptions(toursRenderedOnCataloguePage);
 
-    const names = [
-      'Kedarnath Yatra',
-      'Badrinath Yatra',
-      'Spiti Valley',
-      'Varanasi',
-      'Rameshwaram',
-      'Vaishnodevi',
-      'Leh Ladakh',
-    ];
+    it('deep-links each destination to its own filtered catalogue, not to one shared page', () => {
+      render(<Footer />);
 
-    for (const name of names) {
-      // The export routes all of these to `goPack`; none is a real slug this
-      // sprint, so none may point at a fabricated /destinations/<slug> URL.
-      expect(screen.getByRole('link', { name })).toHaveAttribute('href', '/tour-packages');
-    }
+      // Every entry used to point at the bare `/tour-packages`, making the
+      // column seven links to an identical page.
+      const links = screen
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('href')?.startsWith('/tour-packages?destination='));
+
+      expect(links.length).toBeGreaterThan(0);
+      const hrefs = links.map((link) => link.getAttribute('href'));
+      expect(new Set(hrefs).size).toBe(hrefs.length);
+    });
+
+    it('names only destinations that have at least one publicly-listed journey', () => {
+      render(<Footer />);
+
+      const listedSlugs = new Set(listed.map((destination) => destination.slug));
+      const destinationLinks = screen
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('href')?.startsWith('/tour-packages?destination='));
+
+      for (const link of destinationLinks) {
+        const slug = decodeURIComponent(link.getAttribute('href')!.split('destination=')[1]);
+        expect(listedSlugs.has(slug)).toBe(true);
+      }
+    });
+
+    it('no longer advertises destinations whose only tours are withheld (Kedarnath/Badrinath/Varanasi)', () => {
+      render(<Footer />);
+
+      // Those three tours are `pricingUnverified` and withheld from every
+      // public listing, so a footer link promising them would lead to an
+      // empty catalogue.
+      for (const name of ['Kedarnath', 'Badrinath', 'Varanasi', 'Kedarnath Yatra', 'Badrinath Yatra']) {
+        expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      }
+    });
   });
 
   it('renders the six Support links as real /legal routes (Decision G)', () => {
@@ -73,14 +98,21 @@ describe('Footer', () => {
     expect(address.closest('a')).toBeNull();
   });
 
-  it('renders social icons with inert placeholder hrefs rather than fabricated profile URLs', () => {
+  it('links Instagram to the confirmed profile and leaves every unconfirmed handle inert', () => {
     render(<Footer />);
 
-    // Real GTY social handles are not confirmed (TODO(social-links) in
-    // Footer.tsx). Each must stay "#" — inventing e.g. instagram.com/gty
-    // would ship a link to an account the brand may not own.
-    for (const label of ['Instagram', 'YouTube', 'Facebook', 'X (Twitter)', 'LinkedIn']) {
-      expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', '#');
+    // Instagram is the one handle the business confirmed, so it is a real
+    // outbound link. The rest stay "#": inventing e.g. youtube.com/@gty would
+    // ship a link to an account the brand may not own.
+    const instagram = screen.getByRole('link', { name: 'Instagram' });
+    expect(instagram).toHaveAttribute('href', GTY_INSTAGRAM_URL);
+    expect(instagram).toHaveAttribute('rel', 'noopener noreferrer');
+
+    for (const label of ['YouTube', 'Facebook', 'X (Twitter)', 'LinkedIn']) {
+      const link = screen.getByRole('link', { name: label });
+      expect(link).toHaveAttribute('href', '#');
+      // An inert stub must not open a blank tab.
+      expect(link).not.toHaveAttribute('target');
     }
   });
 

@@ -34,7 +34,12 @@ export function InternationalDestinationsRail({ destinations }: InternationalDes
         <h2 className="text-24 font-extrabold tracking-tightest text-gty-ink">
           International <span className="text-gty-primary">Destinations</span>
         </h2>
-        <Link href="/tour-packages" className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary">
+        {/* Deep-links to the International category, so "View All International
+            Tours" shows international tours rather than the whole catalogue. */}
+        <Link
+          href="/tour-packages?category=International"
+          className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary"
+        >
           View All International Tours →
         </Link>
       </div>

@@ -15,11 +15,18 @@ export interface DestinationCardProps {
  *
  * 252×380 desktop, 196×296 ≤760px (export media rule) — reused later on the
  * out-of-scope `/destinations` page, so it is its own component now.
+ *
+ * Every card used to link to the bare, unfiltered `/tour-packages`: clicking
+ * "Maldives" and clicking "Dubai" produced the identical page, so the card
+ * behaved as decoration rather than navigation. It now deep-links to the
+ * destination-filtered catalogue. `international.fixture.ts` is kept in sync
+ * with the tour data (and Malaysia removed) precisely so this link can never
+ * land on "No journeys match this filter yet."
  */
 export function DestinationCard({ destination }: DestinationCardProps) {
   return (
     <Link
-      href="/tour-packages"
+      href={`/tour-packages?destination=${encodeURIComponent(destination.slug)}`}
       className="relative block h-[296px] w-[196px] flex-none overflow-hidden rounded-20 shadow-gty-intl transition-[box-shadow,transform] duration-gty-card ease-gty hover:-translate-y-1 hover:shadow-gty-intl-hover 760:h-[380px] 760:w-[252px]"
     >
       <PhotoPlaceholder photoKey={destination.photoUrl} alt={destination.name} className="absolute inset-0 h-full w-full items-start p-0" />

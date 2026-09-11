@@ -1,53 +1,125 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import type { DestinationCategory, PackageRail as PackageRailData } from '@/content/types';
-import { PackagesFilterBar, type CategoryFilter } from './PackagesFilterBar';
+import { getDestinationOptions, getPriceRange } from '@/content/public-listing';
+import { PackagesFilterBar, type CategoryFilter, type DestinationFilter } from './PackagesFilterBar';
 import { PackageRail } from './PackageRail';
 
 export interface PackagesCatalogueProps {
   rails: PackageRailData[];
   categories: DestinationCategory[];
+  /** From `?category=` — already validated server-side. */
+  initialCategory?: CategoryFilter;
+  /** From `?destination=` — already validated server-side. */
+  initialDestination?: DestinationFilter;
 }
 
 /**
- * Owns the category-filter state shared between `PackagesFilterBar` and the
- * 4 `PackageRail`s (tech spec §4.4: "wire the category chip row to real
+ * Owns the filter state shared between `PackagesFilterBar` and the 4
+ * `PackageRail`s (tech spec §4.4: "wire the category chip row to real
  * client-side filtering of the fixture data"). One client boundary so both
  * pieces stay in sync without lifting state into a Server Component.
+ *
+ * DEEP LINKS: the initial category/destination come from the page's
+ * `searchParams`, so `/tour-packages?category=International` and
+ * `?destination=maldives` land on real filtered results. That is what makes
+ * the destination cards, the "View All International Tours" link and the
+ * footer's Top Destinations column honest — they used to send every visitor to
+ * the same unfiltered catalogue regardless of what they clicked.
+ *
+ * Known limitation, stated rather than hidden: subsequent filter changes are
+ * local state only and do NOT rewrite the URL, so the address bar can lag
+ * behind the on-screen filter after the visitor clicks a chip. Incoming deep
+ * links are correct; shareable-URL-on-every-click would mean a router push per
+ * chip click, which is a bigger change than this pass warrants.
  */
-export function PackagesCatalogue({ rails, categories }: PackagesCatalogueProps) {
-  const [selected, setSelected] = useState<CategoryFilter>('All');
+export function PackagesCatalogue({ rails, categories, initialCategory, initialDestination }: PackagesCatalogueProps) {
+  const [selected, setSelected] = useState<CategoryFilter>(initialCategory ?? 'All');
+  const [selectedDestination, setSelectedDestination] = useState<DestinationFilter>(initialDestination ?? 'All');
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  const allItems = useMemo(() => rails.flatMap((rail) => rail.items), [rails]);
+  const destinations = useMemo(() => getDestinationOptions(allItems), [allItems]);
 
   const filteredRails = useMemo(
     () =>
       rails.map((rail) => ({
         ...rail,
-        items: selected === 'All' ? rail.items : rail.items.filter((item) => item.category === selected),
+        items: rail.items.filter(
+          (item) =>
+            (selected === 'All' || item.category === selected) &&
+            (selectedDestination === 'All' || item.destinationSlug === selectedDestination)
+        ),
       })),
-    [rails, selected]
+    [rails, selected, selectedDestination]
   );
 
-  const visibleCount = useMemo(
-    () => filteredRails.reduce((total, rail) => total + rail.items.length, 0),
-    [filteredRails]
+  const visibleItems = useMemo(() => filteredRails.flatMap((rail) => rail.items), [filteredRails]);
+  const visibleCount = visibleItems.length;
+
+  // Reports the real bounds of what is currently listed, so the readout can
+  // never contradict the cards on screen (it used to be a hardcoded band).
+  const priceRangeLabel = useMemo(
+    () => getPriceRange(visibleCount > 0 ? visibleItems : allItems)?.label,
+    [visibleItems, visibleCount, allItems]
   );
+
+  const scrollToResults = () => {
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  /**
+   * "Search Tours" applies the current selections and takes the visitor to the
+   * results. Both wired filters (category chips, destination select) already
+   * apply as they change, so there is nothing further to commit — the button's
+   * real job is the navigation, and it does it. It is deliberately NOT a
+   * `<button>` with no handler, which is what it was: focusable, announced as
+   * actionable, and completely inert. If a future unwired field (travel month)
+   * becomes real and needs an explicit apply step, commit it here.
+   */
+  const handleSearch = () => {
+    scrollToResults();
+  };
+
+  /** "View All Packages" on a rail: drop every filter, then return to that rail. */
+  const handleViewAll = () => {
+    setSelected('All');
+    setSelectedDestination('All');
+    scrollToResults();
+  };
 
   return (
     <div>
       <div className="relative z-[4] -mt-[70px] px-gx">
-        <PackagesFilterBar categories={categories} selected={selected} onSelect={setSelected} visibleCount={visibleCount} />
+        <PackagesFilterBar
+          categories={categories}
+          selected={selected}
+          onSelect={setSelected}
+          visibleCount={visibleCount}
+          destinations={destinations}
+          selectedDestination={selectedDestination}
+          onSelectDestination={setSelectedDestination}
+          onSearch={handleSearch}
+          priceRangeLabel={priceRangeLabel}
+        />
       </div>
 
-      <div className="flex flex-col gap-[2px] py-[26px]">
+      <div ref={resultsRef} data-testid="packages-results" className="flex flex-col gap-[2px] py-[26px]">
         {visibleCount === 0 ? (
           <p className="mx-gx rounded-16 border border-dashed border-gty-border-8 bg-gty-surface-3 px-4 py-8 text-center text-14 text-gty-subtle">
             No journeys match this filter yet.
           </p>
         ) : (
           filteredRails.map((rail, index) => (
-            <PackageRail key={rail.title} title={rail.title} items={rail.items} background={index % 2 === 0 ? 'white' : 'cream'} />
+            <PackageRail
+              key={rail.title}
+              title={rail.title}
+              items={rail.items}
+              background={index % 2 === 0 ? 'white' : 'cream'}
+              onViewAll={handleViewAll}
+            />
           ))
         )}
       </div>

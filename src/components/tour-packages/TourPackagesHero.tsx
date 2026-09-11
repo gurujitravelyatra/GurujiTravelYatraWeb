@@ -2,7 +2,18 @@ import Link from 'next/link';
 
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 
-/** Export lines 343-352, tech spec §4.4 "Tour Packages" row 1. */
+/**
+ * Export lines 343-352, tech spec §4.4 "Tour Packages" row 1.
+ *
+ * COPY FIDELITY: the export's subheading promised "easy filters and real-time
+ * availability". There is no availability data anywhere in the system — no
+ * departure dates, no seat counts (`Package.seatsLabel` exists on the type but
+ * no record sets it), and no live source to read either from. The phrase is
+ * removed rather than softened; "easy filters" is true (the category chip row
+ * and the destination select both filter for real). Enforced by
+ * `__tests__/tour-packages-copy.test.tsx`, which scans this whole page's
+ * rendered copy — not just the fixture files.
+ */
 export function TourPackagesHero() {
   return (
     <div
@@ -62,7 +73,7 @@ export function TourPackagesHero() {
         <p className="max-w-[520px] text-14 leading-[1.6] text-gty-body 760:text-15-5">
           Discover handpicked journeys to the most beautiful destinations.
           <br className="hidden 760:block" />
-          Find your perfect trip with easy filters and real-time availability.
+          Find your perfect trip with easy filters.
         </p>
       </div>
     </div>
