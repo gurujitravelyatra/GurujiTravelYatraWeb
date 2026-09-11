@@ -11,6 +11,15 @@
  * `GTY Wireframe Prototype.dc.html`). `Honeymoon` and `Wildlife` were part of
  * the export's filter-chip list only — they match zero fixture records — and
  * are correctly excluded (BLOCKERS.md Decision C).
+ *
+ * `Mountains`, `Family Trip` and `Pilgrimage` currently match zero records in
+ * `packages.fixture.ts`, so they produce no filter chip (chips are derived —
+ * see `get-category-chips.ts`). `Family Trip`/`Pilgrimage` were the export's
+ * `popular` categorisation of two tours its `RAILS` block categorised as
+ * `Family`/`Spiritual`; the tour-data consolidation keeps one record per tour
+ * and therefore one category, and those records are flagged
+ * `pricingUnverified` precisely because the export contradicted itself. They
+ * stay in the union because the export does use them and the ERP may too.
  */
 export type DestinationCategory =
   | 'Spiritual'
@@ -54,6 +63,14 @@ export interface Package {
   savingsLabel?: string; // e.g. "5,200"
   seatsLabel?: string; // e.g. "08 seats left" | "Sold out" | "Seats open"
   isHot?: boolean;
+  /**
+   * True when this record's price/duration could not be confirmed — the design
+   * export transcribed the same tour twice with disagreeing values and neither
+   * is authoritative. Greppable alongside the `TODO(pricing-confirm)` comments
+   * in `packages.fixture.ts`. Must be cleared (with real figures) before the
+   * site quotes these prices publicly.
+   */
+  pricingUnverified?: boolean;
 }
 
 export interface PackageRail {
@@ -78,7 +95,14 @@ export interface Review {
   quote: string;
   travellerName: string;
   tripLabel: string;
-  ratingOutOf5: number;
+  /**
+   * OPTIONAL, and deliberately absent on placeholder entries. A star rating is
+   * a factual claim about a real customer's satisfaction, so it may only be
+   * present when it came from a real review — fabricating one (the previous
+   * hardcoded `5` on every placeholder) violates BLOCKERS.md Decision H.
+   * `ReviewCard` renders no stars at all when this is undefined.
+   */
+  ratingOutOf5?: number;
   /**
    * True for the obvious-placeholder testimonials seeded per BLOCKERS.md
    * Decision H (no real customer testimonial content exists yet). Consumers

@@ -1,5 +1,5 @@
 import type { ContentPort } from '../ports';
-import { packageRails } from '../fixtures/packages.fixture';
+import { allTours, packageRails } from '../fixtures/packages.fixture';
 import { popularPackages } from '../fixtures/popular.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
 import { featuredVideos } from '../fixtures/videos.fixture';
@@ -15,6 +15,10 @@ import { testimonials } from '../fixtures/testimonials.fixture';
  * code changes.
  */
 export class FixtureContentAdapter implements ContentPort {
+  getAllTours() {
+    return Promise.resolve(allTours);
+  }
+
   getPopularDestinations() {
     return Promise.resolve(popularPackages);
   }

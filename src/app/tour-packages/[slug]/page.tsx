@@ -12,9 +12,9 @@ interface PackageDetailPageProps {
 }
 
 /**
- * BLOCKERS.md Decision D. Static params cover the UNION of every `Package`
- * a `PackageCard` can link to site-wide — see `getAllPackages()` for why
- * this is not just the 20 `packageRails` items.
+ * BLOCKERS.md Decision D. Static params cover every `Package` a `PackageCard`
+ * can link to site-wide — see `getAllPackages()` for why this is not just the
+ * 20 `packageRails` items.
  */
 export async function generateStaticParams() {
   const packages = await getAllPackages();

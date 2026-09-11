@@ -2,48 +2,28 @@ import { contentAdapter } from './adapters/fixture-content-adapter';
 import type { Package } from './types';
 
 /**
- * Union of every `Package` a `PackageCard` can link to site-wide (Home's
- * Popular Destinations grid, tech spec §4.4 row 6, AND the 4 Tour Packages
- * rails, §4.4 row "Four package rails") — both render the same
- * `<PackageCard>`, and that component always links to
- * `/tour-packages/{slug}` (BLOCKERS.md Decision D).
+ * Every `Package` a `PackageCard` can link to site-wide — Home's Popular
+ * Destinations grid (tech spec §4.4 row 6) and the 4 Tour Packages rails
+ * (§4.4 row "Four package rails"). Both render the same `<PackageCard>`, and
+ * that component always links to `/tour-packages/{slug}` (BLOCKERS.md
+ * Decision D), so every one of those slugs must resolve.
  *
  * BLOCKERS.md Decision D says the detail route is built "using the existing
- * 20 tours' data" (the `packageRails` fixture) — but Decision D's own
- * problem framing counted "All 25 cards" (20 rail items + 5 popular items)
- * as needing a working destination. Restricting `generateStaticParams()` to
- * only the 20 rail slugs would silently 404 the 2 Popular-only packages
- * ("Spiti Valley Bike Trip", "Leh Ladakh Group Trip from Delhi") that don't
- * also appear in a rail. Serving the union is the only way every PackageCard
- * site-wide resolves — no data is invented, this only reuses the two
- * existing fixture arrays.
+ * 20 tours' data" — but its own problem framing counted "All 25 cards" as
+ * needing a working destination. The 2 tours the export lists only under
+ * `popular` ("Spiti Valley Bike Trip", "Leh Ladakh Group Trip from Delhi")
+ * would silently 404 if the route covered just the 20 rail slugs, so they are
+ * canonical records in `packages.fixture.ts` too. That fixture is the single
+ * source of truth for all 22, which is what `getAllTours()` returns.
  *
- * Data-quality note (flagged, not a blocker): 3 names are transcribed in
- * BOTH `popular` and `RAILS` ("Do Dham Yatra", "Kashmir Family Escape",
- * "Kashi Darshan") with slightly different `sub`/`dur` wording between the
- * two export arrays, so they collide on the same `slugify()` output. On
- * collision this helper keeps the `packageRails` version — Decision D calls
- * the rails fixture "the existing 20 tours' data" for this route, so it is
- * treated as canonical for the detail page. See FRONTEND handoff notes.
+ * This helper used to merge `getPopularDestinations()` with
+ * `getPackageRails()` and let the rails version win on a slug collision —
+ * three tours were defined twice, with conflicting price/duration/category
+ * values, so the detail page silently contradicted the Home card for those
+ * three. There is now exactly one record per tour and nothing to arbitrate.
  */
 export async function getAllPackages(): Promise<Package[]> {
-  const [popular, rails] = await Promise.all([
-    contentAdapter.getPopularDestinations(),
-    contentAdapter.getPackageRails(),
-  ]);
-
-  const bySlug = new Map<string, Package>();
-  for (const item of popular) {
-    bySlug.set(item.slug, item);
-  }
-  // Rails intentionally overwrite popular's version on a slug collision.
-  for (const rail of rails) {
-    for (const item of rail.items) {
-      bySlug.set(item.slug, item);
-    }
-  }
-
-  return Array.from(bySlug.values());
+  return contentAdapter.getAllTours();
 }
 
 export async function getPackageBySlug(slug: string): Promise<Package | undefined> {

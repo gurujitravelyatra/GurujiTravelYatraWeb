@@ -16,6 +16,14 @@ import type {
  * imports an adapter directly — everything depends on this interface.
  */
 export interface ContentPort {
+  /**
+   * Every tour record, each exactly once — the set of slugs
+   * `/tour-packages/[slug]` must resolve. A first-class port method rather
+   * than a union assembled at the call site: tour data has a single source of
+   * truth, so no consumer should ever have to merge two overlapping lists and
+   * pick a winner on collision.
+   */
+  getAllTours(): Promise<Package[]>;
   getPopularDestinations(): Promise<Package[]>;
   getInternationalDestinations(): Promise<Destination[]>;
   getPackageRails(): Promise<PackageRail[]>;
