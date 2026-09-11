@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import { GroupDepartureCard } from '../GroupDepartureCard';
+import { GroupDepartureCard, GROUP_DURATION_NOTE_ID, GROUP_PRICE_NOTE_ID } from '../GroupDepartureCard';
 import { groupDepartures } from '@/content/fixtures/group-departures.fixture';
 import type { GroupDeparture } from '@/content/types';
 
@@ -15,6 +15,8 @@ jest.mock('@/components/modals/modal-context', () => ({
 const bookable = groupDepartures.find((departure) => !departure.isSoldOut && !departure.durationUnverified)!;
 const soldOut = groupDepartures.find((departure) => departure.isSoldOut)!;
 const unverifiedDuration = groupDepartures.find((departure) => departure.durationUnverified)!;
+const unverifiedPrice = groupDepartures.find((departure) => departure.priceUnverified)!;
+const confirmedPrice = groupDepartures.find((departure) => !departure.priceUnverified)!;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -84,6 +86,79 @@ describe('GroupDepartureCard', () => {
       render(<GroupDepartureCard departure={bookable} />);
 
       expect(screen.queryByTestId(`group-duration-placeholder-${bookable.slug}`)).not.toBeInTheDocument();
+    });
+
+    it('points the marked duration at the shared footnote id from a ROLED container', () => {
+      // The role is the part that was missing: `aria-describedby` on an unroled
+      // element is routinely ignored by assistive tech — see the same assertion
+      // in `stats-single-source.test.tsx`.
+      render(<GroupDepartureCard departure={unverifiedDuration} />);
+
+      const group = screen.getByRole('group', { name: `Duration — ${unverifiedDuration.name}` });
+      expect(group).toHaveAttribute('aria-describedby', GROUP_DURATION_NOTE_ID);
+      expect(group).toHaveTextContent(unverifiedDuration.durationLabel);
+    });
+  });
+
+  /**
+   * BLOCKERS.md item 9. "Do Dham Yatra" carries the SAME unconfirmed ₹28,900
+   * that `public-listing.ts` withholds from Home and `/tour-packages`, but the
+   * gate is written against `Package` and never reached this sibling
+   * `GroupDeparture` transcription — so the figure was suppressed on one
+   * surface and published, unmarked, as this card's largest number on another.
+   *
+   * Asserted as the same three pieces the Home surfaces use, because any one
+   * alone is worthless: a visible asterisk, a real footnote `id`, and an
+   * `aria-describedby` on a roled container resolving to that id. (The footnote
+   * element itself lives in `GroupDeparturesList` — one note for many cards —
+   * so the id RESOLVING is asserted in that suite.)
+   */
+  describe('priceUnverified marker (BLOCKERS.md item 9)', () => {
+    it('renders the visible marker on the price of a priceUnverified departure', () => {
+      render(<GroupDepartureCard departure={unverifiedPrice} />);
+
+      const marker = screen.getByTestId(`group-price-placeholder-${unverifiedPrice.slug}`);
+      expect(marker).toBeVisible();
+      expect(marker).toHaveTextContent('*');
+      // Announced as the footnote via aria-describedby, never as a bare "*".
+      expect(marker).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('points the marked price at the shared footnote id from a ROLED container', () => {
+      render(<GroupDepartureCard departure={unverifiedPrice} />);
+
+      const group = screen.getByRole('group', { name: `Price per person — ${unverifiedPrice.name}` });
+      expect(group).toHaveAttribute('aria-describedby', GROUP_PRICE_NOTE_ID);
+      expect(group).toHaveTextContent(unverifiedPrice.priceFrom);
+    });
+
+    it('marks the price WITHOUT withholding the departure — the card still renders in full', () => {
+      // Deliberately different from `Package.pricingUnverified`, which removes
+      // the record entirely. That gate exists to stop a fabricated
+      // "was ₹X / Save ₹Y" badge; this card renders no such badge.
+      render(<GroupDepartureCard departure={unverifiedPrice} />);
+
+      expect(screen.getByRole('heading', { name: unverifiedPrice.name })).toBeInTheDocument();
+      expect(screen.getByText(unverifiedPrice.priceFrom)).toBeInTheDocument();
+      expect(screen.getByText(unverifiedPrice.dateRangeLabel)).toBeInTheDocument();
+      expect(screen.queryByText(/Save ₹/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/was ₹/i)).not.toBeInTheDocument();
+    });
+
+    it('renders NO price marker and no describedby for a departure with a confirmed price', () => {
+      render(<GroupDepartureCard departure={confirmedPrice} />);
+
+      expect(screen.queryByTestId(`group-price-placeholder-${confirmedPrice.slug}`)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('group', { name: `Price per person — ${confirmedPrice.name}` })
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(confirmedPrice.priceFrom)).toBeInTheDocument();
+    });
+
+    it('sanity: the fixture provides both a flagged and an unflagged price to test against', () => {
+      expect(unverifiedPrice.name).toBe('Do Dham Yatra — Kedarnath & Badrinath');
+      expect(unverifiedPrice.priceUnverified).toBe(true);
+      expect(confirmedPrice.priceUnverified).toBeUndefined();
     });
   });
 

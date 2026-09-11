@@ -185,6 +185,28 @@ export interface GroupDeparture {
    * half the departures would empty the page.
    */
   durationUnverified?: boolean;
+  /**
+   * True when this departure's `priceFrom` is the SAME unconfirmed figure that
+   * `Package.pricingUnverified` withholds from the public catalogue for the
+   * same tour.
+   *
+   * Why a second flag rather than reading `Package.pricingUnverified`: a
+   * departure is not a `Package` (see the note above this interface — the two
+   * models overlap by subject, not by contract), so the `public-listing.ts`
+   * gate, which is written against `Package`, never saw these records. The
+   * result was that "Do Dham Yatra" was suppressed on Home and
+   * `/tour-packages` while `/group-tours` published the very same ₹28,900 as
+   * its card's most prominent figure (BLOCKERS.md item 9).
+   *
+   * The treatment deliberately differs from `Package.pricingUnverified`, which
+   * WITHHOLDS the record entirely. That gate exists because a fabricated
+   * "was ₹X / Save ₹Y" discount badge was at stake; `GroupDepartureCard`
+   * renders no such badge, so this is a standalone unconfirmed figure and gets
+   * the marker + footnote treatment `StatMetric.isPlaceholder` and
+   * `durationUnverified` already use. Clearing the flag (with a confirmed
+   * price) removes the marker automatically — nothing else needs editing.
+   */
+  priceUnverified?: boolean;
 }
 
 /**

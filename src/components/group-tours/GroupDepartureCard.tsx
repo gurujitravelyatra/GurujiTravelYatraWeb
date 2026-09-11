@@ -18,10 +18,15 @@ export interface GroupDepartureCardProps {
  * (category pill + inert heart + script accent) on the left, details +
  * price + CTAs on the right.
  *
- * `id` for the shared duration-placeholder footnote, exported so
- * `GroupDeparturesList` can render exactly one footnote for every card that
- * needs it — same "one shared note, many markers" contract as
+ * `id`s for the shared duration- and price-placeholder footnotes, exported so
+ * `GroupDeparturesList` can render exactly one footnote of each kind for every
+ * card that needs it — same "one shared note, many markers" contract as
  * `StatsBar`/`WhyGtyBand`.
+ *
+ * Two separate notes rather than one combined one: the copy has to say WHICH
+ * figure is unconfirmed, and "Do Dham Yatra" is flagged on both counts, so a
+ * single note would have to hedge on both and would point the duration marker
+ * at text about price.
  *
  * Heart span: BLOCKERS.md Decision E — the export renders this as a plain
  * `<span>`/`<button style-hover>` with no real handler backing it in this
@@ -34,6 +39,37 @@ export interface GroupDepartureCardProps {
  * active — a brochure request is not a seat reservation.
  */
 export const GROUP_DURATION_NOTE_ID = 'group-duration-note';
+export const GROUP_PRICE_NOTE_ID = 'group-price-note';
+
+/**
+ * The three-part unconfirmed-figure treatment `StatsBar`/`WhyGtyBand`/`Hero`
+ * established, applied per-card: a real `id` on the footnote, an
+ * `aria-describedby` pointing at it from a container that carries a ROLE, and a
+ * visible `aria-hidden` asterisk on the figure itself.
+ *
+ * The role is load-bearing, not decoration — `stats-single-source.test.tsx`
+ * records that `aria-describedby` on an unroled element is routinely dropped by
+ * assistive tech, which is how the pairing came to be "correct on paper and
+ * silent in practice" on the Home surfaces. The duration marker here shipped
+ * with the same gap (describedby on a bare `<span>`); routing both flags
+ * through this one helper closes it for duration as well as price.
+ *
+ * Returns props rather than a wrapper element so it can be spread onto the
+ * figure's EXISTING span — adding a node inside the price row's flex baseline
+ * alignment would risk shifting a pixel-accurate layout.
+ */
+function unverifiedFigureProps(isUnverified: boolean | undefined, noteId: string, label: string) {
+  if (!isUnverified) return {};
+  return { role: 'group', 'aria-label': label, 'aria-describedby': noteId } as const;
+}
+
+function UnverifiedMarker({ testId, className }: { testId: string; className: string }) {
+  return (
+    <span aria-hidden="true" data-testid={testId} className={className}>
+      *
+    </span>
+  );
+}
 
 export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
   const { openEnquiry, openBrochure } = useModal();
@@ -84,16 +120,19 @@ export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
             <div className="flex flex-wrap gap-5 text-13 text-gty-body">
               <MetaItem icon={<CalendarIcon />}>{departure.dateRangeLabel}</MetaItem>
               <MetaItem icon={<ClockIcon />}>
-                <span aria-describedby={departure.durationUnverified ? GROUP_DURATION_NOTE_ID : undefined}>
+                <span
+                  {...unverifiedFigureProps(
+                    departure.durationUnverified,
+                    GROUP_DURATION_NOTE_ID,
+                    `Duration — ${departure.name}`
+                  )}
+                >
                   {departure.durationLabel}
                   {departure.durationUnverified && (
-                    <span
-                      aria-hidden="true"
-                      data-testid={`group-duration-placeholder-${departure.slug}`}
+                    <UnverifiedMarker
+                      testId={`group-duration-placeholder-${departure.slug}`}
                       className="align-super text-11 font-bold text-gty-subtle"
-                    >
-                      *
-                    </span>
+                    />
                   )}
                 </span>
               </MetaItem>
@@ -115,7 +154,22 @@ export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
 
           <div className="flex min-w-[170px] flex-none flex-col items-end gap-[3px]">
             <span className="flex items-baseline gap-[10px]">
-              <span className="text-27 font-extrabold text-gty-primary">{departure.priceFrom}</span>
+              <span
+                className="text-27 font-extrabold text-gty-primary"
+                {...unverifiedFigureProps(
+                  departure.priceUnverified,
+                  GROUP_PRICE_NOTE_ID,
+                  `Price per person — ${departure.name}`
+                )}
+              >
+                {departure.priceFrom}
+                {departure.priceUnverified && (
+                  <UnverifiedMarker
+                    testId={`group-price-placeholder-${departure.slug}`}
+                    className="align-super text-16 font-bold text-gty-primary/70"
+                  />
+                )}
+              </span>
               <span className="flex flex-col text-left">
                 <span className="text-12 text-gty-body">Per Person</span>
                 <span className="text-11-5 text-gty-subtle">( Twin Sharing )</span>

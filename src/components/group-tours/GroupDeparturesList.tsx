@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 
 import type { GroupDeparture } from '@/content/types';
 import { cn } from '@/lib/utils';
-import { GroupDepartureCard, GROUP_DURATION_NOTE_ID } from './GroupDepartureCard';
+import { GroupDepartureCard, GROUP_DURATION_NOTE_ID, GROUP_PRICE_NOTE_ID } from './GroupDepartureCard';
 
 export interface GroupDeparturesListProps {
   departures: GroupDeparture[];
@@ -41,7 +41,10 @@ export function GroupDeparturesList({ departures, months }: GroupDeparturesListP
     [departures, selectedMonth]
   );
 
+  // Both notes are keyed off the FILTERED set, not the full fixture: a footnote
+  // explaining a marker no visible card carries is noise.
   const hasUnverifiedDuration = filtered.some((departure) => departure.durationUnverified);
+  const hasUnverifiedPrice = filtered.some((departure) => departure.priceUnverified);
 
   return (
     <div className="flex flex-col gap-5">
@@ -102,8 +105,15 @@ export function GroupDeparturesList({ departures, months }: GroupDeparturesListP
         )}
 
         {hasUnverifiedDuration && (
-          <p id={GROUP_DURATION_NOTE_ID} className="text-11 text-gty-subtle">
+          <p id={GROUP_DURATION_NOTE_ID} data-testid="group-duration-note" className="text-11 text-gty-subtle">
             *Duration for this departure is pending confirmation and is shown as reported.
+          </p>
+        )}
+
+        {hasUnverifiedPrice && (
+          <p id={GROUP_PRICE_NOTE_ID} data-testid="group-price-note" className="text-11 text-gty-subtle">
+            *Price for this departure is pending confirmation and is shown as reported. Please confirm with a GTY
+            planner before booking.
           </p>
         )}
       </section>

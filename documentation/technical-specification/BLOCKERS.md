@@ -344,8 +344,11 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    tour in `GROUPS` than in `RAILS` (Do Dham Yatra, Spiti Valley Circuit). Both
    records are surfaced with a visible marker rather than a silently-picked winner.
    Greppable via `TODO(duration-confirm)`.
-9. **`/group-tours` publishes a price the catalogue deliberately withholds** — NEW,
-   needs a product decision. `public-listing.ts` withholds "Do Dham Yatra" from Home
+9. ~~**`/group-tours` publishes a price the catalogue deliberately withholds**~~ —
+   **RESOLVED 2026-09-11 (user): marked, not withheld.** Original framing preserved
+   below; resolution follows it.
+
+   `public-listing.ts` withholds "Do Dham Yatra" from Home
    and `/tour-packages` (and 404s its detail route) because `pricingUnverified` marks
    its ₹28,900 as unconfirmed. But `group-departures.fixture.ts` is a *separate*
    transcription of the same tour from the export's `GROUPS` const, it carries the
@@ -367,6 +370,47 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      `GroupDepartureCard` shows no such badge).
 
    Simplest real resolution: GTY confirms the Do Dham Yatra price, and the flag goes.
+
+   > **RESOLUTION — the second option: marker + footnote, not withholding.**
+   > **Decided by:** user, 2026-09-11.
+   >
+   > The card carries no fabricated "was ₹X / Save ₹Y" badge — it shows a single
+   > standalone unconfirmed figure — so the proportionate treatment is the one
+   > `StatsBar` / `WhyGtyBand` / `Hero` / `AboutTimeline` already use for exactly
+   > that case, not the full withholding gate (which exists because a fabricated
+   > discount was at stake) that would empty a quarter of the departures page.
+   >
+   > - `GroupDeparture` gains `priceUnverified?: boolean` (`src/content/types.ts`),
+   >   the sibling of the `durationUnverified` flag item 8 already carries. Set on
+   >   the Do Dham record in `group-departures.fixture.ts` under a
+   >   `TODO(pricing-confirm)` comment, greppable alongside the existing ones.
+   > - `GroupDepartureCard` renders the established three-part treatment on the
+   >   price: a visible `aria-hidden` asterisk, an `aria-describedby` pointing at a
+   >   footnote id, and — the piece that makes it reach assistive tech — a `role`
+   >   on the container carrying that `aria-describedby`.
+   > - `GroupDeparturesList` renders one `#group-price-note` footnote for every
+   >   marked card, keyed off the FILTERED set, the same "one shared note, many
+   >   markers" contract as the Home surfaces. It is a second, separate note from
+   >   the duration one: Do Dham is flagged on both counts, and a single merged
+   >   note would point the duration marker at text about price.
+   > - **Also fixed, same commit:** the duration marker shipped with its
+   >   `aria-describedby` on an unroled `<span>` — the exact defect
+   >   `stats-single-source.test.tsx` records as "correct on paper and silent in
+   >   practice". Both flags now route through one helper, so duration got the
+   >   role too.
+   >
+   > **Root cause worth keeping:** the flag did not fail to be *written*, it failed
+   > to *propagate*. `pricingUnverified` is enforced in one place against one type
+   > (`Package`), and `GroupDeparture` is a deliberately separate model (see the
+   > note above its interface). A safety flag enforced per-type silently stops at
+   > the boundary of a sibling type describing the same real-world thing. The new
+   > fixture test `flags priceUnverified on exactly the departures whose tour the
+   > catalogue flags pricingUnverified` cross-checks the two fixtures against each
+   > other, so they cannot drift again — including in the good direction, when GTY
+   > confirms the price and only one of the two flags gets cleared.
+   >
+   > **Still the real fix:** GTY confirms the Do Dham Yatra price, and both flags go.
+   > This resolution makes the site honest about the doubt; it does not remove it.
 5. **Social media URLs** — still `href="#"` with `TODO(social-links)`.
 6. **Docker** — `Dockerfile` / `docker-compose.yml` are written but **unvalidated**;
    Docker is not installed in this environment. The **standalone artefact** the image

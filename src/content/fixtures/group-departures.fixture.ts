@@ -20,6 +20,16 @@
 //   - Spiti Valley Circuit GROUPS "9N / 10D" vs RAILS "9 Days 8 Nights"
 // Greppable alongside `TODO(pricing-confirm)` and `TODO(stats-confirm)`.
 // Resolve with the business's real itinerary lengths and drop the flags.
+//
+// TODO(pricing-confirm): "Do Dham Yatra" additionally carries `priceUnverified`
+// because ITS PRICE IS THE SAME UNCONFIRMED ₹28,900 that `packages.fixture.ts`
+// flags `pricingUnverified` and `public-listing.ts` withholds from Home and
+// `/tour-packages`. This transcription is a second copy of the same tour, so
+// the same doubt applies; the flag only failed to reach it because the listing
+// gate is written against `Package`, not `GroupDeparture` (BLOCKERS.md item 9).
+// Marked visibly here rather than withheld: the withholding gate exists to stop
+// a fabricated "was ₹X / Save ₹Y" badge, and this card shows no such badge.
+// Resolve with the business's real price and drop the flag.
 import { slugify } from '../slug';
 import type { GroupDeparture } from '../types';
 
@@ -36,6 +46,7 @@ interface GroupFixtureItem {
   cat: GroupDeparture['category'];
   script: string;
   durationUnverified?: boolean;
+  priceUnverified?: boolean;
 }
 
 const GROUPS_FIXTURE: GroupFixtureItem[] = [
@@ -52,6 +63,7 @@ const GROUPS_FIXTURE: GroupFixtureItem[] = [
     cat: 'Spiritual',
     script: 'Faith\nBrings Us\nTogether',
     durationUnverified: true,
+    priceUnverified: true,
   },
   {
     name: 'Spiti Valley Circuit',
@@ -118,6 +130,7 @@ function toGroupDeparture(item: GroupFixtureItem): GroupDeparture {
     isSoldOut: item.seats.toLowerCase() === 'sold out',
     scriptAccent: item.script,
     durationUnverified: item.durationUnverified,
+    priceUnverified: item.priceUnverified,
   };
 }
 
