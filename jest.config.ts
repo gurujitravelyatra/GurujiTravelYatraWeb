@@ -27,6 +27,23 @@ const customJestConfig: Config = {
    */
   roots: ['<rootDir>/src'],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/app/**/layout.tsx'],
+  /**
+   * Jest's 5s default is a poor fit here and was producing false failures that
+   * moved between runs — `PackagesFilterBar`, `LeadModal.brochure` and
+   * `GroupDeparturesList` each failed in a full parallel run and passed when
+   * re-run alone, with no code change in between.
+   *
+   * The cause is cost, not deadlock. These are `userEvent` tests against large
+   * client components (`TripBuilder` re-renders a ~40-tile picker grid on every
+   * state change), and `userEvent` awaits a real macrotask between each
+   * synthetic event. A multi-click test therefore pays that render cost several
+   * times over, and when several workers contend for CPU it crosses 5s — so the
+   * timeout was measuring machine load, not correctness.
+   *
+   * 30s is generous enough that a genuinely hung test still fails the run
+   * rather than hanging the suite.
+   */
+  testTimeout: 30_000,
 };
 
 export default createJestConfig(customJestConfig);
