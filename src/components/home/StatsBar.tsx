@@ -16,15 +16,26 @@ export interface StatsBarProps {
  * bar is a single solid brand-red band that a dashed border would break.
  * The asterisk is `aria-hidden`; screen readers get the footnote, which is
  * associated with the group via `aria-describedby`.
+ *
+ * `role="group"` is what makes that association actually reach assistive tech:
+ * `aria-describedby` on a bare `<div>` with no role is routinely ignored, so
+ * the pairing was correct on paper and silent in practice. The same three
+ * pieces — a real `id`, a real `aria-describedby` on a roled container, and a
+ * visible asterisk — now appear identically here, in `WhyGtyBand` and in
+ * `Hero`, and `stats-single-source.test.tsx` asserts the pairing on all three.
  */
+const PLACEHOLDER_NOTE_ID = 'stats-placeholder-note';
+
 export function StatsBar({ stats }: StatsBarProps) {
   const hasPlaceholder = stats.some((stat) => stat.isPlaceholder);
 
   return (
     <div data-testid="section-11-stats" className="flex flex-col gap-2 bg-gty-surface-5 px-gx pb-[34px]">
       <div
+        role="group"
+        aria-label="Guruji Travel Yatra in numbers"
         className="flex flex-wrap overflow-hidden rounded-16 bg-gty-primary shadow-gty-stats"
-        aria-describedby={hasPlaceholder ? 'stats-placeholder-note' : undefined}
+        aria-describedby={hasPlaceholder ? PLACEHOLDER_NOTE_ID : undefined}
       >
         {stats.map((stat) => (
           <div key={stat.label} className="flex min-w-[110px] flex-1 flex-col items-center gap-[9px] px-3 py-[30px]">
@@ -49,7 +60,7 @@ export function StatsBar({ stats }: StatsBarProps) {
       </div>
 
       {hasPlaceholder && (
-        <p id="stats-placeholder-note" data-testid="stats-placeholder-note" className="text-11 text-gty-subtle">
+        <p id={PLACEHOLDER_NOTE_ID} data-testid="stats-placeholder-note" className="text-11 text-gty-subtle">
           *These figures are pending confirmation and are shown as placeholders.
         </p>
       )}

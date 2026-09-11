@@ -61,6 +61,22 @@ const WHY_ICONS: readonly ReactNode[] = [
   </svg>,
 ];
 
+/**
+ * Ties the asterisk to its footnote for assistive tech — see `StatsBar`, whose
+ * `stats-placeholder-note` pairing this mirrors exactly.
+ *
+ * The band previously rendered the asterisk `aria-hidden` (correct on its own:
+ * a lone "*" announced next to a heading is noise) but gave the footnote NO
+ * `id`, so there was nothing for an `aria-describedby` to point at and nothing
+ * did. Net effect for a screen-reader user: the marker was suppressed and the
+ * explanation was never associated with the figure — strictly worse than
+ * having no marker at all, because the unconfirmed number read as settled
+ * fact. The `id` below and the `aria-describedby` on the card group close
+ * that; the asterisk stays visible on screen and `aria-hidden` to AT, exactly
+ * as in `StatsBar`.
+ */
+const PLACEHOLDER_NOTE_ID = 'why-placeholder-note';
+
 export function WhyGtyBand() {
   // "Trusted Since 8+ Years" quotes the canonical years-of-service stat, which
   // is not confirmed (stats.fixture.ts). Marked here with the same asterisk +
@@ -80,6 +96,9 @@ export function WhyGtyBand() {
       </div>
 
       <div
+        role="group"
+        aria-label="Why travel with GTY"
+        aria-describedby={hasPlaceholder ? PLACEHOLDER_NOTE_ID : undefined}
         className="flex w-full flex-wrap rounded-24 shadow-[0_0_30px_6px_rgba(255,90,70,.22),0_22px_48px_rgba(198,0,0,.3)] 760:flex-nowrap"
         style={{ background: 'radial-gradient(130% 150% at 50% -10%,#f5442f 0%,#e51612 42%,#c60000 100%)' }}
       >
@@ -132,7 +151,7 @@ export function WhyGtyBand() {
       </div>
 
       {hasPlaceholder && (
-        <p data-testid="why-placeholder-note" className="text-11 text-gty-subtle">
+        <p id={PLACEHOLDER_NOTE_ID} data-testid="why-placeholder-note" className="text-11 text-gty-subtle">
           *These figures are pending confirmation and are shown as placeholders.
         </p>
       )}

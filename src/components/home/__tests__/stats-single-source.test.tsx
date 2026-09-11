@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 
 import { Hero } from '../Hero';
 import { StatsBar } from '../StatsBar';
@@ -177,5 +177,128 @@ describe('WhyGtyBand quotes the canonical years figure', () => {
 
     const marked = whyItems.filter((item) => item.isPlaceholder);
     expect(marked).toHaveLength(1);
+  });
+});
+
+/**
+ * F2 — the placeholder marking has to REACH assistive tech, on all three
+ * surfaces, in the same way.
+ *
+ * `StatsBar` was the only one that got this right. `WhyGtyBand` rendered its
+ * asterisk `aria-hidden` but gave the footnote no `id`, so nothing could point
+ * at it — the marker was suppressed for screen readers AND the explanation was
+ * never associated, leaving an unconfirmed figure reading as settled fact.
+ * `Hero` had neither half, plus a 9px white footnote sitting directly on a
+ * photograph.
+ *
+ * These tests assert the three pieces together, per surface, because any one of
+ * them alone is worthless: a visible asterisk, an `id` on the footnote, and an
+ * `aria-describedby` on a ROLED container that resolves to that exact id. (The
+ * role matters: `aria-describedby` on a bare `<div>` is routinely ignored.)
+ */
+describe('placeholder footnotes are wired to the figures they explain', () => {
+  interface Surface {
+    name: string;
+    render: () => void;
+    groupLabel: string;
+    noteTestId: string;
+    markerTestId: string;
+  }
+
+  const surfaces: Surface[] = [
+    {
+      name: 'StatsBar',
+      render: () => void render(<StatsBar stats={statMetrics} />),
+      groupLabel: 'Guruji Travel Yatra in numbers',
+      noteTestId: 'stats-placeholder-note',
+      markerTestId: 'stat-placeholder-marker-Happy Travellers',
+    },
+    {
+      name: 'WhyGtyBand',
+      render: () => void render(<WhyGtyBand />),
+      groupLabel: 'Why travel with GTY',
+      noteTestId: 'why-placeholder-note',
+      markerTestId: 'why-placeholder-marker-Trusted Since 8+ Years',
+    },
+    {
+      name: 'Hero',
+      render: () => void renderHero(statMetrics),
+      groupLabel: 'Guruji Travel Yatra in numbers',
+      noteTestId: 'hero-stats-placeholder-note',
+      markerTestId: 'hero-stat-placeholder-Happy Travellers',
+    },
+  ];
+
+  for (const surface of surfaces) {
+    describe(surface.name, () => {
+      it('gives the footnote a real id', () => {
+        surface.render();
+        const note = screen.getByTestId(surface.noteTestId);
+
+        expect(note.id).not.toBe('');
+        expect(document.getElementById(note.id)).toBe(note);
+      });
+
+      it('points the marked figures at that id via aria-describedby on a roled group', () => {
+        surface.render();
+        const note = screen.getByTestId(surface.noteTestId);
+        const group = screen.getByRole('group', { name: surface.groupLabel });
+
+        expect(group).toHaveAttribute('aria-describedby', note.id);
+        // The reference must RESOLVE — a dangling id is the bug this catches.
+        expect(document.getElementById(group.getAttribute('aria-describedby')!)).toBe(note);
+      });
+
+      it('keeps the asterisk on screen while hiding it from the screen reader, exactly as StatsBar does', () => {
+        surface.render();
+        const marker = screen.getByTestId(surface.markerTestId);
+
+        expect(marker).toBeVisible();
+        expect(marker).toHaveTextContent('*');
+        // Announced as the footnote via aria-describedby, never as a bare "*".
+        expect(marker).toHaveAttribute('aria-hidden', 'true');
+      });
+
+      it('drops the aria-describedby entirely when there is no footnote to point at', () => {
+        // Only the data-driven surfaces can be handed confirmed figures;
+        // `WhyGtyBand` reads the fixture directly and is covered by the
+        // "marks nothing else in the band" test above.
+        if (surface.name === 'WhyGtyBand') return;
+
+        if (surface.name === 'Hero') renderHero(FAKE_STATS);
+        else render(<StatsBar stats={FAKE_STATS} />);
+
+        expect(screen.queryByTestId(surface.noteTestId)).not.toBeInTheDocument();
+        expect(screen.getByRole('group', { name: surface.groupLabel })).not.toHaveAttribute('aria-describedby');
+      });
+    });
+  }
+
+  it('uses the SAME three-part pattern on every surface — no bespoke variant', () => {
+    for (const surface of surfaces) {
+      surface.render();
+
+      const note = screen.getByTestId(surface.noteTestId);
+      const group = screen.getByRole('group', { name: surface.groupLabel });
+
+      expect(note.tagName).toBe('P');
+      expect(group.getAttribute('aria-describedby')).toBe(note.id);
+      expect(note).toHaveTextContent(/pending confirmation/i);
+
+      cleanup();
+    }
+  });
+
+  it("renders the hero's footnote at readable size, not the 9px overlay it used to be", () => {
+    renderHero(statMetrics);
+    const note = screen.getByTestId('hero-stats-placeholder-note');
+
+    // It sits on a photograph, so it may not be the 9px white text it was —
+    // it now uses the same white-card + subtle-ink treatment as the stat chips
+    // beside it, which is the only other overlay element in that corner.
+    expect(note.className).not.toMatch(/\btext-9\b/);
+    expect(note.className).toMatch(/\btext-11\b/);
+    expect(note.className).toMatch(/bg-gty-white/);
+    expect(note.className).toMatch(/text-gty-subtle/);
   });
 });

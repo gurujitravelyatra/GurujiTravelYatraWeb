@@ -24,6 +24,20 @@ const HERO_PHOTO_KEY = 'Himalayas';
  */
 const HERO_STAT_LABELS = ['Happy Travellers', 'Destinations', 'Years of Experience'] as const;
 
+/**
+ * Mirrors `StatsBar`'s `stats-placeholder-note` pairing exactly: a real `id`
+ * on the footnote and a real `aria-describedby` on the roled group that holds
+ * the marked figures.
+ *
+ * The hero previously had NEITHER, so its asterisk was a bare glyph pointing
+ * at nothing: sighted visitors got a 9px white footnote sitting directly on a
+ * photograph (illegible at any realistic contrast), and screen-reader users
+ * got no association at all. The note is now drawn with the same white card +
+ * `text-gty-subtle` treatment as the stat chips beside it — the only other
+ * overlay elements in this corner — rather than a bespoke one-off.
+ */
+const PLACEHOLDER_NOTE_ID = 'hero-stats-placeholder-note';
+
 export interface HeroProps {
   /** The same `getStats()` result the `StatsBar` renders — passed from the page. */
   stats: StatMetric[];
@@ -89,6 +103,9 @@ export function Hero({ stats }: HeroProps) {
 
       <div
         data-testid="hero-stats"
+        role="group"
+        aria-label="Guruji Travel Yatra in numbers"
+        aria-describedby={hasPlaceholder ? PLACEHOLDER_NOTE_ID : undefined}
         className="static flex flex-wrap items-start gap-2 px-gx pb-7 760:absolute 760:bottom-20 760:left-gx 760:z-[2] 760:flex-nowrap 760:px-0 760:pb-0"
       >
         {heroStats.map((stat) => (
@@ -99,7 +116,11 @@ export function Hero({ stats }: HeroProps) {
             <div className="text-20 font-extrabold tracking-tightest text-gty-ink">
               {stat.value}
               {stat.isPlaceholder && (
-                <span data-testid={`hero-stat-placeholder-${stat.label}`} className="align-super text-11 text-gty-subtle">
+                <span
+                  aria-hidden="true"
+                  data-testid={`hero-stat-placeholder-${stat.label}`}
+                  className="align-super text-11 text-gty-subtle"
+                >
                   *
                 </span>
               )}
@@ -109,9 +130,9 @@ export function Hero({ stats }: HeroProps) {
         ))}
         {hasPlaceholder && (
           <p
+            id={PLACEHOLDER_NOTE_ID}
             data-testid="hero-stats-placeholder-note"
-            className="w-full self-center text-9 text-gty-white 760:w-auto 760:self-end 760:pb-[6px] 760:pl-1"
-            style={{ textShadow: '0 2px 8px rgba(0,0,0,.45)' }}
+            className="self-center rounded-pill border border-gty-border bg-gty-white px-3 py-[6px] text-11 text-gty-subtle shadow-gty-lift 760:self-end"
           >
             *Figures pending confirmation
           </p>
