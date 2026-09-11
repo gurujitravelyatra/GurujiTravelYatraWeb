@@ -22,7 +22,7 @@ test.describe('/legal policy pages', () => {
 
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'This page is coming soon.' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Page not found.' })).toHaveCount(0);
     });
 
     test(`${path} is served with a 200 and stays marked as placeholder copy`, async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe('/legal policy pages', () => {
     ]) {
       const response = await page.goto(path);
       expect(response?.status(), `${path} should still 404`).toBe(404);
-      await expect(page.getByRole('heading', { name: 'This page is coming soon.' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Page not found.' })).toBeVisible();
     }
   });
 });

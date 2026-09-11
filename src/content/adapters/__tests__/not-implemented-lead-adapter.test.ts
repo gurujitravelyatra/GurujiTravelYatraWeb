@@ -99,6 +99,58 @@ describe('NotImplementedLeadAdapter', () => {
     }
   });
 
+  /**
+   * M5: one adapter serves several very different forms, and it used to answer
+   * all of them with the enquiry wording — someone who typed an email into the
+   * newsletter box was told "Online enquiry submission isn't connected yet",
+   * which describes neither what they did nor what to do about it.
+   */
+  describe('failure copy matches the form the visitor actually used', () => {
+    async function submitFrom(source: LeadPayload['source']) {
+      const adapter = new NotImplementedLeadAdapter();
+      const resultPromise = adapter.submitLead({ ...payload, source });
+      await jest.advanceTimersByTimeAsync(1000);
+      const result = await resultPromise;
+      if (result.status !== 'error') throw new Error('adapter must always fail');
+      return result.message;
+    }
+
+    it('tells a newsletter subscriber about the newsletter, not about an enquiry', async () => {
+      const message = await submitFrom('Newsletter Signup');
+
+      expect(message).toMatch(/newsletter/i);
+      expect(message).not.toMatch(/enquiry/i);
+    });
+
+    it('tells a brochure requester about the brochure', async () => {
+      const message = await submitFrom('Brochure Download – Spiti Valley Circuit');
+
+      expect(message).toMatch(/brochure/i);
+      expect(message).not.toMatch(/newsletter/i);
+    });
+
+    it('keeps the enquiry wording for enquiry sources', async () => {
+      const message = await submitFrom('Enquire Now – Spiti Valley Circuit');
+
+      expect(message).toMatch(/enquiry/i);
+    });
+
+    it('stays honest and actionable whatever the source — never a fake success, always the real number', async () => {
+      for (const source of [
+        'Newsletter Signup',
+        'Brochure Download – Spiti Valley Circuit',
+        'Enquire Now – Spiti Valley Circuit',
+        'Contact Page',
+      ] as const) {
+        const message = await submitFrom(source);
+
+        expect(message).toMatch(/\+91 90999 57658/);
+        expect(message).toMatch(/isn't connected yet|aren't connected yet/);
+        expect(message).toMatch(/Placeholder copy/);
+      }
+    });
+  });
+
   it('the exported singleton `leadAdapter` behaves identically', async () => {
     const resultPromise = leadAdapter.submitLead(payload);
     await jest.advanceTimersByTimeAsync(1000);

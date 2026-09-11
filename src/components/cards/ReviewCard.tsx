@@ -31,7 +31,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
     >
       <PhotoPlaceholder
         photoKey={review.photoUrl}
-        alt={review.isPlaceholder ? 'Placeholder traveller photo' : `${review.travellerName} — ${review.tripLabel}`}
+        alt={review.isPlaceholder ? 'Traveller photo' : `${review.travellerName} — ${review.tripLabel}`}
         className="h-[180px] w-full"
       />
       <div className="flex flex-col gap-2 p-5">

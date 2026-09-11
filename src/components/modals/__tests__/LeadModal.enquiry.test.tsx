@@ -120,10 +120,25 @@ describe('LeadModal variant="enquiry"', () => {
     it('makes no such claim on the form step', () => {
       const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
-      expect(screen.getByText(/Our team will review your enquiry and get back to you shortly\./)).toBeInTheDocument();
+      expect(screen.getByText(/We'll only use these details to plan your journey with you\./)).toBeInTheDocument();
       for (const claim of FALSE_CLAIMS) {
         expect(container.textContent ?? '').not.toMatch(claim);
       }
+    });
+
+    /**
+     * L4: the pre-submit disclaimer promised "our team will review your
+     * enquiry and get back to you shortly" on a path that cannot succeed —
+     * nothing is transmitted or stored, so no review can follow. The form step
+     * may describe what the details are FOR, never what will happen next.
+     */
+    it('promises no follow-up before anything has been submitted', () => {
+      const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+      const text = container.textContent ?? '';
+
+      expect(text).not.toMatch(/will review your (enquiry|request)/i);
+      expect(text).not.toMatch(/get back to you shortly/i);
+      expect(text).not.toMatch(/we('ll| will) (call|contact|email) you/i);
     });
 
     it('makes no such claim on the sending step', async () => {

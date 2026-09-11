@@ -1,16 +1,33 @@
-import type { LeadPayload, LeadSubmissionPort, LeadSubmissionResult } from '../ports';
+import type { LeadPayload, LeadSourceTag, LeadSubmissionPort, LeadSubmissionResult } from '../ports';
+import { GTY_PHONE_DISPLAY } from '@/lib/gty-contact';
 
 /** Matches the export's own `setTimeout(...,900)` so the "Sending…" modal step is exercisable. */
 const SIMULATED_DELAY_MS = 900;
 
 /**
- * BLOCKERS.md Decision B — this exact copy, verbatim. Deliberately written
- * as an unfinished-looking placeholder (not polished marketing copy) so it
- * can never be mistaken for shippable text, while still being genuinely
- * actionable (the phone number is the real one from the design export).
+ * BLOCKERS.md Decision B — deliberately written as unfinished-looking
+ * placeholder text (not polished marketing copy) so it can never be mistaken
+ * for shippable copy, while still being genuinely actionable (the phone number
+ * is the real one).
+ *
+ * PARAMETERISED BY SOURCE. There is one adapter behind several very different
+ * forms, and it used to answer all of them with the enquiry wording: someone
+ * who typed an email into the newsletter box was told "Online enquiry
+ * submission isn't connected yet — please call…", which describes neither what
+ * they did nor anything they would want to do about it. The failure is the
+ * same; the sentence describing it must match the form the visitor used.
  */
-const VISITOR_SAFE_MESSAGE =
-  "Online enquiry submission isn't connected yet — please call +91 90999 57658. (Placeholder copy — pending ERP integration.)";
+function visitorSafeMessage(source: LeadSourceTag): string {
+  const pending = '(Placeholder copy — pending ERP integration.)';
+
+  if (source === 'Newsletter Signup') {
+    return `Newsletter signup isn't connected yet, so we couldn't save your email — call ${GTY_PHONE_DISPLAY} and we'll tell you about new journeys directly. ${pending}`;
+  }
+  if (source.startsWith('Brochure Download')) {
+    return `Brochure requests aren't connected yet — please call ${GTY_PHONE_DISPLAY} and we'll send it across. ${pending}`;
+  }
+  return `Online enquiry submission isn't connected yet — please call ${GTY_PHONE_DISPLAY}. ${pending}`;
+}
 
 /**
  * `LeadSubmissionPort` implementation for this sprint — tech spec §6.2,
@@ -46,7 +63,7 @@ export class NotImplementedLeadAdapter implements LeadSubmissionPort {
     return {
       status: 'error',
       retryable: true,
-      message: VISITOR_SAFE_MESSAGE,
+      message: visitorSafeMessage(payload.source),
     };
   }
 }

@@ -1,5 +1,4 @@
-const GTY_PHONE_TEL = '+919099957658';
-const GTY_PHONE_DISPLAY = '+91 90999 57658';
+import { GTY_PHONE_DISPLAY, GTY_PHONE_TEL, GTY_WHATSAPP_URL } from '@/lib/gty-contact';
 
 const BENEFITS = [
   {
@@ -44,14 +43,34 @@ export function BottomContactStrip() {
     <div className="absolute left-1/2 top-[60px] z-[3] w-[92%] -translate-x-1/2 rounded-18 bg-gty-white p-[18px] shadow-gty-wacard 860:top-[44px] 860:p-4 860:px-5 1300:top-[74px] 1300:w-[min(860px,70%)]">
       <div className="flex flex-wrap items-center gap-[18px]">
         <div className="flex min-w-[250px] flex-[1.15] items-center gap-[14px]">
-          <span className="flex h-[58px] w-[58px] flex-none items-center justify-center rounded-pill bg-gty-whatsapp shadow-gty-whatsapp">
+          {/*
+            The WhatsApp icon was a plain <span>: this card invited the visitor
+            to "Chat with us on WhatsApp" and gave desktop users no way to do
+            it — only `MobileActionBar` (hidden ≥760px) carried a real wa.me
+            link. Same URL, from the same shared constant, so the two can't
+            drift apart again.
+          */}
+          <a
+            href={GTY_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chat with Guruji Travel Yatra on WhatsApp"
+            className="flex h-[58px] w-[58px] flex-none items-center justify-center rounded-pill bg-gty-whatsapp shadow-gty-whatsapp transition-transform duration-gty-fast ease-gty hover:-translate-y-px"
+          >
             <svg viewBox="0 0 32 32" width="34" height="34" fill="#fff" aria-hidden="true">
               <path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.7 6.4L3 29l6.8-1.7c1.9 1 4 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm7.3 18.2c-.3.9-1.8 1.7-2.5 1.8-.6.1-1.4.1-2.3-.2-3.6-1.2-6-4.7-6.2-4.9-.2-.3-1.5-2-1.5-3.9s1-2.8 1.3-3.2c.3-.4.7-.5 1-.5h.7c.2 0 .5 0 .8.6l1 2.4c.1.2.1.4 0 .6l-.4.7c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 1.7 1.3 2 1.4.2.1.4.1.6-.1l.9-1c.2-.2.4-.2.6-.1l2.3 1.1c.3.2.5.3.5.5.1.2.1.9-.4 1.6z" />
             </svg>
-          </span>
+          </a>
           <div className="flex flex-col items-start gap-[6px]">
             <p className="text-16-5 font-extrabold leading-[1.15] text-gty-ink">Let&#39;s Plan Your Next Journey!</p>
-            <p className="text-12-5 text-gty-body">Chat with us on WhatsApp</p>
+            <a
+              href={GTY_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-12-5 text-gty-body underline-offset-2 hover:underline"
+            >
+              Chat with us on WhatsApp
+            </a>
             <a href={`tel:${GTY_PHONE_TEL}`} className="pt-px text-22 font-extrabold leading-[1.1] text-gty-ink">
               {GTY_PHONE_DISPLAY}
             </a>

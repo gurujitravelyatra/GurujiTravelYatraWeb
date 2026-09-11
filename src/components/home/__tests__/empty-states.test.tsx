@@ -68,9 +68,9 @@ describe('JourneyVideoBlock with no videos', () => {
     expect(screen.getByRole('link', { name: /Explore All Journeys/ })).toHaveAttribute('href', '/tour-packages');
   });
 
-  it('renders no play button when there is no film to play', () => {
+  it('renders no preview-cycling button when there is nothing to preview', () => {
     render(<JourneyVideoBlock videos={[]} />);
-    expect(screen.queryByRole('button', { name: 'Watch next trip film' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show the next trip preview' })).not.toBeInTheDocument();
   });
 
   it('still cycles correctly with a single video', async () => {
@@ -80,7 +80,7 @@ describe('JourneyVideoBlock with no videos', () => {
     render(<JourneyVideoBlock videos={only} />);
     expect(screen.getByText('Only Film')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Watch next trip film' }));
+    await user.click(screen.getByRole('button', { name: 'Show the next trip preview' }));
     expect(screen.getByText('Only Film')).toBeInTheDocument();
   });
 });

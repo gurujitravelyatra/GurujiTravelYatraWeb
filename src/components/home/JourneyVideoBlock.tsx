@@ -59,12 +59,18 @@ export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
         >
           Explore All Journeys <span aria-hidden="true">→</span>
         </Link>
+        {/*
+          No video file, stream URL or embed exists anywhere in this project —
+          the "▶ Watch Full Video" label promised playback that nothing could
+          deliver, and the panel's play button only cycles placeholder images.
+          Both now describe what is actually there.
+        */}
         <div className="flex items-center gap-2 rounded-16 border border-gty-border bg-gty-white p-[6px]">
-          <PhotoPlaceholder photoKey="Spiti_Valley" alt="Spiti Valley Journey" className="h-11 w-[60px] flex-none rounded-10" />
+          <PhotoPlaceholder photoKey="Spiti_Valley" alt="Spiti Valley journey" className="h-11 w-[60px] flex-none rounded-10" />
           <span className="text-9 leading-[1.3]">
             <b className="font-bold text-gty-ink">Spiti Valley Journey</b>
             <br />
-            <span className="text-gty-subtle">▶ Watch Full Video</span>
+            <span className="text-gty-subtle">Trip films coming soon</span>
           </span>
         </div>
       </div>
@@ -98,23 +104,29 @@ export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
                 background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.05) 40%,rgba(0,0,0,.62) 100%)',
               }}
             />
+            {/*
+              Cycles to the next placeholder, which is all it has ever done —
+              so it is labelled and drawn as a "next" control, not as a play
+              button. A ▶ glyph on a page with no video is a promise the
+              product cannot keep.
+            */}
             <button
               type="button"
               onClick={cycleVideo}
-              aria-label="Watch next trip film"
+              aria-label="Show the next trip preview"
               className="absolute left-1/2 top-1/2 flex h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-pill bg-gty-white/94 text-24 text-gty-primary shadow-[0_10px_30px_rgba(0,0,0,.35)] transition-colors duration-gty-fast ease-gty hover:bg-gty-white"
             >
-              ▶
+              <span aria-hidden="true">›</span>
             </button>
             <div className="absolute inset-x-5 bottom-[18px] flex flex-col gap-[5px]">
-              <p className="text-10 font-bold uppercase tracking-label text-gty-white/85">Recent Trip Film</p>
+              <p className="text-10 font-bold uppercase tracking-label text-gty-white/85">Trip Preview</p>
               <p className="text-22 font-extrabold text-gty-white" style={{ textShadow: '0 2px 12px rgba(0,0,0,.5)' }}>
                 {current.title}
               </p>
               <p className="text-12 text-gty-white/82">{current.whenLabel}</p>
             </div>
             <span className="absolute right-4 top-4 rounded-pill bg-gty-white/92 px-3 py-[6px] text-[10.5px] font-bold uppercase tracking-img">
-              GTY video slot
+              Trip film coming soon
             </span>
           </div>
         )}

@@ -34,6 +34,13 @@ type Step = 'form' | 'sending' | 'done';
  * Decision A) — no server, no validation service, no rate limiter, no CRM
  * write. `sendingLabel` and `disclaimer` in particular are worded to describe
  * intent, never infrastructure.
+ *
+ * The disclaimers used to promise, BEFORE submit, that "our team will review
+ * your enquiry and get back to you shortly" — on a path that cannot succeed,
+ * since nothing is transmitted or stored. They now state only what is
+ * genuinely true at that moment: what the details will be used for. The
+ * post-submit step is the only place that describes what happens next, and it
+ * is reached only on a success this adapter never returns.
  */
 const COPY: Record<
   LeadModalVariant,
@@ -45,7 +52,7 @@ const COPY: Record<
     cta: 'Start Your Journey',
     ctxLabel: 'Enquiring about',
     sendingLabel: 'Submitting your enquiry…',
-    disclaimer: "We'll only use this to send your journey details. Our team will review your enquiry and get back to you shortly.",
+    disclaimer: "We'll only use these details to plan your journey with you.",
   },
   brochure: {
     title: 'Get Your Complete Travel Brochure',
@@ -53,7 +60,7 @@ const COPY: Record<
     cta: 'Get My Brochure',
     ctxLabel: 'Brochure for',
     sendingLabel: 'Submitting your request…',
-    disclaimer: "We'll only use this to send your journey details. Our team will review your request and get back to you shortly.",
+    disclaimer: "We'll only use these details to send you the brochure.",
   },
 };
 

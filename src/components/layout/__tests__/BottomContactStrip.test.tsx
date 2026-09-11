@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import { BottomContactStrip } from '../BottomContactStrip';
+import { GTY_WHATSAPP_URL } from '@/lib/gty-contact';
 
 describe('BottomContactStrip', () => {
   it('renders the WhatsApp headline and subtitle copy from the export', () => {
@@ -8,6 +9,33 @@ describe('BottomContactStrip', () => {
 
     expect(screen.getByText("Let's Plan Your Next Journey!")).toBeInTheDocument();
     expect(screen.getByText('Chat with us on WhatsApp')).toBeInTheDocument();
+  });
+
+  /**
+   * M4: this card said "Chat with us on WhatsApp" while offering no way to do
+   * it — the icon was a plain <span> and only `MobileActionBar` (hidden at
+   * ≥760px) carried a real wa.me link, so desktop visitors had no WhatsApp
+   * route at all.
+   */
+  it('makes the WhatsApp invitation actionable on desktop, not just on mobile', () => {
+    render(<BottomContactStrip />);
+
+    const iconLink = screen.getByRole('link', { name: 'Chat with Guruji Travel Yatra on WhatsApp' });
+    expect(iconLink).toHaveAttribute('href', GTY_WHATSAPP_URL);
+    expect(iconLink).toHaveAttribute('target', '_blank');
+    expect(iconLink).toHaveAttribute('rel', 'noopener noreferrer');
+
+    const textLink = screen.getByRole('link', { name: 'Chat with us on WhatsApp' });
+    expect(textLink).toHaveAttribute('href', GTY_WHATSAPP_URL);
+  });
+
+  it('uses the same wa.me number the mobile action bar uses', () => {
+    render(<BottomContactStrip />);
+
+    for (const link of screen.getAllByRole('link')) {
+      const href = link.getAttribute('href') ?? '';
+      if (href.includes('wa.me')) expect(href).toBe(GTY_WHATSAPP_URL);
+    }
   });
 
   it('renders the real GTY phone number as a tel: link', () => {

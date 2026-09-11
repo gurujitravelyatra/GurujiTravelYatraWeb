@@ -2,9 +2,7 @@
 
 import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
-
-const GTY_PHONE_TEL = '+919099957658';
-const GTY_WHATSAPP_URL = 'https://wa.me/919099957658';
+import { GTY_PHONE_TEL, GTY_WHATSAPP_URL } from '@/lib/gty-contact';
 
 export interface MobileActionBarProps {
   pageLabel: string;

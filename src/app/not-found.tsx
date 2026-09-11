@@ -11,6 +11,13 @@ import Link from 'next/link';
  * Deliberately minimal per the resolution — headline, one line of copy, two
  * links back to the routes that actually exist. No content is invented
  * beyond that (no fabricated sitemap, no search box, no "recently viewed").
+ *
+ * COPY: this handler serves EVERY 404 — the not-yet-built routes that ship
+ * dead by design, but equally a typo, a stale bookmark, or a link someone
+ * made up. "This page is coming soon." asserted a roadmap commitment for all
+ * of them, which is false for most. The headline states the only thing that
+ * is true in every case; the body mentions the coming-soon possibility
+ * without promising it.
  */
 export default function NotFound() {
   return (
@@ -19,9 +26,10 @@ export default function NotFound() {
 
       <div className="flex flex-col gap-2">
         <p className="text-11 font-bold uppercase tracking-eyebrow-3 text-gty-primary">404</p>
-        <h1 className="text-29 font-extrabold tracking-tightest text-gty-ink 760:text-36">This page is coming soon.</h1>
+        <h1 className="text-29 font-extrabold tracking-tightest text-gty-ink 760:text-36">Page not found.</h1>
         <p className="max-w-[440px] text-14 leading-[1.6] text-gty-body">
-          We couldn&#39;t find that page — it may still be on its way, or the link may have moved.
+          We couldn&#39;t find that page. The address may be mistyped or out of date — or the page may be one we
+          haven&#39;t built yet.
         </p>
       </div>
 
