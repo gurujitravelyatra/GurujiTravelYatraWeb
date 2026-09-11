@@ -127,4 +127,24 @@ describe('FixtureContentAdapter', () => {
   it('the exported singleton `contentAdapter` behaves identically', async () => {
     await expect(contentAdapter.getPackageRails()).resolves.toHaveLength(4);
   });
+
+  it('getGroupDepartures() resolves the 4 fixture departures, including the sold-out one', async () => {
+    const departures = await adapter.getGroupDepartures();
+    expect(departures).toHaveLength(4);
+    expect(departures.filter((departure) => departure.isSoldOut)).toHaveLength(1);
+  });
+
+  it('getTripPlaceOptions() resolves the 12 fixture places with unique slugs', async () => {
+    const places = await adapter.getTripPlaceOptions();
+    expect(places).toHaveLength(12);
+    expect(new Set(places.map((place) => place.slug)).size).toBe(12);
+  });
+
+  it('getAboutMilestones() resolves the 4 fixture milestones, every one flagged isPlaceholder', async () => {
+    const milestones = await adapter.getAboutMilestones();
+    expect(milestones).toHaveLength(4);
+    for (const milestone of milestones) {
+      expect(milestone.isPlaceholder).toBe(true);
+    }
+  });
 });
