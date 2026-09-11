@@ -55,7 +55,15 @@ test.describe('/tour-packages', () => {
     }
   });
 
-  test('filtering to International narrows the count and empties the other three rails', async ({ page }) => {
+  /**
+   * F6 — filtering collapses the four rails into ONE results section.
+   *
+   * These two tests used to assert 3 per-rail empty-state boxes, i.e. they
+   * pinned the defect: the rails filtered independently, so a filter that
+   * worked perfectly rendered its matches beside three "No journeys match this
+   * filter yet." boxes and read as a broken page.
+   */
+  test('filtering to International shows one consolidated section, not three empty rails', async ({ page }) => {
     await page.getByRole('button', { name: 'International', exact: true }).click();
 
     await expect(page.getByRole('button', { name: 'International', exact: true })).toHaveAttribute(
@@ -64,12 +72,12 @@ test.describe('/tour-packages', () => {
     );
     await expect(page.getByText('5 journeys found')).toBeVisible();
 
-    // All 5 International packages live in one rail, so the other 3 rails
-    // keep their heading and show the per-rail empty state.
-    await expect(page.getByText('No journeys match this filter yet.')).toHaveCount(3);
+    await expect(page.getByTestId('packages-filtered-results')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: 'International journeys' })).toBeVisible();
+    await expect(page.getByText('No journeys match this filter yet.')).toHaveCount(0);
   });
 
-  test('N=1: filtering to Beach yields a single journey, in the singular, with 3 empty rails', async ({ page }) => {
+  test('N=1: filtering to Beach yields a single journey, in the singular, with no empty rails', async ({ page }) => {
     await page.getByRole('button', { name: 'Beach', exact: true }).click();
 
     // Exactly one package (Goa Beach Holiday) carries the Beach category, so
@@ -78,7 +86,30 @@ test.describe('/tour-packages', () => {
     await expect(page.getByText('journeys found')).toHaveCount(0);
 
     await expect(page.getByRole('link', { name: /Goa Beach Holiday/ })).toBeVisible();
-    await expect(page.getByText('No journeys match this filter yet.')).toHaveCount(3);
+    await expect(page.getByTestId('packages-filtered-results')).toHaveCount(1);
+    await expect(page.getByText('No journeys match this filter yet.')).toHaveCount(0);
+  });
+
+  /**
+   * F4 — the arrow is gated on MEASURED overflow, which only a real browser can
+   * actually decide. The jsdom unit test can simulate `scrollWidth`; this is
+   * the one that proves the real layout agrees.
+   */
+  test('offers no scroll arrow on a rail whose cards already fit', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/tour-packages');
+
+    // Trending keeps 2 of its 5 tours (three are pricingUnverified), so at this
+    // width there is nothing to scroll to — the arrow used to show regardless.
+    await expect(page.getByRole('button', { name: 'Scroll Trending Tour Packages' })).toHaveCount(0);
+
+    // Every arrow that IS on the page belongs to a row that genuinely overflows.
+    const arrows = page.getByRole('button', { name: /^Scroll / });
+    for (let index = 0; index < (await arrows.count()); index += 1) {
+      const row = arrows.nth(index).locator('xpath=preceding-sibling::div[1]');
+      const overflow = await row.evaluate((node) => node.scrollWidth - node.clientWidth);
+      expect(overflow).toBeGreaterThan(1);
+    }
   });
 
   test('Clear returns to the unfiltered All view', async ({ page }) => {
@@ -220,6 +251,31 @@ test.describe('filters, deep links and CTAs do real work', () => {
 
     await expect(page.getByText('1 journey found')).toBeVisible();
     await expect(page.getByRole('link', { name: /Goa Beach Holiday/ })).toBeVisible();
+  });
+
+  /** F6 — a single-destination deep link is the worst case for the rail split. */
+  test('a single-destination deep link renders one results section and no empty-rail boxes', async ({ page }) => {
+    await page.goto('/tour-packages?destination=goa');
+
+    await expect(page.getByTestId('packages-filtered-results')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: 'Journeys in Goa' })).toBeVisible();
+    await expect(page.getByText('No journeys match this filter yet.')).toHaveCount(0);
+
+    // The four rail headings belong to the unfiltered browsing view only.
+    for (const title of ['Trending Tour Packages', 'North India Tour Packages', 'South India Tour Packages']) {
+      await expect(page.getByRole('heading', { name: title })).toHaveCount(0);
+    }
+  });
+
+  /** F3 — every filtered variant of this route declares the plain route canonical. */
+  test('every filtered URL declares /tour-packages as its canonical', async ({ page }) => {
+    for (const url of ['/tour-packages', '/tour-packages?category=International', '/tour-packages?destination=goa']) {
+      await page.goto(url);
+
+      const canonical = page.locator('link[rel="canonical"]');
+      await expect(canonical).toHaveCount(1);
+      await expect(canonical).toHaveAttribute('href', /\/tour-packages$/);
+    }
   });
 
   test('an unknown query value falls back to the full list rather than an empty page', async ({ page }) => {

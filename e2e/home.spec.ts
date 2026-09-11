@@ -37,11 +37,28 @@ test.describe('/ (Home)', () => {
     await expect(bar.getByRole('button', { name: 'Custom Trip' })).toHaveAttribute('aria-pressed', 'true');
 
     // The Custom Trip hint used to advertise "the trip builder — nine short
-    // questions". No such flow exists: the CTA is the same static link on
-    // every tab.
+    // questions". No such flow exists.
     await expect(bar).not.toContainText(/trip builder/i);
     await expect(bar).not.toContainText(/seats? (still )?open|departures/i);
-    await expect(bar.getByRole('link', { name: /Explore Now/ })).toHaveAttribute('href', '/tour-packages');
+
+    // "Custom Trip" maps onto no catalogue category, so its CTA stays the
+    // plain catalogue rather than pointing at a chip that does not exist.
+    await expect(bar.getByTestId('trip-finder-cta')).toHaveAttribute('href', '/tour-packages');
+  });
+
+  /** F5 — the CTA used to be one static link while the hints promised a filter. */
+  test('the Trip Finder CTA deep-links to the active tab\'s category', async ({ page }) => {
+    const bar = page.getByTestId('section-3-trip-finder');
+
+    await bar.getByRole('button', { name: 'Spiritual Yatra' }).click();
+    await expect(bar.getByTestId('trip-finder-cta')).toHaveAttribute('href', '/tour-packages?category=Spiritual');
+
+    await bar.getByTestId('trip-finder-cta').click();
+
+    // The hint says "filter by Spiritual on Tour Packages" — so the button has
+    // to land there, not on the unfiltered catalogue.
+    await expect(page).toHaveURL(/category=Spiritual/);
+    await expect(page.getByRole('button', { name: 'Spiritual', exact: true })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('navigates to Tour Packages from the navbar', async ({ page }) => {
