@@ -19,8 +19,44 @@ Stand up the GTY public marketing website as a Next.js (App Router) + TypeScript
 3. Global components: Navbar (+ mobile menu, mobile action bar), Footer, Bottom Contact Strip (WhatsApp card), Enquiry Modal, Brochure Modal (both built on one shared `LeadModal` shell), Destination card, Package card, Review card.
 4. Pages: **Home** (`/`, full scroll order per product-spec §5.1) and **Tour Packages** (`/tour-packages`, per product-spec §5.3) — presentational only, fed via a typed `ContentPort` from fixture data extracted from the design export's `text/x-dc` script block.
 
+5. **ADDED AFTER THE FACT — `/group-tours`, `/customize-tours`, `/about-us`** (see "Scope change" below).
+
 **Explicitly out of scope (do not scaffold, do not add routes for):**
-- `/destinations`, `/group-tours`, `/customize-tours`, `/our-services`, `/travel-guide`, `/about-us`, `/contact-us` and all `[slug]` detail routes — later sprints (CLAUDE.md §8, Sprints 3–6).
+- `/destinations`, `/our-services`, `/travel-guide`, `/contact-us` and the remaining `[slug]` detail routes — later sprints (CLAUDE.md §8, Sprints 3–6).
+- ~~`/group-tours`, `/customize-tours`, `/about-us`~~ — **NO LONGER OUT OF SCOPE, built 2026-09-11.** See below.
+
+### Scope change — the three primary nav routes (2026-09-11)
+
+This spec originally deferred every route except `/` and `/tour-packages`, and
+BLOCKERS.md Decision G backed the resulting dead nav links with a branded 404,
+flagged explicitly as *"conservative default — needs product confirmation"*
+(and listed as still-open item 4 at the bottom of that file).
+
+That confirmation came back the other way. The user hit the 404s during manual
+browser testing and reported them as a bug: `/about-us`, `/group-tours` and
+`/customize-tours` are linked from the Navbar, the Footer AND the mobile menu —
+i.e. three of the site's primary nav items landed every visitor on a 404.
+
+Re-checking the sources showed the deferral was also better-founded than the
+evidence supports: the design export contains **full artboards for all three
+screens** (`isGroup` lines 480–559, `isCustom` lines 561–722, `isAbout` lines
+724–738) plus their backing constants (`GROUPS`, `PLACES`, `timeline`), and
+product-spec §5.4/§5.5/§5.8 specify all three. There was never a content gap
+for Group Tours or Customize Tours.
+
+**Resolution:** the three routes are built. `/destinations`, `/our-services`,
+`/travel-guide` and `/contact-us` remain out of scope and remain linked only
+from the Footer, still backed by the branded 404.
+
+**One genuine content gap remains, on About Us only.** The export's About
+screen is a low-fidelity wireframe: the brand-story body copy is two grey
+`.ln` skeleton bars, and product-spec §5.8 is two lines of section outline with
+no prose. The page is therefore built with the headline and section structure
+that DO exist, and the story copy carries the same visible
+placeholder-notice treatment the `/legal/*` pages use. §5.8's "team section
+(optional)" and "certifications/badges if applicable" are **not** built — no
+names, roles, photos or certifications exist in any source, and both are
+marked optional.
 - Any ERP/CRM integration internals (actual network calls, auth, endpoint URLs) — see §"Blocked Boundaries" below.
 - Any login, admin, tour/brochure management, or CMS screen of any kind, at any route, in this or any future sprint of this repo (see Hard Architecture Boundary below).
 - SEO pass, sitemap/robots, analytics backend wiring — later sprint (CLAUDE.md §8 Sprint 6), though pages must be structured (semantic HTML, `generateMetadata`) so that pass is additive, not a rewrite.
@@ -397,7 +433,8 @@ Consumed via arbitrary-value utilities, e.g. `px-[var(--gx)]`. The `.sec` paddin
 6. Opening the Enquiry Modal from a Package Card pre-fills/pre-tags the context chip with that package's name without asking the user to re-select it; opening it from the header/hero shows `{label:'Page', value:'Home'}` (or the current page's name) instead.
 7. Submitting any lead form always resolves to the documented `NotImplementedLeadAdapter` error state, the form's entered values are preserved on that error (nothing is cleared), and a "Try Again" action re-submits with the same values.
 8. `/` renders all 15 product-spec §5.1 sections in order (with the `[TOKENS]`-tagged sections present, even though they're not pixel-matched against the export), and `/tour-packages` renders the hero, filter bar (category chips functionally filter the 4 rails' visible items; destination/month/price/search remain non-functional placeholders), and all 4 rails with 5 items each.
-9. No route other than `/` and `/tour-packages` is created; no admin/login/CMS UI exists anywhere in the codebase; no `score`/`scoreLabel`/lead-activity-timeline UI exists anywhere.
+9. **(REVISED 2026-09-11 — see §1 "Scope change".)** The only routes that exist are `/`, `/tour-packages`, `/tour-packages/[slug]`, `/legal/*`, `/group-tours`, `/customize-tours` and `/about-us`. No admin/login/CMS UI exists anywhere in the codebase, at any route; no `score`/`scoreLabel`/lead-activity-timeline UI exists anywhere. **The admin/CMS half of this criterion is the Hard Architecture Boundary and is NOT relaxed by the scope change** — E2E test 10 still guards it. The original wording ("no route other than `/` and `/tour-packages`") was a sprint-sequencing statement, not an architectural one, and adding the three primary nav routes does not weaken the boundary.
+   - Every route reachable from the Navbar's own link list now resolves. `/destinations`, `/our-services`, `/travel-guide` and `/contact-us` are still unbuilt, still linked from the Footer only, and still land on the branded 404 (BLOCKERS.md Decision G, unchanged for those four).
 10. Every hover/press animation matches the specified duration (150ms/180ms) and easing (`ease`, not a spring or a different cubic-bezier), and is disabled/reduced under `prefers-reduced-motion: reduce`.
 11. Lighthouse (or equivalent) accessibility score ≥90 on both pages in dev-mode audit; keyboard-only navigation can reach and operate the Navbar, both cards' primary actions, and the full Lead Modal flow.
 

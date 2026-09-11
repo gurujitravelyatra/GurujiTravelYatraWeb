@@ -4,9 +4,15 @@ import Link from 'next/link';
 /**
  * BLOCKERS.md Decision G. Next.js's built-in 404 handler — NOT a route
  * (tech spec acceptance criterion 9 and E2E test 10 both still hold: no new
- * route is created here). Every dead nav/footer link that ships "as
- * designed" this sprint (`/group-tours`, `/customize-tours`, `/about-us`,
- * `/legal/*`, …) lands here instead of Next's unstyled default.
+ * route is created here).
+ *
+ * Decision G2 narrowed what lands here. `/group-tours`, `/customize-tours`
+ * and `/about-us` were the original motivating cases and are now REAL PAGES —
+ * a branded 404 turned out to be an acceptable landing for a footer link to an
+ * unbuilt policy page, but not for a top-level nav item. What still lands here
+ * by design is the Footer-only set (`/destinations`, `/our-services`,
+ * `/travel-guide`, `/contact-us`) and the `/legal/*` slugs that have no page
+ * yet.
  *
  * Deliberately minimal per the resolution — headline, one line of copy, two
  * links back to the routes that actually exist. No content is invented

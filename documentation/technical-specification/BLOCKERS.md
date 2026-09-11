@@ -182,6 +182,58 @@ a package they never clicked. That is misleading and is **not** ported.
   tech spec acceptance criterion 9 ("no route other than `/` and `/tour-packages`")
   and E2E test 10 (`/admin` etc. must 404) both still hold.
 
+#### G2 — SUPERSEDES G for the three primary nav routes
+**Decided by:** user, 2026-09-11, after manual browser testing. **This is the product
+confirmation Decision G was explicitly waiting on — and it came back the other way.**
+
+Decision G was recorded as a *"conservative default — needs product confirmation"*
+and listed as still-open item 4 below. The user then hit the 404s in a browser and
+reported them as a bug. The framing that matters: `/about-us`, `/group-tours` and
+`/customize-tours` are linked from the **Navbar, the Footer AND the mobile menu**.
+Three of the site's primary nav items sent every visitor to a 404. A branded 404 is
+an acceptable landing for a footer link to an unbuilt policy page; it is not an
+acceptable landing for a top-level nav item.
+
+Re-checking the sources also showed the deferral rested on a false premise. The
+design export carries **complete artboards for all three screens** — `isGroup`
+(lines 480–559), `isCustom` (lines 561–722), `isAbout` (lines 724–738) — plus their
+backing constants `GROUPS`, `PLACES` and `timeline`. Product-spec §5.4, §5.5 and
+§5.8 specify all three. Nothing had to be invented for Group Tours or Customize
+Tours.
+
+- **Built:** `/group-tours`, `/customize-tours`, `/about-us`.
+- **Unchanged:** `/destinations`, `/our-services`, `/travel-guide`, `/contact-us`
+  are still unbuilt, still Footer-only links, still backed by the branded 404.
+  Decision G still governs those four.
+- **Unchanged:** the Hard Architecture Boundary. No admin, login or CMS surface was
+  added at any route, and E2E test 10 still guards it.
+
+**The one real content gap — About Us.** Unlike the other two screens, the export's
+About artboard is a *low-fidelity wireframe*: the brand-story body copy is two grey
+`.ln` skeleton bars, i.e. the design itself marks that copy as unwritten. Product-spec
+§5.8 is two lines of outline with no prose. Applying Decision H rather than working
+around it:
+
+- The headline *"We don't plan trips, we create lifetime memories."*, the section
+  labels and the closing CTA are real export copy and are used verbatim.
+- The story body renders a **visible placeholder notice** (same treatment as the
+  `/legal/*` pages), not approximated brand prose. Writing a founder's note or an
+  origin story for a real travel company is exactly what H forbids.
+- Every "Our Journey" milestone is flagged `isPlaceholder` and visibly marked: they
+  quote the traveller/destination counts Assumption A3 records as contested, and a
+  founding year no source confirms.
+- §5.8's "team section (optional)" and "certifications/badges if applicable" are
+  **not built at all** — no names, roles, photos or certifications exist anywhere,
+  both are marked optional, and an empty shell would be worse than their absence.
+
+**Also applied, on Customize Tours:** the export computes an estimated per-person
+trip cost as `nights × 3200 | 5400 | 8600` (line ~1157). Those per-night rates appear
+in no spec, price list or fixture — they are prototype filler — so the figure is a
+fabricated price quote and is **not** reproduced. The Estimated Cost row is kept
+(it is part of the design) carrying the placeholder-marker treatment instead of a
+number, which matches the export's own footnote: *"A GTY planner will confirm hotels,
+transport and the final price before anything is booked."*
+
 #### H — Section shells built; content is obvious placeholder, never fabricated
 **Decided by:** user, 2026-09-10.
 
@@ -278,8 +330,20 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    `ContentPort`, not a resolution.
 3. **Real testimonial content (H)** — placeholders are greppable via
    `TODO(real-testimonials)` and must be replaced before launch.
-4. **Visitor-facing stub copy (B)** and **the branded 404 (G)** were conservative
-   executor defaults and need product sign-off.
+4. **Visitor-facing stub copy (B)** still needs product sign-off. ~~**the branded 404
+   (G)**~~ — **CLOSED 2026-09-11 by Decision G2**: the user reversed it for the three
+   primary nav routes, which are now built. G still governs the four remaining
+   Footer-only links (`/destinations`, `/our-services`, `/travel-guide`,
+   `/contact-us`).
+7. **About Us brand-story copy** — the export's About artboard is a wireframe with
+   skeleton bars where the story should be, and product-spec §5.8 has no prose. The
+   page ships with a visible placeholder notice (Decision G2). GTY must supply the
+   real story/founder note, and confirm the "Our Journey" milestones, before launch.
+   Greppable via `TODO(about-history-confirm)`.
+8. **Group departure durations** — the export states different durations for the same
+   tour in `GROUPS` than in `RAILS` (Do Dham Yatra, Spiti Valley Circuit). Both
+   records are surfaced with a visible marker rather than a silently-picked winner.
+   Greppable via `TODO(duration-confirm)`.
 5. **Social media URLs** — still `href="#"` with `TODO(social-links)`.
 6. **Docker** — `Dockerfile` / `docker-compose.yml` are written but **unvalidated**;
    Docker is not installed in this environment.

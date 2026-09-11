@@ -2,13 +2,15 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/utils';
 
+// Every route in this list now resolves. These two used to be deliberate dead
+// links backed by the branded 404 (BLOCKERS.md Decision G) — which is exactly
+// the bug a visitor reported, since a 404 behind a PRIMARY NAV item reads as
+// broken, not as "coming soon". Decision G2 reversed it and the pages were
+// built. The hrefs never changed, so the churn Decision G was trying to avoid
+// never happened.
 const NAV_ITEMS = [
   { label: 'Home', href: '/' },
   { label: 'Tour Packages', href: '/tour-packages' },
-  // Decision G: these two routes don't exist yet this sprint — they still
-  // render as real <Link>s (branded 404 handles the landing) rather than
-  // being hidden, per pixel-accuracy and to avoid churn when Sprints 3-6
-  // add the real routes.
   { label: 'Group Tours', href: '/group-tours' },
   { label: 'Customized Tours', href: '/customize-tours' },
 ] as const;

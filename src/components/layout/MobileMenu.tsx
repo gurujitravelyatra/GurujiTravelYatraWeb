@@ -4,9 +4,8 @@ import Link from 'next/link';
 
 import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
+import { GTY_PHONE_TEL } from '@/lib/gty-contact';
 import { useMobileMenu } from './mobile-menu-context';
-
-const GTY_PHONE_TEL = '+919099957658';
 
 const MENU_ITEMS = [
   { label: 'Home', href: '/' },
