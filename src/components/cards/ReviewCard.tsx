@@ -15,10 +15,12 @@ export interface ReviewCardProps {
  *
  * Placeholder entries (`isPlaceholder: true`, see testimonials.fixture.ts)
  * are rendered plainly and visibly marked as placeholders — never styled to
- * look like a real customer review.
+ * look like a real customer review. In particular the star row renders ONLY
+ * when the review actually carries a rating: placeholders have no
+ * `ratingOutOf5` at all, so they show no stars rather than a fabricated five.
  */
 export function ReviewCard({ review }: ReviewCardProps) {
-  const stars = Math.round(review.ratingOutOf5);
+  const stars = review.ratingOutOf5 === undefined ? undefined : Math.round(review.ratingOutOf5);
 
   return (
     <div
@@ -33,13 +35,15 @@ export function ReviewCard({ review }: ReviewCardProps) {
         className="h-[180px] w-full"
       />
       <div className="flex flex-col gap-2 p-5">
-        <div className="flex items-center gap-1" role="img" aria-label={`Rated ${stars} out of 5 stars`}>
-          {Array.from({ length: 5 }).map((_, index) => (
-            <span key={index} aria-hidden="true" className={index < stars ? 'text-gty-gold-deep' : 'text-gty-border-3'}>
-              ★
-            </span>
-          ))}
-        </div>
+        {stars !== undefined && (
+          <div className="flex items-center gap-1" role="img" aria-label={`Rated ${stars} out of 5 stars`}>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <span key={index} aria-hidden="true" className={index < stars ? 'text-gty-gold-deep' : 'text-gty-border-3'}>
+                ★
+              </span>
+            ))}
+          </div>
+        )}
         <p className={cn('text-14 leading-relaxed text-gty-body', review.isPlaceholder && 'italic text-gty-subtle')}>
           &#8220;{review.quote}&#8221;
         </p>

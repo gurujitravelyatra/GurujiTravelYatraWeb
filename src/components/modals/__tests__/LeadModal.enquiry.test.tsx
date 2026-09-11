@@ -68,7 +68,7 @@ describe('LeadModal variant="enquiry"', () => {
     await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
     // "sending" step
-    expect(await screen.findByText('Creating your lead in the CRM')).toBeInTheDocument();
+    expect(await screen.findByText('Submitting your enquiry…')).toBeInTheDocument();
 
     await act(async () => {
       resolve({ status: 'error', retryable: true, message: 'Visitor safe message.' });
@@ -109,5 +109,36 @@ describe('LeadModal variant="enquiry"', () => {
 
     expect(await screen.findByText('All set!')).toBeInTheDocument();
     expect(screen.getByText(/Your journey/)).toBeInTheDocument();
+  });
+
+  // The submit path is `NotImplementedLeadAdapter` — there is no server, no
+  // validation service, no rate limiter and no CRM. Copy that claims otherwise
+  // is a false statement to the visitor, not a cosmetic issue.
+  describe('claims no capability the stub submit path does not have', () => {
+    const FALSE_CLAIMS = [/server-side/i, /rate.?limit/i, /\bCRM\b/, /encrypted/i];
+
+    it('makes no such claim on the form step', () => {
+      const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+      expect(screen.getByText(/Our team will review your enquiry and get back to you shortly\./)).toBeInTheDocument();
+      for (const claim of FALSE_CLAIMS) {
+        expect(container.textContent ?? '').not.toMatch(claim);
+      }
+    });
+
+    it('makes no such claim on the sending step', async () => {
+      const user = userEvent.setup();
+      const { promise } = deferred<LeadSubmissionResult>();
+      submitLead.mockReturnValue(promise);
+
+      const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+      await fillRequiredFields(user);
+      await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+      expect(await screen.findByText('Submitting your enquiry…')).toBeInTheDocument();
+      for (const claim of FALSE_CLAIMS) {
+        expect(container.textContent ?? '').not.toMatch(claim);
+      }
+    });
   });
 });

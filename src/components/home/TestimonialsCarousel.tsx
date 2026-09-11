@@ -22,10 +22,18 @@ const FADE_TRANSITION = { duration: 0.18, ease: [0.25, 0.1, 0.25, 1] as const };
 export function TestimonialsCarousel({ testimonials }: TestimonialsCarouselProps) {
   const [index, setIndex] = useState(0);
   const shouldReduceMotion = useReducedMotion();
-  const active = testimonials[index];
 
-  const goPrev = () => setIndex((current) => (current - 1 + testimonials.length) % testimonials.length);
-  const goNext = () => setIndex((current) => (current + 1) % testimonials.length);
+  // Clamp rather than index blindly: `testimonials` is legitimately allowed to
+  // be empty (BLOCKERS.md Decision H — the current entries are placeholders
+  // and are expected to be emptied out rather than shipped), and the list can
+  // also shrink under a live `index`. Without this, an empty array made
+  // `% 0` = NaN and `testimonials[NaN]` undefined, which threw on
+  // `active.travellerName` and took the whole Home page down.
+  const count = testimonials.length;
+  const active = count > 0 ? testimonials[Math.min(index, count - 1)] : undefined;
+
+  const goPrev = () => setIndex((current) => (current - 1 + count) % count);
+  const goNext = () => setIndex((current) => (current + 1) % count);
 
   return (
     <section
@@ -39,39 +47,48 @@ export function TestimonialsCarousel({ testimonials }: TestimonialsCarouselProps
       </div>
       <h2 className="text-24 font-extrabold tracking-tightest text-gty-ink">What Our Travellers Say</h2>
 
-      <div className="flex w-full flex-wrap items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={goPrev}
-          aria-label="Previous testimonial"
-          className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white"
+      {!active ? (
+        <div
+          data-testid="testimonials-empty"
+          className="flex w-full max-w-[360px] items-center justify-center rounded-18 border-[1.5px] border-dashed border-gty-border-8 p-6 text-center text-12 leading-relaxed text-gty-subtle"
         >
-          ←
-        </button>
-
-        <div className="relative min-h-[340px] w-full max-w-[360px] overflow-hidden">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={active.travellerName + index}
-              initial={shouldReduceMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-              transition={FADE_TRANSITION}
-            >
-              <ReviewCard review={active} />
-            </motion.div>
-          </AnimatePresence>
+          Traveller stories are on their way — check back soon.
         </div>
+      ) : (
+        <div className="flex w-full flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label="Previous testimonial"
+            className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white"
+          >
+            ←
+          </button>
 
-        <button
-          type="button"
-          onClick={goNext}
-          aria-label="Next testimonial"
-          className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white"
-        >
-          →
-        </button>
-      </div>
+          <div className="relative min-h-[340px] w-full max-w-[360px] overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={active.travellerName + index}
+                initial={shouldReduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                transition={FADE_TRANSITION}
+              >
+                <ReviewCard review={active} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label="Next testimonial"
+            className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white"
+          >
+            →
+          </button>
+        </div>
+      )}
     </section>
   );
 }

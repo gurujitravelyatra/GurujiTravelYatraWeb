@@ -16,7 +16,7 @@ const placeholderReview: Review = {
   quote: 'Testimonial copy pending — do not ship without real customer quotes.',
   travellerName: '[Traveller name pending]',
   tripLabel: '[Trip pending]',
-  ratingOutOf5: 5,
+  // No `ratingOutOf5` — a rating is a factual claim about a real customer.
   isPlaceholder: true,
 };
 
@@ -58,5 +58,28 @@ describe('ReviewCard', () => {
   it('does not mark a real (non-placeholder) review with the Placeholder badge', () => {
     render(<ReviewCard review={realReview} />);
     expect(screen.queryByText('Placeholder')).not.toBeInTheDocument();
+  });
+
+  // BLOCKERS.md Decision H — five filled gold stars read as a real 5/5 rating
+  // no matter what badge sits under them, so an unrated review renders none.
+  it('renders no stars at all when the review carries no rating', () => {
+    const { container } = render(<ReviewCard review={placeholderReview} />);
+
+    expect(screen.queryByRole('img', { name: /out of 5 stars/ })).not.toBeInTheDocument();
+    expect(container.textContent ?? '').not.toContain('★');
+  });
+
+  it('still renders stars for a real review that does carry a rating', () => {
+    render(<ReviewCard review={{ ...realReview, ratingOutOf5: 5 }} />);
+    expect(screen.getByRole('img', { name: 'Rated 5 out of 5 stars' })).toBeInTheDocument();
+  });
+
+  it('renders no stars for a rating of 0 rather than treating it as absent', () => {
+    render(<ReviewCard review={{ ...realReview, ratingOutOf5: 0 }} />);
+
+    // The row still renders (0 is a real rating, not a missing one) — it just
+    // shows five empty stars. This pins the `=== undefined` check against a
+    // regression to a falsy check.
+    expect(screen.getByRole('img', { name: 'Rated 0 out of 5 stars' })).toBeInTheDocument();
   });
 });

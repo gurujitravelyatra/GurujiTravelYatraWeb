@@ -13,6 +13,27 @@ describe('FixtureContentAdapter', () => {
     }
   });
 
+  it('getAllTours() resolves every tour exactly once (22 = 20 rail + 2 popular-only)', async () => {
+    const tours = await adapter.getAllTours();
+    expect(tours).toHaveLength(22);
+
+    const slugs = tours.map((tour) => tour.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  it('getAllTours() is a superset of both the rails and the popular selection', async () => {
+    const [tours, rails, popular] = await Promise.all([
+      adapter.getAllTours(),
+      adapter.getPackageRails(),
+      adapter.getPopularDestinations(),
+    ]);
+    const slugs = new Set(tours.map((tour) => tour.slug));
+
+    for (const item of [...popular, ...rails.flatMap((rail) => rail.items)]) {
+      expect(slugs.has(item.slug)).toBe(true);
+    }
+  });
+
   it('getPopularDestinations() resolves the 5 fixture entries mapped to Package shape', async () => {
     const popular = await adapter.getPopularDestinations();
     expect(popular).toHaveLength(5);
@@ -68,6 +89,22 @@ describe('FixtureContentAdapter', () => {
     expect(testimonials).toHaveLength(3);
     for (const review of testimonials) {
       expect(review.isPlaceholder).toBe(true);
+    }
+  });
+
+  it('getTestimonials() carries no fabricated star rating on any placeholder (Decision H)', async () => {
+    for (const review of await adapter.getTestimonials()) {
+      expect(review.ratingOutOf5).toBeUndefined();
+    }
+  });
+
+  it('getFeaturedVideos() asserts no specific departure date (Decision H)', async () => {
+    for (const video of await adapter.getFeaturedVideos()) {
+      // The captions used to read e.g. "Departed 06 Oct 2026 · 42 travellers" —
+      // a hardcoded date with no source, two of which were in the future.
+      expect(video.whenLabel).not.toMatch(/\b(19|20)\d{2}\b/);
+      expect(video.whenLabel).not.toMatch(/departed/i);
+      expect(video.whenLabel).not.toMatch(/travellers?\b/i);
     }
   });
 

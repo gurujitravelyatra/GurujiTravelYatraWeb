@@ -23,9 +23,17 @@ const FADE_TRANSITION = { duration: 0.18, ease: [0.25, 0.1, 0.25, 1] as const };
 export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
   const [index, setIndex] = useState(0);
   const shouldReduceMotion = useReducedMotion();
-  const current = videos[index % videos.length];
 
-  const cycleVideo = () => setIndex((previous) => (previous + 1) % videos.length);
+  // `videos` is legitimately allowed to be empty — the fixture captions are
+  // placeholders (BLOCKERS.md Decision H) and are expected to be emptied out
+  // rather than shipped with invented dates. Guard the divisor: `% 0` is NaN,
+  // so `videos[NaN]` was undefined and `current.thumbnailKey` threw, taking
+  // the whole Home page down. The left-hand copy column stands on its own, so
+  // only the film panel degrades.
+  const count = videos.length;
+  const current = count > 0 ? videos[index % count] : undefined;
+
+  const cycleVideo = () => setIndex((previous) => (previous + 1) % count);
 
   return (
     <section
@@ -62,45 +70,54 @@ export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
       </div>
 
       <div className="min-w-[280px] flex-1">
-        <div className="relative h-[230px] overflow-hidden rounded-18 bg-[#151312] shadow-gty-lift 760:h-[420px]">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={current.thumbnailKey}
-              className="absolute inset-0"
-              initial={shouldReduceMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-              transition={FADE_TRANSITION}
-            >
-              <PhotoPlaceholder photoKey={current.thumbnailKey} alt={current.title} className="absolute inset-0 h-full w-full items-end p-0" />
-            </motion.div>
-          </AnimatePresence>
-          <span
-            aria-hidden="true"
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.05) 40%,rgba(0,0,0,.62) 100%)',
-            }}
-          />
-          <button
-            type="button"
-            onClick={cycleVideo}
-            aria-label="Watch next trip film"
-            className="absolute left-1/2 top-1/2 flex h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-pill bg-gty-white/94 text-24 text-gty-primary shadow-[0_10px_30px_rgba(0,0,0,.35)] transition-colors duration-gty-fast ease-gty hover:bg-gty-white"
+        {!current ? (
+          <div
+            data-testid="journey-video-empty"
+            className="flex h-[230px] items-center justify-center overflow-hidden rounded-18 border-[1.5px] border-dashed border-gty-border-8 bg-gty-surface-3 px-6 text-center text-12 leading-relaxed text-gty-subtle 760:h-[420px]"
           >
-            ▶
-          </button>
-          <div className="absolute inset-x-5 bottom-[18px] flex flex-col gap-[5px]">
-            <p className="text-10 font-bold uppercase tracking-label text-gty-white/85">Recent Trip Film</p>
-            <p className="text-22 font-extrabold text-gty-white" style={{ textShadow: '0 2px 12px rgba(0,0,0,.5)' }}>
-              {current.title}
-            </p>
-            <p className="text-12 text-gty-white/82">{current.whenLabel}</p>
+            Trip films are coming soon.
           </div>
-          <span className="absolute right-4 top-4 rounded-pill bg-gty-white/92 px-3 py-[6px] text-[10.5px] font-bold uppercase tracking-img">
-            GTY video slot
-          </span>
-        </div>
+        ) : (
+          <div className="relative h-[230px] overflow-hidden rounded-18 bg-[#151312] shadow-gty-lift 760:h-[420px]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={current.thumbnailKey}
+                className="absolute inset-0"
+                initial={shouldReduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                transition={FADE_TRANSITION}
+              >
+                <PhotoPlaceholder photoKey={current.thumbnailKey} alt={current.title} className="absolute inset-0 h-full w-full items-end p-0" />
+              </motion.div>
+            </AnimatePresence>
+            <span
+              aria-hidden="true"
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.05) 40%,rgba(0,0,0,.62) 100%)',
+              }}
+            />
+            <button
+              type="button"
+              onClick={cycleVideo}
+              aria-label="Watch next trip film"
+              className="absolute left-1/2 top-1/2 flex h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-pill bg-gty-white/94 text-24 text-gty-primary shadow-[0_10px_30px_rgba(0,0,0,.35)] transition-colors duration-gty-fast ease-gty hover:bg-gty-white"
+            >
+              ▶
+            </button>
+            <div className="absolute inset-x-5 bottom-[18px] flex flex-col gap-[5px]">
+              <p className="text-10 font-bold uppercase tracking-label text-gty-white/85">Recent Trip Film</p>
+              <p className="text-22 font-extrabold text-gty-white" style={{ textShadow: '0 2px 12px rgba(0,0,0,.5)' }}>
+                {current.title}
+              </p>
+              <p className="text-12 text-gty-white/82">{current.whenLabel}</p>
+            </div>
+            <span className="absolute right-4 top-4 rounded-pill bg-gty-white/92 px-3 py-[6px] text-[10.5px] font-bold uppercase tracking-img">
+              GTY video slot
+            </span>
+          </div>
+        )}
       </div>
     </section>
   );

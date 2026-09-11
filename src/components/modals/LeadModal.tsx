@@ -28,18 +28,32 @@ export interface LeadModalProps {
 
 type Step = 'form' | 'sending' | 'done';
 
-const COPY: Record<LeadModalVariant, { title: string; description: string; cta: string; ctxLabel: string }> = {
+/**
+ * All modal copy. Nothing here may assert a backend capability that does not
+ * exist yet: the submit path is `NotImplementedLeadAdapter` (BLOCKERS.md §1a /
+ * Decision A) — no server, no validation service, no rate limiter, no CRM
+ * write. `sendingLabel` and `disclaimer` in particular are worded to describe
+ * intent, never infrastructure.
+ */
+const COPY: Record<
+  LeadModalVariant,
+  { title: string; description: string; cta: string; ctxLabel: string; sendingLabel: string; disclaimer: string }
+> = {
   enquiry: {
     title: 'Talk to GTY',
     description: "Tell us where you're headed and we'll shape the journey around you.",
     cta: 'Start Your Journey',
     ctxLabel: 'Enquiring about',
+    sendingLabel: 'Submitting your enquiry…',
+    disclaimer: "We'll only use this to send your journey details. Our team will review your enquiry and get back to you shortly.",
   },
   brochure: {
     title: 'Get Your Complete Travel Brochure',
     description: 'Get the complete itinerary, inclusions, pricing and travel information.',
     cta: 'Get My Brochure',
     ctxLabel: 'Brochure for',
+    sendingLabel: 'Submitting your request…',
+    disclaimer: "We'll only use this to send your journey details. Our team will review your request and get back to you shortly.",
   },
 };
 
@@ -167,7 +181,7 @@ export function LeadModal({ variant, open, context, onClose }: LeadModalProps) {
           onClose={onClose}
         />
       )}
-      {step === 'sending' && <SendingStep shouldReduceMotion={!!shouldReduceMotion} />}
+      {step === 'sending' && <SendingStep label={copy.sendingLabel} shouldReduceMotion={!!shouldReduceMotion} />}
       {step === 'done' && <DoneStep variant={variant} doneLine={doneLine} onClose={onClose} />}
     </ModalShell>
   );
@@ -268,9 +282,7 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         <Button type="submit" variant="primary" className="justify-center">
           {copy.cta} <span aria-hidden="true">→</span>
         </Button>
-        <p className="text-9 leading-relaxed text-gty-faint-2">
-          We&#39;ll only use this to send your journey details. Server-side validated, rate-limited.
-        </p>
+        <p className="text-9 leading-relaxed text-gty-faint-2">{copy.disclaimer}</p>
       </form>
     </div>
   );
@@ -303,7 +315,7 @@ function Field({ label, htmlFor, error, className, children }: FieldProps) {
   );
 }
 
-function SendingStep({ shouldReduceMotion }: { shouldReduceMotion: boolean }) {
+function SendingStep({ label, shouldReduceMotion }: { label: string; shouldReduceMotion: boolean }) {
   return (
     <div className="flex flex-col items-center gap-3 px-gx py-11">
       <p className="text-10 font-bold uppercase tracking-label text-gty-subtle">Sending…</p>
@@ -315,7 +327,7 @@ function SendingStep({ shouldReduceMotion }: { shouldReduceMotion: boolean }) {
           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
         />
       </div>
-      <p className="text-11 text-gty-subtle">Creating your lead in the CRM</p>
+      <p className="text-11 text-gty-subtle">{label}</p>
     </div>
   );
 }
