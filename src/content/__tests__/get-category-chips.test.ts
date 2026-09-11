@@ -22,6 +22,7 @@ describe('getCategoryChips', () => {
             slug: 'a',
             name: 'A',
             destinationSlug: 'a',
+            destinationName: 'A',
             category: 'Adventure',
             durationLabel: '1 Day',
             subtitle: 'sub',

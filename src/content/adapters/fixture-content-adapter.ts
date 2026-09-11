@@ -1,10 +1,9 @@
 import type { ContentPort } from '../ports';
-import { allTours, packageRails } from '../fixtures/packages.fixture';
-import { popularPackages } from '../fixtures/popular.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
 import { featuredVideos } from '../fixtures/videos.fixture';
 import { statMetrics } from '../fixtures/stats.fixture';
 import { testimonials } from '../fixtures/testimonials.fixture';
+import { publiclyListedPopular, publiclyListedRails, publiclyListedTours } from '../public-listing';
 
 /**
  * Active `ContentPort` implementation this sprint (tech spec §3/§6.1).
@@ -13,14 +12,20 @@ import { testimonials } from '../fixtures/testimonials.fixture';
  * async/ISR-ready. Swapping to a real `ErpContentAdapter` later only
  * requires a new class implementing `ContentPort` — no page or component
  * code changes.
+ *
+ * Tour queries return the PUBLICLY LISTABLE set (`../public-listing.ts`), not
+ * the raw fixtures: records flagged `pricingUnverified` are withheld from
+ * every listing and from the detail route until real figures are confirmed.
+ * The filtering lives at this boundary on purpose — a real `ErpContentAdapter`
+ * inherits the same contract instead of every component re-deriving it.
  */
 export class FixtureContentAdapter implements ContentPort {
   getAllTours() {
-    return Promise.resolve(allTours);
+    return Promise.resolve(publiclyListedTours);
   }
 
   getPopularDestinations() {
-    return Promise.resolve(popularPackages);
+    return Promise.resolve(publiclyListedPopular);
   }
 
   getInternationalDestinations() {
@@ -28,7 +33,7 @@ export class FixtureContentAdapter implements ContentPort {
   }
 
   getPackageRails() {
-    return Promise.resolve(packageRails);
+    return Promise.resolve(publiclyListedRails);
   }
 
   getFeaturedVideos() {

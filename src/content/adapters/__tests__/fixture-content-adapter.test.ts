@@ -3,19 +3,25 @@ import { FixtureContentAdapter, contentAdapter } from '../fixture-content-adapte
 describe('FixtureContentAdapter', () => {
   const adapter = new FixtureContentAdapter();
 
-  it('getPackageRails() resolves 4 rails x 5 items each', async () => {
+  it('getPackageRails() resolves 4 rails of publicly-listable items', async () => {
     const rails = await adapter.getPackageRails();
     expect(rails).toHaveLength(4);
     for (const rail of rails) {
-      expect(rail.items).toHaveLength(5);
       expect(typeof rail.title).toBe('string');
       expect(rail.title.length).toBeGreaterThan(0);
+      for (const item of rail.items) {
+        expect(item.pricingUnverified).not.toBe(true);
+      }
     }
+
+    // The Trending rail held all 3 withheld tours, so it keeps 2 of 5; the
+    // other three rails are untouched.
+    expect(rails.map((rail) => rail.items.length)).toEqual([2, 5, 5, 5]);
   });
 
-  it('getAllTours() resolves every tour exactly once (22 = 20 rail + 2 popular-only)', async () => {
+  it('getAllTours() resolves every publicly-listable tour exactly once (19 = 22 records - 3 withheld)', async () => {
     const tours = await adapter.getAllTours();
-    expect(tours).toHaveLength(22);
+    expect(tours).toHaveLength(19);
 
     const slugs = tours.map((tour) => tour.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
@@ -34,9 +40,10 @@ describe('FixtureContentAdapter', () => {
     }
   });
 
-  it('getPopularDestinations() resolves the 5 fixture entries mapped to Package shape', async () => {
+  it('getPopularDestinations() resolves the publicly-listable selection in Package shape', async () => {
     const popular = await adapter.getPopularDestinations();
-    expect(popular).toHaveLength(5);
+    // 3 of the export's 5 popular tours are pricingUnverified and withheld.
+    expect(popular).toHaveLength(2);
     for (const item of popular) {
       expect(item).toEqual(
         expect.objectContaining({
@@ -54,10 +61,11 @@ describe('FixtureContentAdapter', () => {
     }
   });
 
-  it('getInternationalDestinations() resolves the 6 fixture destinations', async () => {
+  it('getInternationalDestinations() resolves the 5 backed fixture destinations', async () => {
     const destinations = await adapter.getInternationalDestinations();
-    expect(destinations).toHaveLength(6);
-    expect(destinations.map((d) => d.name)).toEqual(['Maldives', 'Singapore', 'Thailand', 'Malaysia', 'Bali', 'Dubai']);
+    // Malaysia removed: the export named it but no tour goes there.
+    expect(destinations).toHaveLength(5);
+    expect(destinations.map((d) => d.name)).toEqual(['Maldives', 'Singapore', 'Thailand', 'Bali', 'Dubai']);
     // The export renders name + photo only for these — no invented fields.
     for (const destination of destinations) {
       expect(destination.region).toBeUndefined();
@@ -76,11 +84,14 @@ describe('FixtureContentAdapter', () => {
     }
   });
 
-  it('getStats() resolves 5 stat metrics', async () => {
+  it('getStats() resolves 5 stat metrics, every one flagged as an unconfirmed placeholder', async () => {
     const stats = await adapter.getStats();
     expect(stats).toHaveLength(5);
     for (const stat of stats) {
       expect(stat).toEqual(expect.objectContaining({ icon: expect.any(String), value: expect.any(String), label: expect.any(String) }));
+      // Assumption A3: the export and the product spec state different
+      // numbers and neither is final, so none may render as settled fact.
+      expect(stat.isPlaceholder).toBe(true);
     }
   });
 

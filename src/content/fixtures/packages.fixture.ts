@@ -112,6 +112,7 @@ function toPackage(item: TourFixtureItem): Package {
     // fabricated URL.
     photoUrl: item.dest,
     destinationSlug: slugify(item.dest),
+    destinationName: item.dest,
     category: item.cat,
     durationLabel: item.dur,
     subtitle: item.sub,

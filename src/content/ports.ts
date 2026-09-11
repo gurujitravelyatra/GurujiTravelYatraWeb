@@ -15,13 +15,21 @@ import type {
  * `ErpContentAdapter` later is a one-file change; no page or component
  * imports an adapter directly — everything depends on this interface.
  */
+/**
+ * EVERY method on this port returns PUBLICLY LISTABLE content only.
+ *
+ * Implementations must withhold records that are not cleared for display —
+ * today that means anything flagged `Package.pricingUnverified` (see
+ * `src/content/public-listing.ts`). Callers therefore never need to re-filter,
+ * and a record cannot leak into a listing because one component forgot to.
+ */
 export interface ContentPort {
   /**
-   * Every tour record, each exactly once — the set of slugs
-   * `/tour-packages/[slug]` must resolve. A first-class port method rather
-   * than a union assembled at the call site: tour data has a single source of
-   * truth, so no consumer should ever have to merge two overlapping lists and
-   * pick a winner on collision.
+   * Every publicly listable tour record, each exactly once — the set of slugs
+   * `/tour-packages/[slug]` resolves. Anything absent here 404s, by design. A
+   * first-class port method rather than a union assembled at the call site:
+   * tour data has a single source of truth, so no consumer should ever have to
+   * merge two overlapping lists and pick a winner on collision.
    */
   getAllTours(): Promise<Package[]>;
   getPopularDestinations(): Promise<Package[]>;

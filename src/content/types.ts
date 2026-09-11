@@ -53,6 +53,14 @@ export interface Package {
   slug: string;
   name: string;
   destinationSlug: string;
+  /**
+   * Display name of the destination, e.g. "Leh Ladakh" for `leh-ladakh`. The
+   * fixture always had this (`dest`); only the slug was surfaced, so consumers
+   * were de-slugifying (`destinationSlug.replace(/-/g,' ')`) and getting
+   * "vaishnodevi" where the data says "Vaishnodevi". Needed as real text by
+   * the destination filter's option labels.
+   */
+  destinationName: string;
   category: DestinationCategory;
   durationLabel: string; // e.g. "9 Days 8 Nights"
   subtitle: string; // e.g. "Shimla - Kaza - Chandratal"
@@ -69,6 +77,12 @@ export interface Package {
    * is authoritative. Greppable alongside the `TODO(pricing-confirm)` comments
    * in `packages.fixture.ts`. Must be cleared (with real figures) before the
    * site quotes these prices publicly.
+   *
+   * ENFORCED, not merely documented: `src/content/public-listing.ts` excludes
+   * every record carrying this flag from all public listing queries, so a
+   * flagged tour cannot render a "was ₹X / Save ₹Y" badge anywhere. Clearing
+   * the flag (with real figures) re-includes the tour automatically — nothing
+   * else needs editing.
    */
   pricingUnverified?: boolean;
 }
@@ -82,6 +96,32 @@ export interface StatMetric {
   icon: string; // glyph key, resolved to a visual treatment in the component
   value: string; // e.g. "10,000+"
   label: string;
+  /**
+   * True while the figure is not confirmed by the business — same contract as
+   * `Review.isPlaceholder`. The tech spec's own Assumption A3 records that the
+   * design export (10,000+ / 150+ / 500+ / 8+ / 98%) and the product spec
+   * (25,000+ / 10+ years) disagree and that NEITHER set is final, and
+   * "98% Traveller Satisfaction" is exactly the kind of factual claim that
+   * `Review` already refuses to fabricate without real review data.
+   *
+   * Consumers MUST visibly mark these (see `StatsBar`/`WhyGtyBand`) — a
+   * placeholder figure may never be presented as settled fact.
+   */
+  isPlaceholder?: boolean;
+}
+
+/**
+ * One cell of the "Why Travel With GTY?" band. Static site copy, not
+ * `ContentPort` content — but it carries `isPlaceholder` for the same reason
+ * `StatMetric` does: one of its titles quotes the canonical years-of-service
+ * figure, and an unconfirmed figure must be marked wherever it renders.
+ */
+export interface WhyItem {
+  icon: string;
+  title: string;
+  description: string;
+  /** True when `title` quotes a figure that is not yet confirmed. */
+  isPlaceholder?: boolean;
 }
 
 export interface FeaturedVideo {

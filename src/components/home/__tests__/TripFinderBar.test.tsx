@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 
 import { TripFinderBar } from '../TripFinderBar';
 import { tripFinderTabs } from '@/content/fixtures/tabs.fixture';
-import { allTours } from '@/content/fixtures/packages.fixture';
+import { toursRenderedOnCataloguePage } from '@/content/public-listing';
 
 /**
  * Copy-fidelity regression suite for the Trip Finder tab hints, in the same
@@ -14,11 +14,18 @@ import { allTours } from '@/content/fixtures/packages.fixture';
  * builder — nine short questions". None of that is backed by code or data, so
  * these tests assert the absence of such claims structurally rather than
  * pinning the exact marketing sentences (which copywriters may still tune).
+ *
+ * THE CORPUS IS THE RENDERED SET, not `allTours`. This test used to check
+ * hint place-names against all 22 fixture records, while the CTA lands on
+ * `/tour-packages`, which renders only the rails — and only the publicly
+ * listable ones. So it passed a hint naming the "Leh Ladakh group trip from
+ * Delhi" (a popular-only tour, on no rail) and hints naming Kedarnath,
+ * Varanasi and Kashmir (whose tours are withheld as `pricingUnverified`):
+ * four promises a visitor could not find at the destination the button sends
+ * them to. Checking the rendered set closes that gap.
  */
-
-/** Everything the tour data actually says, as one lowercase haystack. */
-const TOUR_CORPUS = allTours
-  .map((tour) => `${tour.name} ${tour.destinationSlug.replace(/-/g, ' ')} ${tour.subtitle} ${tour.category}`)
+const TOUR_CORPUS = toursRenderedOnCataloguePage
+  .map((tour) => `${tour.name} ${tour.destinationName} ${tour.subtitle} ${tour.category}`)
   .join(' | ')
   .toLowerCase();
 
@@ -86,7 +93,7 @@ describe('TripFinderBar', () => {
       });
     }
 
-    it('names only places that exist in the tour data (no Nepal)', () => {
+    it('names only places a visitor can actually reach at the CTA destination (no Nepal)', () => {
       expect(TOUR_CORPUS).not.toContain('nepal');
 
       for (const tab of tripFinderTabs) {
@@ -95,6 +102,23 @@ describe('TripFinderBar', () => {
           if (NON_PLACE_WORDS.has(word)) continue;
           expect(TOUR_CORPUS).toContain(word.toLowerCase());
         }
+      }
+    });
+
+    it('names no tour that is withheld from the catalogue', () => {
+      // These three are `pricingUnverified` and appear in no public listing,
+      // so a hint pointing a visitor at them sends them to nothing.
+      for (const tab of tripFinderTabs) {
+        expect(tab.hint).not.toMatch(/kedarnath|badrinath|varanasi|kashmir|kashi/i);
+      }
+    });
+
+    it('names no popular-only tour, which the catalogue does not render', () => {
+      // "Leh Ladakh Group Trip from Delhi" belongs to no rail, so it is on
+      // Home only — the previous Group Tour hint sent visitors to
+      // /tour-packages to look for it.
+      for (const tab of tripFinderTabs) {
+        expect(tab.hint).not.toMatch(/group trip from delhi/i);
       }
     });
 

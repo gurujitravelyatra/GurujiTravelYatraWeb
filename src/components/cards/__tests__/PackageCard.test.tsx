@@ -7,6 +7,7 @@ const basePackage: Package = {
   slug: 'spiti-valley-circuit',
   name: 'Spiti Valley Circuit',
   destinationSlug: 'spiti-valley',
+  destinationName: 'Spiti Valley',
   category: 'Adventure',
   durationLabel: '9 Days 8 Nights',
   subtitle: 'Shimla - Kaza - Chandratal',

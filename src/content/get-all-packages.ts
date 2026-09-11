@@ -21,6 +21,12 @@ import type { Package } from './types';
  * three tours were defined twice, with conflicting price/duration/category
  * values, so the detail page silently contradicted the Home card for those
  * three. There is now exactly one record per tour and nothing to arbitrate.
+ *
+ * Scope note: "every tour" means every PUBLICLY LISTABLE tour — the port
+ * withholds `pricingUnverified` records (`src/content/public-listing.ts`), so
+ * those slugs are absent from `generateStaticParams()` and their direct URLs
+ * 404 through `getPackageBySlug()` returning `undefined`. That is deliberate:
+ * a tour that is hidden from every listing must not remain quotable by URL.
  */
 export async function getAllPackages(): Promise<Package[]> {
   return contentAdapter.getAllTours();
