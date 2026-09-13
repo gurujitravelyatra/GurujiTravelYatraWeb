@@ -14,7 +14,11 @@ export interface ModalContext {
   value: string;
 }
 
-type ModalVariant = 'enquiry' | 'brochure';
+/**
+ * Exported so `ModalHost` can key its "which variants have been opened at
+ * least once" bookkeeping off the same union — type-only, no runtime cost.
+ */
+export type ModalVariant = 'enquiry' | 'brochure';
 
 interface OpenModalState {
   variant: ModalVariant;

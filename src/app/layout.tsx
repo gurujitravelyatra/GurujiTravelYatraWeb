@@ -3,8 +3,7 @@ import { Archivo, Caveat } from 'next/font/google';
 import './globals.css';
 
 import { ModalProvider } from '@/components/modals/modal-context';
-import { EnquiryModal } from '@/components/modals/EnquiryModal';
-import { BrochureModal } from '@/components/modals/BrochureModal';
+import { ModalHost } from '@/components/modals/ModalHost';
 
 /**
  * Typography, per the design export's font loading:
@@ -78,11 +77,16 @@ export default function RootLayout({
           tree can open the Enquiry/Brochure modal via useModal() without
           prop-drilling. Both modal components read their own open/variant
           state from context and render null when not the active variant.
+
+          ModalProvider stays eagerly loaded — it is just context plus
+          open/close state, and every trigger on the site calls into it. The
+          modal bodies behind it are code-split by ModalHost so their
+          dependency chain (react-hook-form, zod, framer-motion, Radix
+          Dialog) is fetched on first open rather than on every page load.
         */}
         <ModalProvider>
           {children}
-          <EnquiryModal />
-          <BrochureModal />
+          <ModalHost />
         </ModalProvider>
       </body>
     </html>
