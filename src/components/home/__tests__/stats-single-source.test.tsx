@@ -3,11 +3,18 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { Hero } from '../Hero';
 import { StatsBar } from '../StatsBar';
 import { WhyGtyBand } from '../WhyGtyBand';
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { FixtureContentAdapter } from '@/content/adapters/fixture-content-adapter';
 import { statMetrics } from '@/content/fixtures/stats.fixture';
 import { whyItems } from '@/content/fixtures/whys.fixture';
 import type { StatMetric } from '@/content/types';
 import { ModalProvider } from '@/components/modals/modal-context';
+
+/**
+ * Stats never moved to the database (BLOCKERS.md §5 — only tours, destinations,
+ * departures and brochures did), so this asserts against the fixture adapter
+ * directly. `PrismaContentAdapter.getStats()` delegates straight back here.
+ */
+const contentAdapter = new FixtureContentAdapter();
 
 /**
  * `Hero` renders `HeroCtas`, which opens the enquiry modal — so it needs the

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { contentAdapter } from '@/content/content-adapter';
 
 import { SiteShell } from '@/components/layout/SiteShell';
 import { CustomizeToursHero } from '@/components/customize-tours/CustomizeToursHero';

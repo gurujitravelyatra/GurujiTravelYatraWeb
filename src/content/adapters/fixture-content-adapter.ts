@@ -73,4 +73,8 @@ export class FixtureContentAdapter implements ContentPort {
   }
 }
 
-export const contentAdapter: ContentPort = new FixtureContentAdapter();
+// The `contentAdapter` singleton used to live here. It now lives in
+// `src/content/content-adapter.ts`, the composition root, because choosing
+// between this adapter and `PrismaContentAdapter` (BLOCKERS.md §5) is not a
+// decision a file named for the fixtures can own. This module exports the class
+// only — importing it does NOT commit the caller to the fixture path.

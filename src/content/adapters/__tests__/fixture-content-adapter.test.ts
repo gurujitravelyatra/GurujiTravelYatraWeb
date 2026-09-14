@@ -1,4 +1,4 @@
-import { FixtureContentAdapter, contentAdapter } from '../fixture-content-adapter';
+import { FixtureContentAdapter } from '../fixture-content-adapter';
 
 describe('FixtureContentAdapter', () => {
   const adapter = new FixtureContentAdapter();
@@ -124,9 +124,11 @@ describe('FixtureContentAdapter', () => {
     expect(adapter.getPopularDestinations()).toBeInstanceOf(Promise);
   });
 
-  it('the exported singleton `contentAdapter` behaves identically', async () => {
-    await expect(contentAdapter.getPackageRails()).resolves.toHaveLength(4);
-  });
+  // The `contentAdapter` singleton moved to `src/content/content-adapter.ts`
+  // (the composition root) when `PrismaContentAdapter` was added. The assertion
+  // that it behaves like this adapter moved with it — see
+  // `src/content/__tests__/content-adapter.test.ts`, which also covers the
+  // no-DATABASE_URL fallback that makes it resolve here in the first place.
 
   it('getGroupDepartures() resolves the 4 fixture departures, including the sold-out one', async () => {
     const departures = await adapter.getGroupDepartures();

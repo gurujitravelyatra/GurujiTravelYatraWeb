@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { contentAdapter } from '@/content/content-adapter';
 import { getCategoryChips } from '@/content/get-category-chips';
 import { getDestinationOptions } from '@/content/public-listing';
 import type { DestinationCategory } from '@/content/types';

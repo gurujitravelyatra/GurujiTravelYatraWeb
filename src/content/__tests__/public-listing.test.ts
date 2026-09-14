@@ -1,4 +1,4 @@
-import { contentAdapter } from '../adapters/fixture-content-adapter';
+import { FixtureContentAdapter } from '../adapters/fixture-content-adapter';
 import { allTours } from '../fixtures/packages.fixture';
 import { popularPackages } from '../fixtures/popular.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
@@ -10,6 +10,15 @@ import {
   publiclyListedRails,
   toursRenderedOnCataloguePage,
 } from '../public-listing';
+
+/**
+ * The FIXTURE adapter specifically, constructed here rather than imported as the
+ * site-wide singleton. This suite is about the public-listing gate's behaviour,
+ * which is a property of the content itself — not of which adapter
+ * `src/content/content-adapter.ts` happens to compose. (`PrismaContentAdapter`
+ * applies the same `isPubliclyListable` predicate; it is covered separately.)
+ */
+const contentAdapter = new FixtureContentAdapter();
 
 /**
  * C1 — the flag that did nothing.

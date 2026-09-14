@@ -1,4 +1,4 @@
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { contentAdapter } from '@/content/content-adapter';
 import { recentTripPlaceholders } from '@/content/fixtures/recent-trips.fixture';
 
 import { SiteShell } from '@/components/layout/SiteShell';

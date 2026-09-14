@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { contentAdapter } from '@/content/content-adapter';
 import { departureMonths } from '@/content/fixtures/group-departures.fixture';
 
 import { SiteShell } from '@/components/layout/SiteShell';

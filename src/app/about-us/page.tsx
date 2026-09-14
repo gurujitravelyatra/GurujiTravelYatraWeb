@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/adapters/fixture-content-adapter';
+import { contentAdapter } from '@/content/content-adapter';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { StatsBar } from '@/components/home/StatsBar';
 import { AboutStory } from '@/components/about/AboutStory';

@@ -1,4 +1,4 @@
-import { contentAdapter } from './adapters/fixture-content-adapter';
+import { contentAdapter } from './content-adapter';
 import type { Package } from './types';
 
 /**
