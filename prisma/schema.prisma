@@ -1,0 +1,297 @@
+// GTY website — interim content database.
+//
+// ⚠️ THIS DATABASE CONTRADICTS `Documents/guruji-travel-yatra-website-CLAUDE.md`
+// §2 (line 56): "Do not build a parallel database for leads or tour content",
+// and §10, which makes this site a pure read-client of the ERP's content API.
+// BLOCKERS.md §1b further records that CLAUDE.md §6 "explicitly forbids working
+// around it with a duplicate content model".
+//
+// The user has knowingly and explicitly OVERRIDDEN that constraint — see
+// `documentation/technical-specification/BLOCKERS.md` §5 ("Interim content
+// database"). This schema is an INTERIM measure while the CRM finishes its own
+// endpoints. It holds CONTENT ONLY. It holds NO LEADS: lead submission remains
+// `NotImplementedLeadAdapter` and CLAUDE.md's lead prohibition is NOT overridden.
+//
+// When the ERP's content-read API lands, the migration path is the one the
+// architecture was built for: a new `ErpContentAdapter implements ContentPort`
+// replaces `PrismaContentAdapter` at the composition root
+// (`src/content/content-adapter.ts`), and this whole directory is deleted. No
+// page or component changes either way — that is the entire point of the port.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Mirrors the `DestinationCategory` union in `src/content/types.ts` EXACTLY.
+///
+/// A Prisma enum rather than a bare `String` so a typo cannot reach the
+/// category-chip derivation (`get-category-chips.ts`), which builds the public
+/// filter UI straight off these values. `Honeymoon` and `Wildlife` are absent on
+/// purpose (BLOCKERS.md Decision C) — do not add them back here without
+/// re-reading that decision.
+///
+/// `FamilyTrip` is the only member whose Prisma name differs from the domain
+/// string, because Prisma enum members cannot contain a space. `@map` keeps the
+/// stored value byte-identical to the domain string; `prisma-enums.ts` owns the
+/// name↔string conversion and a test asserts the mapping covers the union.
+enum DestinationCategory {
+  Spiritual
+  Mountains
+  Cultural
+  Family
+  Adventure
+  International
+  Beach
+  Himalaya
+  FamilyTrip @map("Family Trip")
+  Pilgrimage
+}
+
+/// Lifecycle of a brochure record — product-spec §7 ("Brochure Library").
+///
+/// `ARCHIVED` exists because the product spec is explicit: "Never hard-delete a
+/// brochure tied to existing leads/bookings — archive instead."
+///
+/// `PENDING_UPLOAD` is the state EVERY seeded brochure is in, and it is not a
+/// placeholder for tidiness: no real brochure PDF exists anywhere in this
+/// project, so `pdfUrl` is NULL on every seeded row. A brochure may only move to
+/// `PUBLISHED` when a real file backs it.
+enum BrochureStatus {
+  PENDING_UPLOAD
+  PUBLISHED
+  ARCHIVED
+}
+
+/// A place tours are sold to. One table serves both uses in `src/content`:
+/// the FK target for `Tour`/`GroupDeparture`, and the International
+/// Destinations rail (`isInternational` + `internationalOrder`).
+///
+/// `region`/`category`/`tagline` are nullable because the design export renders
+/// only a name and a photo for the international cards — `types.ts` marks them
+/// optional rather than inventing them, and the DB must not invent them either.
+model Destination {
+  /// Kebab-case, produced by `slugify()` — never hand-typed (packages.fixture.ts).
+  slug        String               @id
+  name        String               @unique
+  region      String?
+  category    DestinationCategory?
+  tagline     String?
+
+  /// OPAQUE STRING KEY, NOT A URL — Assumption A4. No real photo files exist in
+  /// this project; the column holds the destination's display name and the card
+  /// components render a token-coloured `PhotoPlaceholder` from it. Storing a
+  /// plausible-looking CDN URL here would fabricate an asset that does not
+  /// exist. Renamed from the domain field's `photoUrl` precisely so nothing
+  /// downstream mistakes it for a fetchable address.
+  photoKey    String
+  photosCount Int?
+
+  /// True for the 5 destinations on Home's International rail
+  /// (`international.fixture.ts`). Malaysia is deliberately NOT seeded: the
+  /// export lists it but no tour backs it (BLOCKERS.md Decision C).
+  isInternational    Boolean @default(false)
+  /// Display order within the International rail. NULL when not international.
+  internationalOrder Int?
+
+  tours      Tour[]
+  departures GroupDeparture[]
+
+  @@index([isInternational, internationalOrder])
+}
+
+/// A sellable tour — the `Package` type in `src/content/types.ts`.
+/// SINGLE SOURCE OF TRUTH for tour data, exactly as `packages.fixture.ts` is
+/// today. Rail membership and Home's "Popular" selection are VIEWS over this
+/// table (`RailTour`, `popularOrder`), never second copies of a tour.
+model Tour {
+  slug            String              @id
+  name            String              @unique
+  destinationSlug String
+  destination     Destination         @relation(fields: [destinationSlug], references: [slug])
+  category        DestinationCategory
+
+  /// e.g. "9 Days 8 Nights" — the catalogue's own duration string.
+  durationLabel String
+  /// e.g. "Shimla - Kaza - Chandratal".
+  subtitle      String
+  /// Opaque string key, not a URL — see `Destination.photoKey`.
+  photoKey      String
+  photosCount   Int
+
+  /// Pre-formatted for display, e.g. "₹42,500". Kept as the display string
+  /// rather than an integer + currency: every consumer renders it verbatim, and
+  /// re-deriving "₹42,500" from 42500 would invent a formatting decision the
+  /// design export already made. `getPriceRange()` parses it when it needs a
+  /// number.
+  priceFrom     String
+  priceWas      String?
+  savingsLabel  String?
+  seatsLabel    String?
+  isHot         Boolean @default(false)
+
+  /// SAFETY FLAG — carried across from `Package.pricingUnverified` as a real
+  /// column, and ENFORCED, not merely stored.
+  ///
+  /// The design export transcribed 3 tours twice with disagreeing price/duration
+  /// values; neither transcription is confirmed, so these tours may not quote a
+  /// price or a "was ₹X / Save ₹Y" badge publicly.
+  ///
+  /// Enforcement lives in `PrismaContentAdapter`, which routes every public
+  /// query through the SAME `isPubliclyListable()` predicate the fixture path
+  /// uses (`src/content/public-listing.ts`) — so a flagged row cannot reach any
+  /// listing, and `/tour-packages/[slug]` 404s for it, identically to today.
+  /// See `memory/feedback_qg_unenforced-safety-flag.md`: a flag that only exists
+  /// as a column is the exact defect that memory exists to prevent.
+  pricingUnverified Boolean @default(false)
+
+  /// Global order of `ContentPort.getAllTours()` — rail order first, then the
+  /// two popular-only tours, matching `packages.fixture.ts`'s construction
+  /// order. Explicit because SQL has no inherent row order and the catalogue's
+  /// sequence is an authored design decision.
+  catalogueOrder Int @unique
+
+  /// Position in Home's "Popular Destinations" grid, in the export's own order.
+  /// NULL for tours Home does not feature. A nullable ordering column rather
+  /// than a join table: the selection carries no data of its own beyond order.
+  popularOrder Int? @unique
+
+  railLinks RailTour[]
+  brochure  Brochure?
+
+  @@index([destinationSlug])
+  @@index([pricingUnverified])
+}
+
+/// One of the 4 `/tour-packages` rails — `PackageRail` in `types.ts`.
+model Rail {
+  slug      String     @id
+  title     String     @unique
+  sortOrder Int        @unique
+  items     RailTour[]
+}
+
+/// Rail membership. A join table because a rail's contents are ordered and a
+/// tour's rail is not a property of the tour.
+model RailTour {
+  railSlug  String
+  tourSlug  String
+  sortOrder Int
+  rail      Rail   @relation(fields: [railSlug], references: [slug], onDelete: Cascade)
+  tour      Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  @@id([railSlug, tourSlug])
+  @@unique([railSlug, sortOrder])
+  @@index([tourSlug])
+}
+
+/// A fixed-departure group tour — `GroupDeparture` in `src/content/types.ts`.
+///
+/// DELIBERATELY NOT a variant of `Tour`, mirroring the domain model: a departure
+/// carries no `priceWas`/`savingsLabel`/`photosCount`, and inheriting them would
+/// invite a "Save ₹X" badge this data cannot support. The two overlap by subject,
+/// not by contract. `dateRangeLabel`, `seatsLabel`, `boardingPoints` and
+/// `tourManagerLabel` exist in NO other source.
+model GroupDeparture {
+  slug            String              @id
+  name            String              @unique
+  destinationSlug String
+  destination     Destination         @relation(fields: [destinationSlug], references: [slug])
+  category        DestinationCategory
+  /// Opaque string key, not a URL — see `Destination.photoKey`.
+  photoKey        String
+
+  /// e.g. "12 — 18 May 2026", verbatim from the export.
+  dateRangeLabel   String
+  /// Month key the chip filter groups by, e.g. "May".
+  month            String
+  /// The departure's OWN duration string, e.g. "6N / 7D".
+  durationLabel    String
+  boardingPoints   String
+  tourManagerLabel String
+  priceFrom        String
+  /// e.g. "14 seats left" | "Sold out". The export encodes sold-out state ONLY
+  /// as this literal string.
+  seatsLabel       String
+  /// Caveat-script accent overlaid on the photo; contains newlines.
+  scriptAccent     String
+
+  /// SAFETY FLAG — `GroupDeparture.durationUnverified`. True when this
+  /// departure's duration contradicts the same tour's duration in the
+  /// catalogue. Surfaced with a visible marker rather than withheld (a
+  /// departure's date and seat count are real regardless).
+  durationUnverified Boolean @default(false)
+
+  /// SAFETY FLAG — `GroupDeparture.priceUnverified`. True when this price is the
+  /// SAME unconfirmed figure the catalogue withholds for the same tour
+  /// (BLOCKERS.md item 9). A SECOND flag rather than a read-through to
+  /// `Tour.pricingUnverified` because a departure is not a `Tour` — and the seed
+  /// asserts the two stay in sync, in both directions, so confirming a price
+  /// cannot clear one flag and leave the other.
+  priceUnverified Boolean @default(false)
+
+  /// Display order of the departures list.
+  sortOrder Int @unique
+
+  @@index([destinationSlug])
+  @@index([month])
+}
+
+/// Per-tour brochure metadata — product-spec §7 ("Brochure Library").
+///
+/// NEW in this pass: no brochure fixture exists today. Field list is shaped to
+/// the ERP's eventual Brochure Library (version, upload date, file size, status,
+/// download count, last updated + Preview/Replace/Download/Archive actions) so
+/// the data can migrate rather than be re-modelled.
+///
+/// NOTHING HERE FABRICATES AN ASSET. Every seeded row has `pdfUrl = NULL`,
+/// `status = PENDING_UPLOAD`, `fileSizeBytes = NULL`, `uploadedAt = NULL` and
+/// `downloadCount = 0`, because no brochure PDF exists in this project. A
+/// plausible-looking URL here would be the same class of defect as the invented
+/// Instagram handle and the "▶ Watch Full Video" button with no video behind it
+/// (`memory/feedback_qg_export-verbatim-false-copy.md`).
+model Brochure {
+  id       String @id @default(cuid())
+  /// One current brochure per tour. Version HISTORY is deliberately not modelled
+  /// yet — `version` records which revision this row is; a `BrochureVersion`
+  /// table is ERP-side work and nobody has asked for it here.
+  tourSlug String @unique
+  tour     Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  title String
+  /// Derived from the tour's real `subtitle` (e.g. "Shimla - Kaza - Chandratal"),
+  /// which IS the itinerary in the only form this project has it. No prose
+  /// itinerary has been written for any tour, so none is invented here.
+  itinerarySummary String
+  /// NULLABLE AND NULL for every `pricingUnverified` tour. The catalogue
+  /// withholds those prices publicly; a brochure record republishing the same
+  /// unconfirmed figure would reopen exactly the hole BLOCKERS.md item 9 closed.
+  priceLabel       String?
+  /// NULL on every seeded row. Tours carry NO date data anywhere in this project
+  /// — only `GroupDeparture` has real dates, and inferring a tour's brochure
+  /// validity window from a departure would be an invention. Populated only when
+  /// the business supplies real dates.
+  dateRangeLabel   String?
+  /// Opaque string key, not a URL — see `Destination.photoKey`.
+  coverImageKey    String
+  category         DestinationCategory
+
+  /// NULL until a real PDF is uploaded. NEVER a synthesised path such as
+  /// `/brochures/spiti-valley.pdf` — a link that 404s is worse than an absent
+  /// one, and `status` already carries the "not available yet" meaning.
+  pdfUrl        String?
+  status        BrochureStatus @default(PENDING_UPLOAD)
+  version       Int            @default(1)
+  fileSizeBytes Int?
+  downloadCount Int            @default(0)
+  uploadedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}

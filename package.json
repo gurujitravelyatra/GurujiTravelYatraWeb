@@ -10,10 +10,18 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "//": "ts-node needs CommonJS here: the project tsconfig is module=esnext/moduleResolution=bundler for Next, which ts-node cannot execute directly. Overridden per-invocation rather than in tsconfig.json so the app's own build settings are untouched.",
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\",\"moduleResolution\":\"node\"} prisma/seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@prisma/client": "^5.22.0",
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
@@ -42,6 +50,7 @@
     "eslint-config-next": "16.3.4",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
