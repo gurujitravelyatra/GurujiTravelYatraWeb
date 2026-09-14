@@ -31,6 +31,7 @@
 // a fabricated "was ₹X / Save ₹Y" badge, and this card shows no such badge.
 // Resolve with the business's real price and drop the flag.
 import { slugify } from '../slug';
+import { deriveIsSoldOut } from '../sold-out';
 import type { GroupDeparture } from '../types';
 
 interface GroupFixtureItem {
@@ -124,10 +125,10 @@ function toGroupDeparture(item: GroupFixtureItem): GroupDeparture {
     tourManagerLabel: item.mgr,
     priceFrom: item.price,
     seatsLabel: item.seats,
-    // Derived once here rather than re-parsed in every consumer. The export
-    // encodes sold-out state ONLY as this literal string — there is no
-    // separate availability field to read.
-    isSoldOut: item.seats.toLowerCase() === 'sold out',
+    // Derived once here rather than re-parsed in every consumer, via the shared
+    // rule in `../sold-out.ts` — `PrismaContentAdapter` is a second producer of
+    // `GroupDeparture` and must derive this identically.
+    isSoldOut: deriveIsSoldOut(item.seats),
     scriptAccent: item.script,
     durationUnverified: item.durationUnverified,
     priceUnverified: item.priceUnverified,

@@ -1,6 +1,7 @@
 import type {
   AboutMilestone,
   Destination,
+  DestinationCategory,
   FeaturedVideo,
   GroupDeparture,
   Package,
@@ -67,6 +68,58 @@ export interface ContentPort {
 
   /** "Our Journey" milestones for `/about-us` — product-spec §5.8. */
   getAboutMilestones(): Promise<AboutMilestone[]>;
+}
+
+/**
+ * Per-tour brochure metadata — product-spec §7 ("Brochure Library").
+ *
+ * A SEPARATE port, deliberately NOT a method on `ContentPort`.
+ *
+ * `ContentPort` is the contract the ERP's content-read API will eventually
+ * satisfy (BLOCKERS.md §1b), and `FixtureContentAdapter` implements it today.
+ * Adding a brochure method to it would force a brochure fixture into existence
+ * for no reason other than keeping the interface satisfied — inventing data to
+ * fill a contract is how fabricated content gets in. Brochures exist only in the
+ * interim database (BLOCKERS.md §5), so only the adapter that has a database
+ * implements this.
+ */
+export interface Brochure {
+  tourSlug: string;
+  title: string;
+  /** The tour's real `subtitle`, which is the only itinerary this project has. */
+  itinerarySummary: string;
+  /**
+   * ABSENT for any tour whose price is unconfirmed — the catalogue withholds
+   * those prices, and a brochure record is not a loophole around that.
+   */
+  priceLabel?: string;
+  /** Absent everywhere today: no tour-level date data exists in any source. */
+  dateRangeLabel?: string;
+  /** Opaque string key, not a URL — Assumption A4. */
+  coverImageKey: string;
+  category: DestinationCategory;
+  /**
+   * ABSENT until a real PDF exists. A consumer MUST treat "no URL" as "no
+   * download", never as "use a default path" — there is no default path, and a
+   * "Download Brochure" button that 404s is worse than one that is disabled.
+   */
+  pdfUrl?: string;
+  status: 'PENDING_UPLOAD' | 'PUBLISHED' | 'ARCHIVED';
+  version: number;
+  fileSizeBytes?: number;
+  downloadCount: number;
+  uploadedAt?: string;
+}
+
+export interface BrochurePort {
+  /**
+   * Brochures for publicly listable tours only — a brochure for a tour the
+   * catalogue withholds (`pricingUnverified`) is withheld too. Its tour's detail
+   * route 404s, so the brochure is unreachable content quoting an unconfirmed
+   * price.
+   */
+  getBrochures(): Promise<Brochure[]>;
+  getBrochureByTourSlug(tourSlug: string): Promise<Brochure | undefined>;
 }
 
 /**
