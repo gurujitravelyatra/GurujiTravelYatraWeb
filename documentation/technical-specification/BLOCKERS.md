@@ -314,6 +314,96 @@ No real source content exists for Testimonials. Therefore:
 
 ---
 
+## 5. Interim content database — CLAUDE.md §2/§6/§10 OVERRIDDEN
+
+**Raised:** 2026-09-14, during the work that introduced it. Not raised by an
+adversary gate — recorded here by the implementing agent because it contradicts a
+written constraint, and an override that lives only in a chat message is an
+override nobody can find in six months.
+
+### What contradicts what
+
+`Documents/guruji-travel-yatra-website-CLAUDE.md` **line 56** (§2, Tech stack):
+
+> Lead/Content API | Guruji Travel Yatra ERP API | This site is a **client** of
+> the ERP's API — see section 10. **Do not build a parallel database for leads or
+> tour content**
+
+§10 makes the same point structurally (this repo is a read-client of the ERP), and
+**§1b of this file** already recorded that CLAUDE.md §6 *"explicitly forbids working
+around it with a duplicate content model"* — which is why the fixture stand-in was
+described there as **MITIGATED, not resolved**, with the explicit note that "no
+duplicate content *model* was created".
+
+A Postgres database in this repo holding tours, destinations, departures and
+brochures **is** a parallel content database. It is the thing §1b said had not been
+done. `docker-compose.yml` carried a matching guardrail comment — *"There is
+deliberately NO database service here… if you think you need one, that is a signal
+the architecture boundary is being crossed"* — which this change rewrites rather
+than deletes.
+
+### Why it is overridden anyway
+
+> **OVERRIDDEN 2026-09-14 (user, explicit and informed).**
+>
+> The user was aware of CLAUDE.md line 56 and overrode it deliberately. The ERP's
+> content-read endpoint (§1b) is **still** unconfirmed with no delivery date, and
+> the CRM side is finishing its own lead endpoint first. Rather than hold the site
+> on hard-coded fixtures indefinitely, content moves to a database this repo owns
+> so it can be edited without a code deploy.
+>
+> **Scope of the override — deliberately narrow:**
+> - **CONTENT ONLY.** Tours, destinations, group departures, brochure metadata.
+> - **NO LEADS.** CLAUDE.md's prohibition on a parallel *lead* store is **NOT**
+>   overridden. Lead submission remains `NotImplementedLeadAdapter` (§1a / Decision
+>   A) and no lead table exists in `prisma/schema.prisma`. If a lead model ever
+>   appears there, it did not come from this decision.
+> - **NO ADMIN SURFACE.** No `/admin`, no login, no CMS. Product-spec §7 puts
+>   content management inside the existing CRM, and CLAUDE.md §1 says this repo
+>   "does not implement its own admin/login UI". This is a data layer and a seed
+>   script; content is edited by running the seed or by direct SQL until the ERP
+>   takes over.
+> - **Deployment detail, not an architecture claim:** the database is intended to
+>   live in the same Railway Postgres instance as the CRM, under its **own schema
+>   and its own credentials**. It is not the CRM's database and must not be pointed
+>   at the CRM's tables.
+
+### This is temporary, and here is the exit
+
+The port architecture that made the fixture stand-in survivable makes this one
+survivable too, and the exit is unchanged from §1b:
+
+1. The ERP ships its public content-read API.
+2. Someone writes `ErpContentAdapter implements ContentPort`.
+3. `src/content/content-adapter.ts` (the composition root) constructs it instead of
+   `PrismaContentAdapter`.
+4. `prisma/` is deleted, along with the `db` service in `docker-compose.yml`.
+
+**No page or component changes at any step** — none of them import an adapter, and
+`ContentPort`'s signature was not altered to accommodate the database. Brochures
+were given a **separate** `BrochurePort` rather than being added to `ContentPort`,
+specifically so the content contract the ERP will eventually satisfy stays exactly
+as it was.
+
+**The real resolution is still §1b.** This override buys editability; it does not
+make the ERP contract any less missing, and it adds a second copy of the content
+that must be kept honest in the meantime. Migrating back is the plan, not a
+courtesy sentence.
+
+### Safety flags survived the move — that was the main risk
+
+The three unverified-data flags (`Package.pricingUnverified`,
+`GroupDeparture.durationUnverified`, `GroupDeparture.priceUnverified`) are real
+columns in the schema **and** are still enforced: `PrismaContentAdapter` routes every
+public query through the same `isPubliclyListable()` predicate in
+`src/content/public-listing.ts` that the fixture path uses, so a flagged tour cannot
+reach a listing and its detail route still 404s. A migration is the classic moment a
+safety flag decays into an inert column —
+`memory/feedback_qg_unenforced-safety-flag.md` records four occurrences of exactly
+that failure — so the adapter tests assert the *returned* rows, not the flags.
+
+---
+
 ## What was delivered
 
 **Before the pause (decision-independent):** Next.js scaffold, the full extracted
@@ -417,3 +507,17 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    depends on is now exercised, though: the Playwright suite boots
    `.next/standalone/server.js` with the same asset layout the runner stage builds
    (`scripts/start-standalone.mjs`), so that part is no longer untested.
+9. **Interim content database (§5)** — the CLAUDE.md line-56 override is recorded and
+   deliberately scoped, but it is a stopgap with a debt attached: content now exists in
+   two places (`prisma/seed.ts` and `src/content/fixtures/*`), and the ERP content API
+   (§1b) is still the real resolution. Migrating to `ErpContentAdapter` and deleting
+   `prisma/` is the plan.
+10. **The Prisma path has never touched a real database.** Docker is still not
+   installed (item 6), so no Postgres was started, the migration was never applied and
+   the seed was never run. Schema validity and the adapter's mapping/gating logic are
+   verified (`prisma validate`, `prisma generate`, and adapter tests against a mocked
+   client); **the SQL has not been executed and the seed has not been proven to
+   insert.** `DATABASE_URL` is unset here, so the composition root still resolves to
+   `FixtureContentAdapter` and the live site is unchanged — which is why the suite
+   passing says nothing about the database. First run against a real Postgres should be
+   treated as untested code.
