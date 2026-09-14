@@ -33,6 +33,18 @@ Examples:
   away: the existing `durationUnverified` marker had its `aria-describedby` on an
   unroled `<span>`.
 
+**Fifth opportunity, NOT an occurrence (`e6d2779`, 2026-09-14) — a new shape worth
+naming: moving flagged data to a new STORAGE layer.** Porting content to Postgres
+is the textbook moment a flag decays into an inert column: the schema carries
+`pricingUnverified`, the diff looks faithful, and the gate — written against
+fixture arrays — silently does not follow. Handled by making the DB adapter end
+every public query in the *same* `isPubliclyListable()` predicate the fixture path
+uses (the SQL `where` is only an optimisation), and by a test that returns a
+flagged row from the mock **in spite of** the `where` clause and asserts the
+adapter still withholds it. Generalisation: when data crosses into a new store,
+port the ENFORCEMENT, not just the field — and test the gate with a query that
+deliberately fails to filter, or you are only testing the `where` clause.
+
 Tell-tale in review: `grep` the flag name. If the only hits are the definition, the data, and a test asserting the flag exists, nothing enforces it. If the flag renders a *visual* marker, check the marker reaches assistive tech too — an `aria-hidden` glyph plus an unreferenced footnote is an un-enforced flag wearing a costume.
 
 **Why:** flagging feels like compliance with "don't fabricate", so the agent stops there. A test that asserts the flag is set passes whether or not the flag does anything.

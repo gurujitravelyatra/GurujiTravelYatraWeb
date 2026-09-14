@@ -52,6 +52,14 @@ Gate status at `af92be2`: `tsc --noEmit` clean, `eslint` clean (0/0), `next buil
 
 Gate status at `51165c0`: `tsc --noEmit` clean, `eslint` clean (0/0), `next build` clean, Jest **41 suites / 384 tests** pass, Playwright **84/84** pass (the enquiry + brochure modal flows exercise exactly the changed path). No PR — still no git remote.
 
+- `f0f1bbb`..`df5257b`: **interim Postgres content database added — CLAUDE.md line 56 overridden by the user.** Full reasoning in `BLOCKERS.md` §5 and `project_gty_content_database.md`. Prisma schema + initial migration + seed for tours/destinations/group departures/brochures; `PrismaContentAdapter` implements `ContentPort` (and a new, separate `BrochurePort`) and delegates testimonials/stats/videos/milestones/places to `FixtureContentAdapter`. The `contentAdapter` singleton moved out of `fixture-content-adapter.ts` into a real composition root, `src/content/content-adapter.ts`; pages changed by one import line each and `ContentPort`'s contract is unchanged.
+  - The seed **imports** the fixtures rather than restating them (a hand-copy would be occurrence 3 of `feedback_qg_duplicate-fixture-transcription`) and re-asserts the item 9 cross-model price-flag invariant before writing.
+  - All three safety flags are real columns AND still enforced: every public tour query ends in the same `isPubliclyListable()` predicate the fixture path uses. A test returns a flagged row from the mock *despite* the `where` clause and asserts the adapter still withholds it.
+  - No fabricated assets: every brochure row has `pdfUrl` NULL / `status` PENDING_UPLOAD (no PDFs exist), `dateRangeLabel` NULL (tours have no dates in any source), `priceLabel` NULL for withheld tours.
+  - `DATABASE_URL` chooses the adapter; unset = fixtures = the supported mode all gates run in. `jest.setup.ts` deletes it so the suite is hermetic.
+
+Gate status at `df5257b`: `tsc --noEmit` clean, `eslint` clean (0/0), `next build` clean (19 SSG tour paths — gate intact), Jest **43 suites / 401 tests** pass, Playwright **84/84** pass. **All on the fixture path** — see open item 8.
+
 ## Still open before merge
 1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either.
 1b. ~~**`/group-tours` publishes the ₹28,900 the catalogue withholds**~~ — **CLOSED `af92be2`** (user chose the asterisk-mark option). Folded into open item 4: the underlying price is still unconfirmed.
@@ -61,6 +69,9 @@ Gate status at `51165c0`: `tsc --noEmit` clean, `eslint` clean (0/0), `next buil
 5. Consolidation side effect to confirm with the user: Home now shows the rails categorisation for two tours (`Family`, `Spiritual`) rather than the `popular` one (`Family Trip`, `Pilgrimage`). One record means one category; neither transcription is confirmed. `Family Trip`/`Pilgrimage`/`Mountains` now match zero records and so produce no filter chip.
 6. Contact-constant duplication **partly fixed**: `src/lib/gty-contact.ts` now owns phone/WhatsApp/email/address/Instagram, and `Footer`, `BottomContactStrip`, `MobileActionBar`, `InstagramStrip` use it. `HeaderControls`, `MobileMenu` and the two legal pages still hold local copies — finish the pass when next in those files.
 7. Non-Instagram social handles (`YouTube`, `Facebook`, `X`, `LinkedIn`) remain `href="#"` — still unconfirmed, deliberately not invented.
+
+8. **The content database has never touched a real Postgres.** Docker is still not installed, so the migration was never applied and the seed never inserted a row. `prisma validate` / `generate` / `migrate diff` pass and the adapter is unit-tested against a **mocked** client — but no SQL has executed, and every green gate above ran on the fixture path with `DATABASE_URL` unset. First run against a real database should be treated as untested code. (`binaries.prisma.sh` is also unreachable here — `prisma` installs only with `--ignore-scripts`, which is enough for `validate`/`generate` but not for `migrate dev`/`db seed`.)
+9. **Content now exists in two places** (`prisma/seed.ts` projects `src/content/fixtures/*`) until the ERP content API lands. The seed importing the fixtures keeps them from drifting, but the real fix is still §1b.
 
 **Why:** several prior executor runs were cut off by rate limits; this records verified state so the next run resumes instead of redoing work.
 **How to apply:** re-read this file, run `git log --oneline`, then take the open items above to the user before touching fixtures or copy.
