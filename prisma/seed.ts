@@ -118,6 +118,25 @@ function buildDestinations() {
   return Array.from(bySlug.values());
 }
 
+/**
+ * Prisma's interactive-transaction defaults (`maxWait` 2s, `timeout` 5s) are sized
+ * for a database on localhost. This seed issues 12+ sequential statements, and
+ * against the DEPLOYED database — reached over a TCP proxy rather than a loopback
+ * socket — the per-statement round trip is large enough that the whole batch
+ * overruns the 5s budget. Prisma then closes the transaction underneath the seed
+ * and the next call fails with `P2028 Transaction not found`, which reads like a
+ * connection bug but is purely a timeout.
+ *
+ * Found by the first live run against the deployed database; it cannot reproduce
+ * against localhost or against the mocked client the adapter unit tests use.
+ *
+ * Raising the budget does NOT weaken the all-or-nothing guarantee — the whole
+ * wipe-and-reseed stays in one transaction, which is what stops a failure halfway
+ * through from leaving the catalogue partially deleted. `maxWait` covers the
+ * initial wait for a pool connection over the same slow link.
+ */
+const TRANSACTION_OPTIONS = { maxWait: 15_000, timeout: 120_000 } as const;
+
 async function main() {
   assertSafetyFlagsAgree();
 
@@ -251,7 +270,7 @@ async function main() {
         uploadedAt: null,
       })),
     });
-  });
+  }, TRANSACTION_OPTIONS);
 
   const flaggedTours = allTours.filter((tour) => tour.pricingUnverified).length;
   const flaggedDepartures = groupDepartures.filter((d) => d.priceUnverified || d.durationUnverified).length;
