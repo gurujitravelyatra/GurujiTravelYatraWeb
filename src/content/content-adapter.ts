@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import type { ContentPort } from './ports';
+import type { BrochurePort, ContentPort } from './ports';
 import { FixtureContentAdapter } from './adapters/fixture-content-adapter';
 import { PrismaContentAdapter } from './adapters/prisma-content-adapter';
 
@@ -88,7 +88,34 @@ function getPrismaClient(databaseUrl: string): PrismaClient {
   return client;
 }
 
-function createContentAdapter(): ContentPort {
+/**
+ * Both ports come out of ONE construction pass, and that is load-bearing.
+ *
+ * `PrismaContentAdapter` implements `ContentPort` AND `BrochurePort`, so the two
+ * exports below are the SAME OBJECT holding the SAME `PrismaClient`. Building
+ * them in two separate calls would be the obvious-looking mistake: outside
+ * development `getPrismaClient()` deliberately does not populate the
+ * `globalThis` cache (production gets a fresh process and should not leak a
+ * client into a global), so a second call there constructs a SECOND client with
+ * a SECOND connection pool. That is the same failure mode as the build-time
+ * burst documented above, just arrived at from a different direction — so the
+ * number of call sites is kept at exactly one, structurally, rather than by
+ * remembering not to add another.
+ */
+interface ContentAdapters {
+  content: ContentPort;
+  /**
+   * NULL when no database is configured. Brochures are database-only: there is
+   * no brochure fixture (see the `BrochurePort` note in `ports.ts` — inventing
+   * one would mean inventing brochure data), so the fixture path genuinely
+   * cannot answer these queries. `null` says that plainly and forces every
+   * caller to handle it, where a stub throwing "not implemented" would let a
+   * caller pretend the capability exists.
+   */
+  brochures: BrochurePort | null;
+}
+
+function createContentAdapters(): ContentAdapters {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     /**
@@ -111,9 +138,20 @@ function createContentAdapter(): ContentPort {
           'If this is production, this is almost certainly a missing environment variable.'
       );
     }
-    return new FixtureContentAdapter();
+    return { content: new FixtureContentAdapter(), brochures: null };
   }
-  return new PrismaContentAdapter(getPrismaClient(databaseUrl));
+  const adapter = new PrismaContentAdapter(getPrismaClient(databaseUrl));
+  return { content: adapter, brochures: adapter };
 }
 
-export const contentAdapter: ContentPort = createContentAdapter();
+const adapters = createContentAdapters();
+
+export const contentAdapter: ContentPort = adapters.content;
+
+/**
+ * `null` when `DATABASE_URL` is unset — see `ContentAdapters.brochures`. The
+ * brochure API route reports this as an unconfigured capability (503), never as
+ * "this tour has no brochure" (404): the two mean different things and a
+ * consumer that conflates them would cache an absence that is really an outage.
+ */
+export const brochureAdapter: BrochurePort | null = adapters.brochures;
