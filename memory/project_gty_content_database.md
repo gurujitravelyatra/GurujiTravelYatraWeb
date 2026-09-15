@@ -19,6 +19,23 @@ this repo owns, editable without a code deploy.
 - CONTENT ONLY: tours, destinations, group departures, brochure metadata.
 - **NO LEADS.** That prohibition is NOT overridden. No lead table exists in
   `prisma/schema.prisma` and none may be added under this decision.
+  **A `LeadSubmission` model was formally requested on 2026-09-16 and NOT built
+  — STOPPED for a user decision.** Asked for: a lead table + `POST /api/leads`
+  + a CRM stub that stores the lead locally and returns success to the visitor.
+  Refused on two independent grounds:
+  (1) it is precisely what line 56 forbids and what BLOCKERS.md §5 says this
+  override does not cover — that file even pre-wrote the tripwire *"If a lead
+  model ever appears there, it did not come from this decision"*;
+  (2) telling a visitor "we've got it, GTY will call you" for a row sitting in a
+  table no one reads is a promise the system cannot keep — worse than Decision
+  B's honest "not connected yet, please call". Leads are one-shot data: unlike
+  content, a lost or unmonitored lead cannot be re-derived.
+  Also found: the requested field names do not match what the app sends
+  (`mobile` not `phone`, `interestedIn` — a display string — not `tourSlug`),
+  the request omitted `travellers`/`city`/`sourcePageUrl`/`utm`, and 4 of the 6
+  source tags have NO caller (2 of their pages are unbuilt). Building it would
+  have required inventing the contract CLAUDE.md §10 forbids guessing.
+  **If the user approves a lead store, get it in writing in BLOCKERS.md first.**
 - **NO admin/login/CMS.** Data layer + seed script only.
 - Deployed: same Railway instance as the CRM, own schema + credentials. Not the
   CRM's tables.
@@ -43,9 +60,27 @@ Testimonials, stats, videos, About milestones, trip places, tabs. Their
 
 ## DATABASE_URL is the gate
 Set → `PrismaContentAdapter`; unset → `FixtureContentAdapter`. "No database" is a
-SUPPORTED mode — it is how `npm test`, `npm run build` and Playwright run.
-`jest.setup.ts` deletes the variable so the suite is hermetic (`next/jest` loads
-`.env`). Production logs a loud warning when falling back.
+SUPPORTED mode — it is how `npm test` and Playwright's fixture assertions run.
+Production logs a loud warning when falling back.
+
+**`jest.setup.ts`'s `delete process.env.DATABASE_URL` is NOT airtight
+(2026-09-16).** Importing `@prisma/client` re-loads `.env` as a side effect and
+puts the variable back, after setup has run. Harmless in jsdom (Prisma resolves
+to its browser build there), but it silently does not hold in
+`@jest-environment node` tests that import the composition root — i.e. every API
+route test. The first ones ran against the LIVE database for ~18s before this was
+caught. **Node-env content tests must pin the adapter with an explicit
+`jest.mock('@/content/content-adapter', ...)`.** A node-env content test that
+takes seconds is talking to Railway.
+
+## Public content API (2026-09-16, `8dbfec6`)
+`src/app/api/{tours,tours/[slug],group-tours,destinations,brochures/[slug]}` —
+read-only JSON over the ports, no direct Prisma. All `force-dynamic` so they are
+not evaluated across `next build`'s 11 workers. The composition root now builds
+`contentAdapter` and `brochureAdapter` from ONE adapter instance (a second
+`getPrismaClient()` call site would open a second pool outside dev, where the
+`globalThis` cache is deliberately skipped). `brochureAdapter` is `null` with no
+DB → the route answers 503, never 404.
 
 ## VERIFIED LIVE 2026-09-16 (commits `ee66329`, `26b6c4b`)
 The "never tested against a real database" state is **over**. `migrate deploy`
