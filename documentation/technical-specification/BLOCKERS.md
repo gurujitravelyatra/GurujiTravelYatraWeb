@@ -404,6 +404,78 @@ that failure — so the adapter tests assert the *returned* rows, not the flags.
 
 ---
 
+## 6. Lead submission — log-only, RESOLVED 2026-09-17
+
+### The decision
+
+`POST /api/leads` exists and **persists nothing**. No `LeadSubmission` model was
+added to `prisma/schema.prisma`; the tripwire comment at the top of that file
+("It holds NO LEADS") is still accurate and is still enforced. Every submission is
+instead written to the server log, in full, by
+`src/server/leads/lead-log.ts`.
+
+This is an explicit user decision, taken after a first attempt at this route was
+correctly stopped by that tripwire.
+
+### Why log-only rather than a local table
+
+§5 overrode CLAUDE.md's "no database" constraint for CONTENT ONLY, and was
+explicit that leads were excluded from that override. The boundary being
+protected is CLAUDE.md §6's: this site holds **no lead data of its own** — the
+CRM owns the Customer/Lead tables, and a second copy of a person's contact
+details living in a website database is precisely what that rule exists to
+prevent.
+
+Adding a lead table would have been the easy answer and would have quietly
+widened §5's override from "content" to "content and personal data". Logging
+keeps the boundary intact while still satisfying the other requirement that
+matters: **nothing a visitor submits is silently lost.**
+
+### What this costs, stated plainly
+
+- **A log line is the only record of a lead.** There is no table to query, no
+  dead-letter queue, no retry, no admin surface. If someone has to follow a lead
+  up by hand they will do it by reading logs: `grep LEAD-SUBMISSION`.
+- **The logs now contain personal data** — name, mobile, email, free text. That
+  is a deliberate inversion of `NotImplementedLeadAdapter`, which logs only
+  non-identifying routing fields specifically to avoid this. Redaction would
+  defeat the purpose: an unreachable lead is a lost lead. **Consequence:**
+  wherever this app's stdout is shipped or retained is now a personal-data store
+  and must be access-controlled and retention-bounded like one. This is the main
+  risk this decision accepts, and it should be revisited before launch traffic.
+- **Log retention is now lead retention.** A platform that rotates stdout after
+  N days silently sets the lead-retention policy. Nobody has chosen that number.
+
+Design details that follow from the above: the full record is written *before*
+the CRM hand-off is attempted (so a hang or crash downstream cannot take the only
+copy with it); the record is serialised with a blanket `JSON.stringify` rather
+than a hand-listed field set (a hand-written list goes stale and silently drops
+new fields); and the expected not-configured outcome is logged concisely rather
+than dumping the payload a second time on every single lead.
+
+### What is NOT resolved by this
+
+**§1a is still open.** `src/server/crm-client.ts` is a stub: it makes no network
+call, invents no endpoint/schema/auth, and — importantly — cannot report a
+delivery that did not happen. Its `CrmSubmissionOutcome` type makes
+`'delivered'` require a `reference` only a real CRM response can supply, so no
+stub can fabricate one. `CRM_LEADS_ENDPOINT`/`CRM_API_KEY` are reserved in
+`.env.example` and do nothing yet.
+
+**The frontend is not wired to this route.** See the note below — this is the
+most important open item attached to this decision.
+
+### Scope: four source tags, not six
+
+Only the four reachable triggers are accepted: `Enquire Now – [Page]`,
+`Brochure Download – [Package Name]`,
+`Group Tour Reservation – [Batch Date]`, `Custom Trip Request`. `Contact Page`
+and `Service Enquiry` are unbuilt pages and `Newsletter Signup` has no wired
+form, so accepting them would mean shipping a contract with no caller to
+validate it against. They remain in the docs as pending, not removed.
+
+---
+
 ## What was delivered
 
 **Before the pause (decision-independent):** Next.js scaffold, the full extracted
@@ -413,6 +485,33 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
 `/tour-packages/[slug]` detail page — per the resolutions above.
 
 ## Still open after this sprint
+
+0. **The frontend does not call `POST /api/leads` yet (§6).** The route is built,
+   validated and tested, but **no component submits to it** — every form still
+   goes through `leadAdapter.submitLead()`, i.e. `NotImplementedLeadAdapter`,
+   which returns an error and transmits nothing. Until an adapter is pointed at
+   the route, the endpoint has zero callers and no lead reaches the log.
+
+   Two of the four accepted `formType`s have no client-side producer *at all*,
+   and this is not just missing plumbing — the data is actively discarded today:
+   - `TripBuilder.handleGetQuote` calls `openEnquiry({ value: routeSummary })`.
+     It opens the generic enquiry modal and **drops the entire trip**: nights per
+     stop, travel style, travel month, adults, children and notes never reach any
+     payload. A "custom trip" lead currently arrives tagged
+     `Enquire Now – Manali → Kasol`, not `Custom Trip Request`.
+   - `GroupDepartureCard`'s "Reserve a Seat" calls
+     `openEnquiry({ value: departure.name })` — it sends the departure NAME and
+     never `dateRangeLabel`, so the batch date the
+     `Group Tour Reservation – [Batch Date]` tag is built from is not currently
+     transmitted by anything.
+
+   So the "four source tags" are four on the server and two in practice
+   (`Enquire Now – …`, `Brochure Download – …`). Wiring is a separate piece of
+   work and needs: an adapter implementing `LeadSubmissionPort` that POSTs to
+   this route; `formType` + context threaded from each trigger; and
+   `LeadModal`'s error path taught to read `ApiFailure.fields` (it currently
+   handles only a single flat `message` string, so field-level 400s would be
+   shown as one generic banner).
 
 1. **ERP lead-creation contract (1a)** — the genuine production blocker. Decision A
    unblocked the UI; it did not satisfy CLAUDE.md's Definition of Done.

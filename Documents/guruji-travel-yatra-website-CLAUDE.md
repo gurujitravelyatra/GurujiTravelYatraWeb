@@ -94,11 +94,14 @@ ask.
    Enquiry Modal), active-page indicator, mobile hamburger menu
 2. **Enquiry Modal** — two paths: "Call Now" (tap-to-call, no lead created,
    should still fire a `call_click` analytics event) and "Request a Callback"
-   (Name, Phone/WhatsApp, Preferred time, optional message → creates ERP
-   lead, `source: "Enquire Now – [Page Name]"`)
-3. **Brochure Download Modal** — Name, Phone/WhatsApp, Email → creates ERP
-   lead (`source: "Brochure Download"`, package auto-tagged from context, no
-   dropdown shown to user) → on success, unlocks PDF inline + optional "Send
+   (Name, Mobile, optional Email/Travel date/Travellers/City/Message →
+   creates ERP lead, `source: "Enquire Now – [Page Name]"`). The payload
+   field is `mobile`, not `phone`; there is no "Preferred time" input — see
+   §5.1 for the shape as built.
+3. **Brochure Download Modal** — same field set as the Enquiry Modal (Name,
+   `mobile`, Email, …; one component, `LeadModal`, only the copy differs) →
+   creates ERP lead (`source: "Brochure Download – [Package Name]"`, package
+   auto-tagged from context, no dropdown shown to user) → on success, unlocks PDF inline + optional "Send
    to my WhatsApp" + related package suggestions
 4. **Bottom Contact Strip** — WhatsApp CTA + social icons, appears above the
    footer on every page
@@ -133,14 +136,48 @@ integration layer, regardless of which page/modal triggered it:
    tables) — sending a second submission from the same visitor is correct
    behavior on this end; the ERP decides how to merge it
 
-| Trigger | `source` value | Notes |
-|---|---|---|
-| Enquiry Modal → Request Callback | `Enquire Now – [Page]` | |
-| Any "Download Brochure" click | `Brochure Download – [Package Name]` | |
-| Group Tour "Reserve Your Seat" | `Group Tour Reservation – [Batch Date]` | Time-sensitive, flag as high priority in payload if the API supports it |
-| Customize Tours submission | `Custom Trip Request` | Payload includes full destination selection, dates, budget, preferences — richer than other lead types |
-| Contact Us general form | `Contact Page` | |
-| Our Services enquiry | `Service Enquiry – [Service Name]` | |
+| Trigger | `source` value | Status | Notes |
+|---|---|---|---|
+| Enquiry Modal → Request Callback | `Enquire Now – [Page]` | Implemented | `formType: 'enquiry'`. `pageName` is optional — the Navbar's persistent "Enquire Now" has no page context, and the server falls back to `Enquire Now – General enquiry` rather than rejecting the site's most prominent CTA |
+| Any "Download Brochure" click | `Brochure Download – [Package Name]` | Implemented | `formType: 'brochure'`, `packageName` |
+| Group Tour "Reserve Your Seat" | `Group Tour Reservation – [Batch Date]` | Implemented | `formType: 'group-tour-reservation'`. `batchDate` is REQUIRED (it is `GroupDeparture.dateRangeLabel`, e.g. `"12 — 18 May 2026"`) — a time-sensitive seat request that cannot be tied to a departure is not worth filing. Time-sensitive, flag as high priority in payload if the API supports it |
+| Customize Tours submission | `Custom Trip Request` | Implemented | `formType: 'custom-trip'`. Richer than other lead types: `stops[]` (slug/name/region/nights), `travelStyle`, `travelMonth`, `adults`, `childrenCount`, `notes`. **There is no numeric "budget" field** — `travelStyle` (Budget/Comfort/Premium/Luxury) is the only price-tier signal the trip builder collects |
+| Contact Us general form | `Contact Page` | **Pending — no page exists yet** | Still the plan; `/contact-us` is unbuilt, so nothing can send this tag and `POST /api/leads` does not accept it |
+| Our Services enquiry | `Service Enquiry – [Service Name]` | **Pending — no page exists yet** | Still the plan; `/our-services` is unbuilt, same as above |
+
+### 5.1 Request shape — `POST /api/leads`
+
+The route (`src/app/api/leads/route.ts`) validates server-side with a Zod
+discriminated union on `formType`, keyed to the four implemented rows above.
+Field names are those the modals actually build in
+`LeadModal.runSubmit` — see `LeadPayload` in `src/content/ports.ts`:
+
+| Field | Notes |
+|---|---|
+| `name` | Required |
+| `mobile` | Required. **It is `mobile`, not `phone`** — every form, every layer |
+| `email` | Optional |
+| `interestedIn` | Optional. A DISPLAY string resolved from page context, e.g. `"Spiti Valley Circuit · 9 Nights / 10 Days"` — never a slug, and never re-asked of the visitor |
+| `travelDate` | Optional, `YYYY-MM-DD` from `<input type="date">` |
+| `travellers` | Optional integer |
+| `city` | Optional |
+| `message` | Optional free text |
+| `sourcePageUrl` | Required. `window.location.href` at submit time |
+| `utm` | Optional `{ source, medium, campaign, content, term }`, read from the query string at submit time |
+
+Plus the per-`formType` context fields in the table above.
+
+**`source` is not accepted from the client.** The client may send one (the
+current modal does); it is discarded. The server rebuilds the tag from the
+structured context fields, because on a public unauthenticated endpoint the
+CRM routing key must not be caller-controlled.
+
+**`timestamp` is not accepted either** — the server stamps `receivedAt` from
+its own clock.
+
+**Nothing is persisted.** There is no lead table; see
+`documentation/technical-specification/BLOCKERS.md` §6. The server log is the
+only record a lead leaves — grep `LEAD-SUBMISSION`.
 
 ---
 

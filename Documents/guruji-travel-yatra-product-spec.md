@@ -274,21 +274,35 @@ WhatsApp click, Call click (where technically trackable), Newsletter
 subscription.
 
 ### 6.2 Source tagging
-| Trigger | Source tag |
-|---|---|
-| Enquire Now → Request Callback | `Enquire Now – [Page]` |
-| Any Brochure Download | `Brochure Download – [Package Name]` |
-| Group Tour "Join This Journey" | `Group Tour Reservation – [Batch Date]` |
-| Customize Tours submission | `Custom Trip Request` |
-| Contact Us form | `Contact Page` |
-| Our Services enquiry | `Service Enquiry – [Service Name]` |
-| Newsletter subscribe | `Newsletter Signup` |
+| Trigger | Source tag | Status |
+|---|---|---|
+| Enquire Now → Request Callback | `Enquire Now – [Page]` | Implemented |
+| Any Brochure Download | `Brochure Download – [Package Name]` | Implemented |
+| Group Tour "Join This Journey" | `Group Tour Reservation – [Batch Date]` | Implemented |
+| Customize Tours submission | `Custom Trip Request` | Implemented |
+| Contact Us form | `Contact Page` | Pending — `/contact-us` does not exist yet |
+| Our Services enquiry | `Service Enquiry – [Service Name]` | Pending — `/our-services` does not exist yet |
+| Newsletter subscribe | `Newsletter Signup` | Pending — no newsletter form is wired to the API |
 
-**Dedupe rule:** match on phone number. One CRM contact record, multiple
-interest tags and source history — never fragmented duplicate leads. This
-is CRM-side logic; the website always submits, never merges client-side.
+The three pending tags are still the plan, not dropped. `POST /api/leads`
+accepts only the four implemented ones, so that a flow with no caller cannot
+quietly acquire a half-specified contract. Tag format and field names as
+built: `Documents/guruji-travel-yatra-website-CLAUDE.md` §5/§5.1.
+
+**Dedupe rule:** match on mobile number (the payload field is `mobile`). One
+CRM contact record, multiple interest tags and source history — never
+fragmented duplicate leads. This is CRM-side logic; the website always
+submits, never merges client-side — `POST /api/leads` accepts every
+submission, including an identical repeat, and deduplicates nothing.
 
 ### 6.3 Example lead payload shape
+
+*Illustrative — this is how a lead reads CRM-side, not the wire format. The
+actual request body `POST /api/leads` validates is in
+`Documents/guruji-travel-yatra-website-CLAUDE.md` §5.1; note `mobile` (not
+`phone`) and `interestedIn` as a display string. "Travel Month" below is a
+Custom Trip Request field only.*
+
 ```
 Name: Rahul Sharma
 Mobile: XXXXXXXXXX
