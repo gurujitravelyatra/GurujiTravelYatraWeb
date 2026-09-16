@@ -19,10 +19,19 @@ this repo owns, editable without a code deploy.
 - CONTENT ONLY: tours, destinations, group departures, brochure metadata.
 - **NO LEADS.** That prohibition is NOT overridden. No lead table exists in
   `prisma/schema.prisma` and none may be added under this decision.
-  **A `LeadSubmission` model was formally requested on 2026-09-16 and NOT built
-  — STOPPED for a user decision.** Asked for: a lead table + `POST /api/leads`
-  + a CRM stub that stores the lead locally and returns success to the visitor.
-  Refused on two independent grounds:
+  **RESOLVED 2026-09-17 (`c8b5ef7`): the user chose LOG-ONLY. `POST /api/leads`
+  now exists and still adds NO table** — see `BLOCKERS.md` §6. Every submission
+  is written to the server log in full (`src/server/leads/lead-log.ts`,
+  grep `LEAD-SUBMISSION`); the CRM stub (`src/server/crm-client.ts`) makes no
+  network call and cannot report a delivery that did not happen. The tripwire
+  stands: a lead model in `prisma/schema.prisma` still did not come from any
+  decision. **Cost accepted: the logs now hold personal data, and log
+  retention is now lead retention — nobody has set that number.**
+
+  Original stop (2026-09-16), kept because the reasoning still governs:
+  asked for a lead table + `POST /api/leads` + a CRM stub that stores the lead
+  locally and returns success to the visitor. Refused on two independent
+  grounds:
   (1) it is precisely what line 56 forbids and what BLOCKERS.md §5 says this
   override does not cover — that file even pre-wrote the tripwire *"If a lead
   model ever appears there, it did not come from this decision"*;
@@ -36,6 +45,8 @@ this repo owns, editable without a code deploy.
   source tags have NO caller (2 of their pages are unbuilt). Building it would
   have required inventing the contract CLAUDE.md §10 forbids guessing.
   **If the user approves a lead store, get it in writing in BLOCKERS.md first.**
+  (Those field-name findings were confirmed and are now fixed in the docs —
+  see `feedback_qg_doc-contract-drift.md`.)
 - **NO admin/login/CMS.** Data layer + seed script only.
 - Deployed: same Railway instance as the CRM, own schema + credentials. Not the
   CRM's tables.
