@@ -11,11 +11,33 @@ against the OLD invariant keeps compiling, keeps passing tests, and starts
 lying. The second- and third-order effects are never swept, so each review
 round finds the previous round's ripples.
 
-Occurrences: 4 (all four found in a single pre-merge review round —
-counted as instances, not as separate pipelines)
-Last seen: 2026-09-11
+Occurrences: 5 (four found in a single pre-merge review round in Sept 11 —
+counted as instances, not as separate pipelines — plus the admin-reversal
+sweep on 2026-09-17)
+Last seen: 2026-09-17
 Affected agents: frontend, func-to-tech-spec, pipeline-executor
 Pipeline: SPEC (GTY website)
+
+Occurrence 5 — the ARCHITECTURE-RULE variant, and the most dangerous one so
+far. Reversing the "zero admin/login/CMS" rule (Phase A auth) invalidated
+every claim written against it. Found and swept proactively by grepping
+`-i "no admin|admin UI|zero admin|no login"` BEFORE writing code:
+- `src/app/legal/privacy-policy/page.tsx` — told real visitors "there is no
+  login area on this website". A **legal page making a false statement** is
+  the worst possible resting place for a stale invariant, and nothing in the
+  type system or the suite could have caught it.
+- `prisma/schema.prisma` + `.env.example` + `docker-compose.yml` — three
+  guardrail comments asserting "NO admin UI", one of them phrased as a
+  tripwire for future agents. A stale guardrail is worse than no guardrail:
+  it actively tells the next reader the correct change is a violation.
+- `e2e/home.spec.ts` — asserted `/admin` returns 404. This one FAILS loudly,
+  which is why it is the least dangerous of the five and the only one a test
+  run would have surfaced.
+
+The lesson that generalises: when the invariant being changed is a RULE
+rather than a data shape, its dependents are mostly prose — comments, docs,
+guardrails, user-facing copy — and prose is exactly what no gate checks. The
+grep must run before the code, not after.
 
 Examples, all downstream of two earlier correct fixes:
 
