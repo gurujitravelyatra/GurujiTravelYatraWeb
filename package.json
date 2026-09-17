@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:admin": "ts-node --project prisma/tsconfig.seed.json prisma/seed-admin.ts"
   },
   "prisma": {
     "//": "ts-node needs CommonJS here: the project tsconfig is module=esnext/moduleResolution=bundler for Next, which ts-node cannot execute directly. Overridden per-invocation rather than in tsconfig.json so the app's own build settings are untouched.",
@@ -25,14 +26,17 @@
     "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.469.0",
     "next": "16.3.4",
+    "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.54.2",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^2.6.0",
     "zod": "^3.24.1"
   },
