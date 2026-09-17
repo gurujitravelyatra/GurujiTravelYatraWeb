@@ -47,6 +47,48 @@ until a remote exists.
   as ~10 bogus "`@testing-library/react` has no exported member 'screen'" tsc
   errors. Plain `npm install` restores it.
 
+## `npm run build` (Turbopack) cannot run on this machine — use `--webpack`
+
+`next build` defaults to Turbopack (Next 16), which panics here before it
+compiles anything:
+
+```
+FATAL: failed to create junction point at ".next\node_modules\@prisma\client-<hash>"
+  -> creation of a new symbolic link or junction point failed: Access is denied. (os error 5)
+```
+
+Windows requires `SeCreateSymbolicLinkPrivilege` (Developer Mode or an elevated
+shell) to create junctions, and this account has neither. It is unrelated to any
+source change — **verified by reproducing it on a clean stashed tree** — and it
+fails identically after `rm -rf .next`.
+
+`npx next build --webpack` builds the same app successfully, including the
+standalone output. Use it for the build gate.
+
+**Knock-on for E2E:** `playwright.config.ts`'s `webServer.command` is
+`npm run build && npm start`, so it inherits the Turbopack failure. Workaround
+that works: `npx next build --webpack`, then start the server yourself
+(`PORT=3100 HOSTNAME=127.0.0.1 node scripts/start-standalone.mjs`) and run
+`npx playwright test` — `reuseExistingServer` is true outside CI, so Playwright
+attaches to it instead of rebuilding. Kill that server before the next build:
+it holds `.next/standalone` open and `rm -rf .next` fails with
+"Device or resource busy".
+
+**Why:** the build gate and the whole E2E suite are unreachable via the
+documented commands on this machine; two runs could easily conclude "the build
+is broken" and start bisecting source.
+**How to apply:** substitute `npx next build --webpack` for `npm run build`, and
+pre-start the standalone server before `npx playwright test`.
+
+## E2E is load-sensitive against the remote database
+`/tour-packages` is a dynamic route backed by the Railway Postgres when
+`DATABASE_URL` is set. In a full 2-worker Playwright run, its two navigation
+assertions in `home.spec.ts` ("navigates to Tour Packages from the navbar",
+"the Trip Finder CTA deep-links…") intermittently blow the 5s expect timeout —
+they pass on a targeted re-run and on a stashed clean tree. Confirm a
+`/tour-packages` failure in isolation before treating it as a regression;
+this has now been observed across three separate runs.
+
 ## Lint scope
 `eslint.config.mjs` must keep ignoring `Documents/**` (vendored Claude
 Design export) and `.claude/**` (agent tooling + ~6 checked-in worktrees

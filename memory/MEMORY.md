@@ -2,10 +2,10 @@
 
 | File | Type | Summary |
 |---|---|---|
-| `project_gty_pipeline_environment.md` | project | No git remote / no `gh` in this repo — CREATE-PR cannot run. Configured QG skills are claude-flow-specific; real gate is tsc + eslint + build. |
-| `project_gty_sprint_state.md` | project | SPEC pipeline state on `feat/gty-site-setup`: gates green through `9177ffd`. Open: independent adversary gate, placeholder legal copy, unverified prices. |
+| `project_gty_pipeline_environment.md` | project | No git remote / no `gh` — CREATE-PR cannot run. QG skills are claude-flow-specific. **`npm run build` fails here (Turbopack symlink privilege) — use `next build --webpack`**; pre-start the server for E2E. |
+| `project_gty_sprint_state.md` | project | SPEC pipeline state on `feat/gty-site-setup`: gates green through `8d807fa` (BLOCKERS item 0 closed — all four lead formTypes now POST to /api/leads). Open: independent adversary gate, placeholder legal copy, unverified prices. |
 | `project_gty_content_database.md` | project | CLAUDE.md line 56 overridden: interim Postgres content DB (content only, **still no lead table**, no admin) + public read-only content API. Leads resolved 2026-09-17 as LOG-ONLY (`POST /api/leads`, BLOCKERS.md §6). Read before touching `prisma/`. |
-| `feedback_qg_doc-contract-drift.md` | feedback | `Documents/*.md` describe contracts the code contradicts — wrong field names, flows with no producer (2x, same feature). Inject when building any cross-layer interface from a doc. |
+| `feedback_qg_doc-contract-drift.md` | feedback | `Documents/*.md` describe contracts the code contradicts — wrong field names, flows with no producer (2x, same feature). **[RESOLVED 2026-09-17]** both unwired flows now have producers; fix that worked = client request type IS the server's `z.infer`. Inject when building any cross-layer interface from a doc. |
 | `feedback_qg_export-verbatim-false-copy.md` | feedback | Pixel-fidelity mandates get misapplied to copy, shipping claims that aren't true (2x). Fix that works is data-derived copy tests. Inject with any design export. |
 | `feedback_qg_localhost-sized-defaults.md` | feedback | Driver defaults, E2E timeouts and env-var test guards all assume localhost; fail only against a real remote DB (2x). Inject when writing DB access, a seed, or a node-env test. |
 | `feedback_qg_duplicate-fixture-transcription.md` | feedback | One entity shown twice in an export becomes two conflicting fixture records (2x); latest: two models were justified, but a safety flag was replicated across them only for duration, not price. Inject with any design-export transcription. |

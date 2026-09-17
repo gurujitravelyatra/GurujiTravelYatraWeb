@@ -28,12 +28,29 @@ Examples:
 
 **The sharpest version of this trap:** a doc can describe a flow that no code
 path produces. `TripBuilder.handleGetQuote` and `GroupDepartureCard`'s
-"Reserve a Seat" both call `openEnquiry(...)`, so they emit
-`Enquire Now – …` and silently DISCARD the trip state / batch date the docs
-say those leads carry. Reading only the docs, you would model four submission
-shapes; reading the code, there is exactly one (`LeadModal.runSubmit` →
+"Reserve a Seat" both called `openEnquiry(...)`, so they emitted
+`Enquire Now – …` and silently DISCARDED the trip state / batch date the docs
+said those leads carry. Reading only the docs, you would model four submission
+shapes; reading the code, there was exactly one (`LeadModal.runSubmit` →
 `LeadPayload`). Both facts matter — build for the documented four, but never
 report the unwired ones as "confirmed from the frontend".
+
+**[RESOLVED 2026-09-17, `95f0fe7`..`8d807fa`]** The two unwired flows now have
+real producers (`openCustomTrip`, `openGroupReservation`) and BLOCKERS.md item 0
+is closed. The handling that worked, and is worth repeating:
+
+- The server schema was written from the CALLER'S CODE and left alone; the
+  client was changed to match it. Building a four-member union against a client
+  that could produce two was correct *because the gap was named in the same
+  change* rather than papered over.
+- The client request builder's return type is the server's own
+  `z.infer` type, imported type-only. Drift now fails `tsc` instead of 400ing a
+  visitor — a compile-time link is worth more than any amount of doc-syncing.
+- The payload tests re-run the REAL `leadSubmissionSchema` rather than asserting
+  against a hand-written copy of the expected shape. Asserting a payload against
+  your own belief about the contract is this pattern's signature failure.
+- The docs' `budget` field was still not invented: `TripBuilder` collects none,
+  so `travelStyle` is what ships. Third time this doc's claims were declined.
 
 **Why:** twice now, on the same feature, the documented field names and the
 shipped ones disagreed. The docs are not malicious, just older than the code.
