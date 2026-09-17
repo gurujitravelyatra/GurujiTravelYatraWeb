@@ -117,6 +117,61 @@ enum DestinationCategory {
   Pilgrimage
 }
 
+/// Publication state of a `Tour` — Phase B of the admin CMS.
+///
+/// TWO MEMBERS, AND NO `ARCHIVED` MEMBER. Archiving is `Tour.archivedAt`, a
+/// nullable timestamp, not a third enum value. The two facts are independent:
+/// the business needs to know whether an archived tour *was* live when it was
+/// pulled, and folding that into one column would destroy it. It also means a
+/// tour cannot be simultaneously "archived" and "draft", which it genuinely can
+/// be. `BrochureStatus` above makes the opposite choice for a good reason — a
+/// brochure's `PENDING_UPLOAD` and `ARCHIVED` really are mutually exclusive
+/// lifecycle stages — so the two enums are not inconsistent, they model
+/// different things.
+///
+/// **`DRAFT` is the default and that is load-bearing, not a convenience.** A row
+/// inserted by any path that forgets to set this column — a future import
+/// script, a `createMany`, a psql session — is invisible to the public site
+/// rather than accidentally live. The safe direction is the default direction.
+///
+/// ENFORCEMENT, not just a column: `isPubliclyListable()`
+/// (`src/content/public-listing.ts`) requires `status === 'PUBLISHED'`, and
+/// EVERY public query on both adapters ends in that predicate. See the long note
+/// on `Tour.status` below, and `memory/feedback_qg_unenforced-safety-flag.md`
+/// for the five occasions a column shipped here without the behaviour behind it.
+enum TourStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/// WHO a tour is sold to — a SECOND, INDEPENDENT axis from `DestinationCategory`.
+///
+/// ## Why this is not folded into `DestinationCategory`
+///
+/// `DestinationCategory` (Adventure/Spiritual/Family/…) is the THEMATIC axis, and
+/// it is load-bearing public UI: `get-category-chips.ts` derives the
+/// `/tour-packages` filter chips straight off it, and `/api/tours?category=`
+/// validates against it. Adding `Domestic`/`Group Tour` to that enum would put
+/// four new chips on the public filter bar that answer a different question from
+/// the ones beside them, and would make `category` mean two things at once — so
+/// a tour could no longer be both "Spiritual" and "Domestic", which is the normal
+/// case, not the exception.
+///
+/// Note `International` appears in BOTH enums. That is not duplication to clean
+/// up: the `DestinationCategory` member describes a destination's character,
+/// this one describes the audience the tour is sold to, and a tour can carry one
+/// without the other. They are separate Postgres types and nothing converts
+/// between them.
+///
+/// Stored as a Postgres ARRAY on `Tour` rather than a join table (see
+/// `Tour.audienceTags`).
+enum TourAudienceTag {
+  Domestic
+  International
+  GroupTour      @map("Group Tour")
+  CustomEligible @map("Custom-eligible")
+}
+
 /// Lifecycle of a brochure record — product-spec §7 ("Brochure Library").
 ///
 /// `ARCHIVED` exists because the product spec is explicit: "Never hard-delete a
@@ -214,6 +269,108 @@ model Tour {
   /// as a column is the exact defect that memory exists to prevent.
   pricingUnverified Boolean @default(false)
 
+  /// SAFETY GATE — the draft/published boundary. Phase B of the admin CMS.
+  ///
+  /// `DRAFT` by default, so a half-written tour is never accidentally live. A
+  /// draft is invisible to EVERY public surface: `/api/tours`,
+  /// `/api/tours/[slug]` (404), Home's rails, `/tour-packages`, and
+  /// `generateStaticParams()`.
+  ///
+  /// This column is enforced in exactly ONE place, deliberately:
+  /// `isPubliclyListable()` in `src/content/public-listing.ts`, which every
+  /// public query on BOTH adapters ends in. The `where: { status: 'PUBLISHED' }`
+  /// clauses in `PrismaContentAdapter` are an OPTIMISATION — they keep unwanted
+  /// rows off the wire — and the predicate is the gate. If the two ever
+  /// disagree, the predicate wins, which is the safe direction, and
+  /// `prisma-content-adapter.test.ts` proves it by returning a draft row from a
+  /// mock that IGNORES the where clause and asserting the adapter still
+  /// withholds it.
+  ///
+  /// `memory/feedback_qg_unenforced-safety-flag.md` records five occasions in
+  /// this project where a safety flag was added as a column, documented, and
+  /// never read by anything. This is the sixth opportunity and the most
+  /// expensive one: an unenforced `status` publishes unfinished content rather
+  /// than merely quoting a doubtful price.
+  status TourStatus @default(DRAFT)
+
+  /// Set when a tour is ARCHIVED; NULL for every live tour.
+  ///
+  /// A timestamp rather than a boolean or a `TourStatus.ARCHIVED` member,
+  /// because "when" is the part the business will ask about, and a boolean
+  /// throws it away. Independent of `status` on purpose — an archived tour
+  /// keeps the `status` it had when it was pulled, so the record still says
+  /// whether it was ever live.
+  ///
+  /// ARCHIVING IS NOT DELETION. Nothing in the admin UI deletes a `Tour` row:
+  /// product-spec §7's brochure rule ("never hard-delete something tied to
+  /// existing leads/bookings — archive instead") is the same principle, and a
+  /// tour is the thing leads are *about*. An archived tour is withheld from
+  /// every public surface by the SAME `isPubliclyListable()` predicate that
+  /// gates `status`, and is hidden from the DEFAULT admin list but remains
+  /// findable there under the "Archived" / "All" status filter.
+  archivedAt DateTime?
+
+  /// WHO this tour is sold to — Domestic / International / Group Tour /
+  /// Custom-eligible. See `TourAudienceTag` for why this is a separate axis from
+  /// `category` and must not be folded into it.
+  ///
+  /// A Postgres ARRAY rather than a join table: the membership carries no data
+  /// of its own (no order, no per-tag note, no timestamp), so a join table would
+  /// be three extra files and a join to store what a column already stores.
+  /// `RailTour` above is a join table precisely because rail membership DOES
+  /// carry data — `sortOrder`. That is the test applied here, not a blanket
+  /// preference.
+  ///
+  /// Empty by default and legitimately empty: these tags are new in Phase B, so
+  /// every existing tour has none until someone categorises it. Nothing public
+  /// reads them yet — they are admin-side categorisation, and a public filter
+  /// built on them is a later, explicit decision.
+  audienceTags TourAudienceTag[]
+
+  /// Card-length description. NULLABLE and NULL on every existing tour.
+  ///
+  /// NOT a rename of `subtitle`, which holds the ROUTE LINE ("Shimla - Kaza -
+  /// Chandratal") and is rendered as such by `PackageCard` and the detail page.
+  /// The two were checked against each other before this column was added: no
+  /// existing field holds prose. Introducing this as a nullable column rather
+  /// than backfilling `subtitle` into it avoids inventing a description for 22
+  /// tours nobody has written one for.
+  shortDescription String?
+
+  /// Full prose for the detail page. Nullable for the same reason as
+  /// `shortDescription` — no tour in this project has one yet, and the detail
+  /// page renders only what exists (BLOCKERS.md Decision D).
+  fullDescription String?
+
+  /// e.g. "March to June". NULLABLE, and per the product spec this is for
+  /// REGULAR tours only — a fixed-departure group tour's answer is its departure
+  /// date, so the admin form hides this field when `Group Tour` is among the
+  /// `audienceTags`. NULL means "not stated", never "any time of year".
+  bestTimeToVisit String?
+
+  /// What the price covers / does not cover. Two Postgres string ARRAYS.
+  ///
+  /// Arrays and not child tables: an inclusion is a bare line of text with no
+  /// per-item fields, no ordering beyond its position, and nothing referencing
+  /// it. `TourItineraryDay` and `TourFaq` below ARE child tables because their
+  /// items carry two or three fields each. Same test as `audienceTags`.
+  inclusions String[]
+  exclusions String[]
+
+  createdAt DateTime @default(now())
+
+  /// Drives the admin list's "Last updated" column. Added in Phase B because
+  /// until there was an admin UI nothing could edit a tour, so there was no
+  /// update to stamp.
+  ///
+  /// `@default(now())` as well as `@updatedAt`: `@updatedAt` is applied by the
+  /// Prisma CLIENT on write and emits no database default, so without this the
+  /// column could not be added to a table that already held 22 rows. The
+  /// backfilled value is the MIGRATION's timestamp, which is not when those
+  /// tours were really authored — see the note in the migration SQL. It is an
+  /// upper bound, not a fact, and the first real edit replaces it.
+  updatedAt DateTime @default(now()) @updatedAt
+
   /// Global order of `ContentPort.getAllTours()` — rail order first, then the
   /// two popular-only tours, matching `packages.fixture.ts`'s construction
   /// order. Explicit because SQL has no inherent row order and the catalogue's
@@ -228,8 +385,108 @@ model Tour {
   railLinks RailTour[]
   brochure  Brochure?
 
+  itineraryDays TourItineraryDay[]
+  faqs          TourFaq[]
+  pricingTiers  TourPricingTier[]
+  departures    GroupDeparture[]
+
   @@index([destinationSlug])
   @@index([pricingUnverified])
+  /// The public listing gate's own index. Every public tour query filters on
+  /// exactly this pair, so it is the pair worth indexing together.
+  @@index([status, archivedAt])
+}
+
+/// One day of a tour's itinerary — Phase B.
+///
+/// A child table rather than a JSON column on `Tour`: each day carries three
+/// fields and an order, the admin form edits them as rows, and a JSON blob would
+/// put validation of that structure entirely in application code with the
+/// database unable to say anything about it.
+///
+/// `onDelete: Cascade` — but note nothing in the admin UI deletes a `Tour`
+/// (archiving is a timestamp, see `Tour.archivedAt`), so this cascade is a
+/// correctness backstop for the seed's `deleteMany()` reset and for any future
+/// genuine deletion, NOT the archive path. Archiving a tour leaves every
+/// itinerary day intact, which is the point of archiving.
+model TourItineraryDay {
+  id       String @id @default(cuid())
+  tourSlug String
+  tour     Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  /// 1-based, and the ORDER as well as the label ("Day 3"). A separate
+  /// `sortOrder` would be a second source of truth for the same fact and could
+  /// disagree with it.
+  dayNumber   Int
+  title       String
+  description String
+
+  /// Days are renumbered contiguously from 1 on every save, so this holds.
+  @@unique([tourSlug, dayNumber])
+  @@index([tourSlug])
+}
+
+/// One question/answer on a tour's detail page — Phase B.
+model TourFaq {
+  id       String @id @default(cuid())
+  tourSlug String
+  tour     Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  question String
+  answer   String
+
+  /// 0-based display order. Unlike `TourItineraryDay.dayNumber` this is NOT part
+  /// of the visible content — an FAQ has no "FAQ 3" label — so it is a plain
+  /// ordering column.
+  sortOrder Int
+
+  @@unique([tourSlug, sortOrder])
+  @@index([tourSlug])
+}
+
+/// One named price tier — "Standard" / "Deluxe" / "Premium" — Phase B.
+///
+/// ## Tiers are a PER-TOUR CHOICE, and the choice is the row count
+///
+/// `memory/project_gty_admin_reversal.md` records the user's clarification: some
+/// tours have one price, others have several named tiers, and the admin decides
+/// per tour. That choice is represented by THE PRESENCE OR ABSENCE OF ROWS HERE
+/// and by nothing else:
+///
+///   - zero rows  → the tour uses its own `priceFrom`/`priceWas` (unchanged);
+///   - 1+ rows    → the tour shows the tiers.
+///
+/// There is deliberately NO `Tour.usesPricingTiers` boolean. A flag plus the
+/// rows is two sources of truth for one fact, and they drift: a flag set true
+/// with the last tier deleted renders a tour with no price at all, and a flag
+/// set false with rows present hides pricing the admin entered and can still
+/// see in the form. Deriving it cannot drift, because there is nothing to drift
+/// from. This is the same reasoning `sold-out.ts` applies to `isSoldOut`
+/// (derived from `seatsLabel`, never stored).
+model TourPricingTier {
+  id       String @id @default(cuid())
+  tourSlug String
+  tour     Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  /// e.g. "Standard", "Deluxe", "Premium". Free text, not an enum: GTY names
+  /// these per tour and an enum would be this file guessing their commercial
+  /// vocabulary.
+  name String
+
+  /// Pre-formatted display string, e.g. "₹42,500" — the SAME contract as
+  /// `Tour.priceFrom`, which exists for the reason given there (every consumer
+  /// renders it verbatim). A tier priced as an integer here and a string there
+  /// would mean two formatting rules for one concept.
+  price String
+
+  /// What this tier includes over the one below it. Nullable: a tier may be
+  /// priced without a written justification.
+  description String?
+
+  sortOrder Int
+
+  @@unique([tourSlug, sortOrder])
+  @@index([tourSlug])
 }
 
 /// One of the 4 `/tour-packages` rails — `PackageRail` in `types.ts`.
@@ -270,6 +527,32 @@ model GroupDeparture {
   /// Opaque string key, not a URL — see `Destination.photoKey`.
   photoKey        String
 
+  /// The catalogue tour this departure is a dated batch OF — NEW in Phase B, and
+  /// NULLABLE on purpose.
+  ///
+  /// Before Phase B this model was destination-scoped only: `prisma/seed.ts`
+  /// derived `destinationSlug` from the departure's display name and there was
+  /// no link to `Tour` at all. That made "manage this tour's batch dates and
+  /// seats" unanswerable, which is what the admin form needs — hence this
+  /// column rather than a duplicate batch-date model on `Tour` (the task's
+  /// explicit instruction, and correct: `dateRangeLabel`/`seatsLabel`/
+  /// `boardingPoints`/`tourManagerLabel` exist here and nowhere else, so a
+  /// second model would be a second transcription of the same real-world thing —
+  /// exactly the drift `memory/feedback_qg_unenforced-safety-flag.md` variant 4
+  /// is about).
+  ///
+  /// NULLABLE because the link is genuinely partial and must not be faked. A
+  /// departure's name carries a suffix the catalogue's does not ("Do Dham Yatra
+  /// — Kedarnath & Badrinath" vs "Do Dham Yatra"), and not every departure has a
+  /// catalogue twin at all. `prisma/seed.ts` links only the pairs it can match
+  /// exactly and leaves the rest NULL; inventing a link for the others would
+  /// attach real seat counts and dates to the wrong tour.
+  ///
+  /// A NULL here does NOT hide the departure: `/group-tours` lists departures
+  /// through `getGroupDepartures()`, which is not tour-scoped and never was.
+  tourSlug String?
+  tour     Tour?   @relation(fields: [tourSlug], references: [slug], onDelete: SetNull)
+
   /// e.g. "12 — 18 May 2026", verbatim from the export.
   dateRangeLabel   String
   /// Month key the chip filter groups by, e.g. "May".
@@ -304,6 +587,7 @@ model GroupDeparture {
 
   @@index([destinationSlug])
   @@index([month])
+  @@index([tourSlug])
 }
 
 /// Per-tour brochure metadata — product-spec §7 ("Brochure Library").

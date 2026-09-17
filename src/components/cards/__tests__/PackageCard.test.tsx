@@ -16,6 +16,10 @@ const basePackage: Package = {
   priceFrom: '₹42,500',
   priceWas: '₹47,700',
   savingsLabel: '5,200',
+  // Required on `Package` (see the note on the field). A card only ever renders
+  // a tour that already passed the public-listing gate, so PUBLISHED is the only
+  // state this component is ever handed.
+  status: 'PUBLISHED',
 };
 
 describe('PackageCard', () => {

@@ -28,8 +28,47 @@ import { popularPackages } from './fixtures/popular.fixture';
  *
  * Re-including a tour once its pricing is confirmed is a one-line fixture
  * edit: delete `pricingUnverified: true`. Nothing here needs to change.
+ *
+ * ## Phase B added two more reasons to withhold, in this SAME function
+ *
+ * The admin CMS can now leave a tour unfinished (`status: 'DRAFT'`) or retire it
+ * (`archivedAt`). Both must be invisible publicly, and both are checked HERE
+ * rather than in a second `isPublished()` predicate beside this one.
+ *
+ * That choice is the lesson of `memory/feedback_qg_unenforced-safety-flag.md`
+ * variant 4, where a gate covering `Package` silently did not cover the
+ * later-built `/group-tours` surface. Two parallel predicates reproduce that
+ * failure *within* one type: every existing call site already funnels through
+ * `isPubliclyListable`, so a new check added next to it would have to be
+ * retro-fitted to each of them by hand, and the one that got missed would be
+ * the leak. Composing into this function means every surface that was already
+ * gated — Home's rails, `/tour-packages`, `/tour-packages/[slug]`,
+ * `/api/tours`, `/api/tours/[slug]`, `generateStaticParams()`, brochures — got
+ * draft and archive protection with no edit at the call site and no way to opt
+ * out.
+ *
+ * The three conditions are ordered strongest-first and read as one sentence: a
+ * tour is publicly listable when it has been PUBLISHED, has not been ARCHIVED,
+ * and carries no UNCONFIRMED PRICE.
  */
 export function isPubliclyListable(pkg: Package): boolean {
+  /**
+   * DEFAULT-CLOSED. An equality test against `'PUBLISHED'`, never
+   * `!== 'DRAFT'` — those are identical today and stop being identical the
+   * moment a third status exists, at which point `!== 'DRAFT'` silently
+   * publishes it. The safe direction is to name what may be shown, not what
+   * may not.
+   */
+  if (pkg.status !== 'PUBLISHED') return false;
+
+  /**
+   * Archived means withdrawn from sale. The row is kept (product-spec §7's
+   * "never hard-delete something with lead history"), the listing is not.
+   * `!== undefined` rather than truthiness so a hypothetical empty-string
+   * timestamp cannot read as "not archived".
+   */
+  if (pkg.archivedAt !== undefined) return false;
+
   return pkg.pricingUnverified !== true;
 }
 

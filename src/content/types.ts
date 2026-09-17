@@ -56,6 +56,13 @@ export interface Destination {
   photosCount?: number;
 }
 
+/**
+ * Publication state of a tour — mirrors the `TourStatus` enum in
+ * `prisma/schema.prisma`. There is no `'ARCHIVED'` member: archiving is
+ * `Package.archivedAt`, an independent fact (see the schema's note on why).
+ */
+export type TourStatus = 'DRAFT' | 'PUBLISHED';
+
 export interface Package {
   slug: string;
   name: string;
@@ -92,6 +99,39 @@ export interface Package {
    * else needs editing.
    */
   pricingUnverified?: boolean;
+  /**
+   * Publication state — the draft/published boundary the admin CMS writes.
+   *
+   * ## REQUIRED, and that is the whole design
+   *
+   * Every other safety-ish field on this type is optional (`pricingUnverified?`,
+   * `isHot?`), and this one deliberately is not. An optional `status` would mean
+   * `undefined` has to be interpreted, and the only interpretation that does not
+   * break the 22 existing fixture tours is "undefined means published" — i.e.
+   * DEFAULT-OPEN. A new adapter, a new fixture, a hand-built test object or a
+   * mapper that forgot a line would then produce a publicly listable tour by
+   * omission.
+   *
+   * Making it required inverts that: a record cannot exist without someone
+   * having said what its status is, and `tsc` is what enforces it, at every
+   * construction site, before any test runs. There are exactly three such sites
+   * — `packages.fixture.ts` (checked-in content, always `'PUBLISHED'`),
+   * `prisma-content-adapter.ts` (reads the column) and `PackageCard.test.tsx`.
+   *
+   * `memory/feedback_qg_unenforced-safety-flag.md` is five occurrences of a
+   * safety field that existed and did nothing. The strongest available
+   * enforcement for a sixth is a type error, not a test.
+   */
+  status: TourStatus;
+  /**
+   * ISO timestamp when the tour was archived; ABSENT for every live tour.
+   *
+   * Independent of `status` — an archived tour keeps the status it had when it
+   * was pulled. Withheld from every public surface by the same
+   * `isPubliclyListable()` gate, so the two facts compose rather than needing
+   * separate checks at each call site.
+   */
+  archivedAt?: string;
 }
 
 export interface PackageRail {

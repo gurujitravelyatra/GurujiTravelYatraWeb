@@ -35,6 +35,11 @@ function tourRow(overrides: Partial<Record<string, unknown>> = {}) {
     seatsLabel: null,
     isHot: false,
     pricingUnverified: false,
+    // Phase B. The factory's DEFAULT is a publishable row, so a test that cares
+    // about the draft gate has to say so explicitly — which keeps the gate tests
+    // legible about what they are actually varying.
+    status: 'PUBLISHED',
+    archivedAt: null,
     catalogueOrder: 1,
     popularOrder: null,
     destination: { name: 'Spiti Valley' },
@@ -137,6 +142,8 @@ describe('PrismaContentAdapter — row → domain mapping', () => {
       seatsLabel: undefined,
       isHot: undefined,
       pricingUnverified: undefined,
+      status: 'PUBLISHED',
+      archivedAt: undefined,
     });
   });
 
@@ -192,6 +199,98 @@ describe('PrismaContentAdapter — the public-listing gate is enforced, not mere
     for (const tour of tours) {
       expect(tour.pricingUnverified).not.toBe(true);
     }
+  });
+
+  /**
+   * THE Phase B test, and the same shape as the one above for the same reason.
+   *
+   * The mock IGNORES the `where` clause and hands back a DRAFT row anyway. That
+   * simulates every way the SQL half of the gate can stop being true without
+   * anybody noticing: a `findMany` added later without the filter, a query
+   * refactor, a stale materialised view, a replica lagging behind an unpublish.
+   * The adapter must still withhold it, because `PUBLICLY_LISTABLE_WHERE` is an
+   * optimisation and `isPubliclyListable()` is the gate.
+   *
+   * A test that asserted only `expect(calls.tour.where.status).toBe('PUBLISHED')`
+   * would pass whether or not anything acted on the result — which is exactly
+   * the "test that asserts the flag is set" failure mode
+   * `memory/feedback_qg_unenforced-safety-flag.md` names.
+   */
+  it('withholds a DRAFT tour even when the query returns one', async () => {
+    const { client } = mockPrisma({
+      tour: [tourRow({ slug: 'half-written-tour', status: 'DRAFT' }), tourRow()],
+    });
+
+    const tours = await new PrismaContentAdapter(client).getAllTours();
+
+    expect(tours.map((tour) => tour.slug)).toEqual(['spiti-valley-circuit']);
+    expect(tours.every((tour) => tour.status === 'PUBLISHED')).toBe(true);
+  });
+
+  it('withholds an ARCHIVED tour even when the query returns one', async () => {
+    // Archived AND still marked PUBLISHED — the realistic archived row, since
+    // archiving deliberately does not touch `status` (a restored tour must come
+    // back to the state it was pulled from). If the gate only checked `status`,
+    // this row would sail through.
+    const { client } = mockPrisma({
+      tour: [
+        tourRow({ slug: 'retired-tour', status: 'PUBLISHED', archivedAt: new Date('2026-09-01') }),
+        tourRow(),
+      ],
+    });
+
+    const tours = await new PrismaContentAdapter(client).getAllTours();
+    expect(tours.map((tour) => tour.slug)).toEqual(['spiti-valley-circuit']);
+  });
+
+  it('withholds drafts and archived tours from the popular selection and the rails', async () => {
+    const { client } = mockPrisma({
+      tour: [
+        tourRow({ slug: 'draft-popular', status: 'DRAFT', popularOrder: 0 }),
+        tourRow({ slug: 'archived-popular', archivedAt: new Date('2026-09-01'), popularOrder: 1 }),
+      ],
+      rail: [
+        {
+          title: 'Trending Tour Packages',
+          sortOrder: 0,
+          items: [
+            { tour: tourRow({ slug: 'draft-in-rail', status: 'DRAFT' }) },
+            { tour: tourRow({ slug: 'archived-in-rail', archivedAt: new Date('2026-09-01') }) },
+            { tour: tourRow() },
+          ],
+        },
+      ],
+    });
+
+    const adapter = new PrismaContentAdapter(client);
+
+    await expect(adapter.getPopularDestinations()).resolves.toEqual([]);
+
+    const rails = await adapter.getPackageRails();
+    expect(rails[0].items.map((item) => item.slug)).toEqual(['spiti-valley-circuit']);
+  });
+
+  it('withholds the brochure of a draft or archived tour', async () => {
+    // The brochure query gates through the tour relation. A brochure republishes
+    // its tour's title, itinerary summary and price under a different URL, so a
+    // gate that covered tours and not brochures would be variant 4 of the memory
+    // — a sibling surface the gate silently did not reach.
+    const { client, calls } = mockPrisma({ brochure: [brochureRow()] });
+    await new PrismaContentAdapter(client).getBrochures();
+
+    expect(calls.brochure).toMatchObject({
+      where: { tour: { status: 'PUBLISHED', archivedAt: null, pricingUnverified: false } },
+    });
+  });
+
+  it('throws on a status the domain union does not contain, rather than defaulting', async () => {
+    // Defaulting to PUBLISHED would publish a row this build does not
+    // understand; defaulting to DRAFT would unpublish live tours the day a new
+    // enum member ships. Neither is the mapper's call to make.
+    const { client } = mockPrisma({ tour: [tourRow({ status: 'SCHEDULED' })] });
+    await expect(new PrismaContentAdapter(client).getAllTours()).rejects.toThrow(
+      /Unknown TourStatus "SCHEDULED"/
+    );
   });
 
   it('withholds a flagged tour from the popular selection too', async () => {

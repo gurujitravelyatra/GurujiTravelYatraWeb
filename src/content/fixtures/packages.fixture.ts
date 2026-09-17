@@ -121,6 +121,26 @@ function toPackage(item: TourFixtureItem): Package {
     priceWas: item.was,
     savingsLabel: item.save,
     pricingUnverified: item.pricingUnverified,
+    /**
+     * THE ONE PLACE the fixture catalogue's publication state is decided, and it
+     * is a constant on purpose.
+     *
+     * Checked-in fixture content has no draft concept: these 22 tours were
+     * transcribed from the design export, reviewed in a diff, and are the live
+     * public catalogue. There is no editor, no save button and no half-finished
+     * state for them to be in — the only honest status for a record that exists
+     * in this file is `'PUBLISHED'`.
+     *
+     * Drafts are a DATABASE concept, introduced by the admin CMS, and they
+     * arrive through `PrismaContentAdapter`, which reads the real column. This
+     * constant is what makes the two paths comparable: `Package.status` is
+     * required precisely so this line had to be written deliberately rather than
+     * defaulted into existence by an omission somewhere.
+     *
+     * `archivedAt` is left absent for the same reason — nothing can archive a
+     * fixture.
+     */
+    status: 'PUBLISHED',
   };
 }
 

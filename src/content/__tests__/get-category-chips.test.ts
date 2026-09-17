@@ -28,6 +28,7 @@ describe('getCategoryChips', () => {
             subtitle: 'sub',
             photoUrl: 'a',
             photosCount: 1,
+            status: 'PUBLISHED',
             priceFrom: '₹1',
           },
         ],

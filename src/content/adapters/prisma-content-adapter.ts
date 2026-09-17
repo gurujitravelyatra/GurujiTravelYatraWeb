@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Brochure, BrochurePort, ContentPort } from '../ports';
-import type { Destination, GroupDeparture, Package, PackageRail } from '../types';
+import type { Destination, GroupDeparture, Package, PackageRail, TourStatus } from '../types';
 import { FixtureContentAdapter } from './fixture-content-adapter';
 import { isPubliclyListable } from '../public-listing';
 import { deriveIsSoldOut } from '../sold-out';
@@ -26,7 +26,8 @@ import { toDomainCategory } from './prisma-category';
  *
  * ## The safety flags are enforced here, not just stored
  *
- * `Tour.pricingUnverified` is a real column, but a column is not enforcement.
+ * `Tour.pricingUnverified`, `Tour.status` and `Tour.archivedAt` are real columns,
+ * but a column is not enforcement.
  * Every public tour query below ends in the SAME `isPubliclyListable()` predicate
  * that `public-listing.ts` applies on the fixture path — one definition of
  * "may this be shown", used by both adapters. The `where` clause is an
@@ -38,6 +39,28 @@ import { toDomainCategory } from './prisma-category';
  * the moment that happens a fifth time, so the adapter tests assert on the ROWS
  * RETURNED, never on the flag's presence.
  */
+/**
+ * The SQL half of the public-listing gate — an optimisation, never the gate.
+ *
+ * Kept as one shared constant rather than repeated inline at each `findMany`,
+ * because the failure mode of repeating it is that one copy drifts: a query that
+ * filtered `pricingUnverified` but forgot `status` would have looked right in
+ * review and published every draft tour on that surface. There is now one
+ * expression to get right, spread into the queries that need extra conditions.
+ *
+ * It mirrors `isPubliclyListable()` and must keep mirroring it, but the mirror
+ * is not what makes the system safe — every method below ALSO runs the predicate
+ * over the mapped rows. If this clause and the predicate ever disagree, the
+ * predicate wins and the row is withheld, which is the safe direction.
+ * `prisma-content-adapter.test.ts` asserts exactly that by handing the adapter a
+ * mock that ignores this clause entirely and returns a draft row anyway.
+ */
+const PUBLICLY_LISTABLE_WHERE = {
+  status: 'PUBLISHED',
+  archivedAt: null,
+  pricingUnverified: false,
+} as const;
+
 export class PrismaContentAdapter implements ContentPort, BrochurePort {
   private readonly prisma: PrismaClient;
 
@@ -58,7 +81,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
 
   async getAllTours(): Promise<Package[]> {
     const rows = await this.prisma.tour.findMany({
-      where: { pricingUnverified: false },
+      where: PUBLICLY_LISTABLE_WHERE,
       include: { destination: true },
       orderBy: { catalogueOrder: 'asc' },
     });
@@ -67,7 +90,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
 
   async getPopularDestinations(): Promise<Package[]> {
     const rows = await this.prisma.tour.findMany({
-      where: { pricingUnverified: false, popularOrder: { not: null } },
+      where: { ...PUBLICLY_LISTABLE_WHERE, popularOrder: { not: null } },
       include: { destination: true },
       orderBy: { popularOrder: 'asc' },
     });
@@ -125,9 +148,16 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
   // Brochures — `BrochurePort`, database-only (no fixture equivalent exists)
   // ---------------------------------------------------------------------------
 
+  /**
+   * Gated through the tour relation on the SAME clause the tour queries use, so
+   * a draft or archived tour's brochure is withheld for the same reason its
+   * detail page 404s. A brochure is per-tour metadata; publishing one for a tour
+   * the catalogue hides would republish the hidden tour's title, itinerary
+   * summary and price under a different URL.
+   */
   async getBrochures(): Promise<Brochure[]> {
     const rows = await this.prisma.brochure.findMany({
-      where: { tour: { pricingUnverified: false } },
+      where: { tour: PUBLICLY_LISTABLE_WHERE },
       orderBy: { tour: { catalogueOrder: 'asc' } },
     });
     return rows.map(toBrochure);
@@ -135,7 +165,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
 
   async getBrochureByTourSlug(tourSlug: string): Promise<Brochure | undefined> {
     const row = await this.prisma.brochure.findFirst({
-      where: { tourSlug, tour: { pricingUnverified: false } },
+      where: { tourSlug, tour: PUBLICLY_LISTABLE_WHERE },
     });
     return row ? toBrochure(row) : undefined;
   }
@@ -203,6 +233,8 @@ type TourRow = {
   seatsLabel: string | null;
   isHot: boolean;
   pricingUnverified: boolean;
+  status: string;
+  archivedAt: Date | null;
   destination: { name: string };
 };
 
@@ -229,7 +261,43 @@ function toPackage(row: TourRow): Package {
     seatsLabel: optional(row.seatsLabel),
     isHot: flag(row.isHot),
     pricingUnverified: flag(row.pricingUnverified),
+    /**
+     * Mapped through `toTourStatus`, which THROWS on an unrecognised value
+     * rather than defaulting.
+     *
+     * Defaulting an unknown status to `'PUBLISHED'` would publish a row this
+     * build does not understand; defaulting it to `'DRAFT'` would silently
+     * unpublish live tours if a future enum member arrived. Neither is a
+     * decision this mapper is entitled to make, so it refuses — the same
+     * reasoning, and the same shape, as `toDomainCategory()` above it.
+     */
+    status: toTourStatus(row.status),
+    /**
+     * `Date | null` → `string | undefined`. The domain type is JSON-shaped
+     * (fixtures and API responses are strings), and SQL NULL becomes ABSENT
+     * rather than `null` so `archivedAt !== undefined` in the gate reads
+     * correctly — a `null` here would make an unarchived tour test as archived
+     * and blank the entire catalogue.
+     */
+    archivedAt: row.archivedAt === null ? undefined : row.archivedAt.toISOString(),
   };
+}
+
+/**
+ * Stored status → the domain union, or an exception.
+ *
+ * Deliberately not a cast. `row.status as TourStatus` would compile, be shorter,
+ * and hand a value the rest of the system trusts straight through without ever
+ * checking it — so a database holding anything other than these two strings
+ * would flow into `isPubliclyListable()` and be compared against `'PUBLISHED'`
+ * with whatever result it happened to produce.
+ */
+function toTourStatus(value: string): TourStatus {
+  if (value === 'PUBLISHED' || value === 'DRAFT') return value;
+  throw new Error(
+    `Unknown TourStatus "${value}" from the database — it is not in the union in src/content/types.ts. ` +
+      `Schema and code are out of sync; run prisma generate and check prisma/schema.prisma.`
+  );
 }
 
 type DestinationRow = {
