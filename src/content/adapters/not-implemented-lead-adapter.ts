@@ -33,6 +33,23 @@ function visitorSafeMessage(source: LeadSourceTag): string {
  * `LeadSubmissionPort` implementation for this sprint — tech spec §6.2,
  * BLOCKERS.md §1a / Decision A.
  *
+ * ## SCOPE NARROWED 2026-09-17 — this is now the NEWSLETTER's path only
+ *
+ * The Enquiry, Brochure, Group Tour Reservation and Custom Trip forms no longer
+ * come through here. They POST to `/api/leads` via
+ * `src/lib/leads/lead-api-client.ts` (BLOCKERS.md item 0).
+ *
+ * `Newsletter.tsx` is the one remaining caller, and deliberately so: it submits
+ * `source: 'Newsletter Signup'`, which is a valid `LeadSourceTag` but has NO
+ * member in the route's `formType` union — the server accepts only the four
+ * tags with a real, built trigger. Repointing the newsletter at the route would
+ * make it 400 on a `formType` it has no way to supply, so it keeps the honest
+ * "not connected yet" answer until that contract exists.
+ *
+ * Do not widen this back over the other four forms. The port's flat,
+ * client-chosen-`source` shape is the contract the route deliberately does not
+ * have.
+ *
  * This is the ONE well-named integration point for the eventual ERP lead
  * write. It intentionally never calls fetch/axios/XHR or any other network
  * primitive, and never invents a URL, payload shape, header, or API key —

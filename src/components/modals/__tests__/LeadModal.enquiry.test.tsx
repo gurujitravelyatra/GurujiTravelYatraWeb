@@ -2,14 +2,18 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { LeadModal } from '../LeadModal';
-import { leadAdapter } from '@/content/adapters/not-implemented-lead-adapter';
-import type { LeadSubmissionResult } from '@/content/ports';
+import { submitLeadRequest } from '@/lib/leads/lead-api-client';
+import type { LeadApiResult } from '@/lib/leads/lead-api-client';
 
-jest.mock('@/content/adapters/not-implemented-lead-adapter', () => ({
-  leadAdapter: { submitLead: jest.fn() },
+// The transport is covered on its own in
+// `src/lib/leads/__tests__/lead-api-client.test.ts`; these specs are about what
+// the modal DOES with each outcome, so the client is stubbed rather than fetch.
+jest.mock('@/lib/leads/lead-api-client', () => ({
+  ...jest.requireActual('@/lib/leads/lead-api-client'),
+  submitLeadRequest: jest.fn(),
 }));
 
-const submitLead = leadAdapter.submitLead as jest.Mock;
+const submitLead = submitLeadRequest as jest.Mock;
 
 const context = { label: 'Package', value: 'Spiti Valley Circuit' };
 
@@ -44,7 +48,7 @@ describe('LeadModal variant="enquiry"', () => {
 
   it('does not block submit when only the optional fields are empty', async () => {
     const user = userEvent.setup();
-    const { promise } = deferred<LeadSubmissionResult>();
+    const { promise } = deferred<LeadApiResult>();
     submitLead.mockReturnValue(promise);
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
@@ -57,9 +61,45 @@ describe('LeadModal variant="enquiry"', () => {
     );
   });
 
+  /**
+   * A plain enquiry needs no `details` prop — `variant` + `context` already say
+   * everything the payload needs, and every existing trigger (`openEnquiry`)
+   * passes nothing more. This pins that default so the Navbar/hero/about CTAs
+   * cannot silently start submitting an untagged lead.
+   */
+  it('defaults to formType "enquiry" and derives pageName from the context chip', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    expect(submitLead.mock.calls[0][0]).toMatchObject({
+      formType: 'enquiry',
+      pageName: 'Spiti Valley Circuit',
+      interestedIn: 'Spiti Valley Circuit',
+    });
+  });
+
+  it('a contextless enquiry sends no pageName rather than inventing one', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
+
+    // The Navbar's persistent "Enquire Now" calls `openEnquiry()` with no args.
+    render(<LeadModal variant="enquiry" open onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+
+    const request = submitLead.mock.calls[0][0];
+    expect(request).toMatchObject({ formType: 'enquiry' });
+    expect(request.pageName).toBeUndefined();
+    expect(request.interestedIn).toBeUndefined();
+  });
+
   it('transitions form -> sending -> form-with-error, and the error path preserves every entered value', async () => {
     const user = userEvent.setup();
-    const { promise, resolve } = deferred<LeadSubmissionResult>();
+    const { promise, resolve } = deferred<LeadApiResult>();
     submitLead.mockReturnValue(promise);
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
@@ -71,7 +111,7 @@ describe('LeadModal variant="enquiry"', () => {
     expect(await screen.findByText('Submitting your enquiry…')).toBeInTheDocument();
 
     await act(async () => {
-      resolve({ status: 'error', retryable: true, message: 'Visitor safe message.' });
+      resolve({ status: 'error', message: 'Visitor safe message.' });
     });
 
     // Back on the form step, with the error banner and every entered value intact.
@@ -83,7 +123,7 @@ describe('LeadModal variant="enquiry"', () => {
 
   it('"Try Again" re-submits with the same preserved values', async () => {
     const user = userEvent.setup();
-    submitLead.mockResolvedValue({ status: 'error', retryable: true, message: 'Visitor safe message.' });
+    submitLead.mockResolvedValue({ status: 'error', message: 'Visitor safe message.' });
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
@@ -99,22 +139,30 @@ describe('LeadModal variant="enquiry"', () => {
     expect(submitLead.mock.calls[1][0]).toEqual(expect.objectContaining({ name: 'Asha Patel', mobile: '9876543210' }));
   });
 
+  /**
+   * The route's 200 carries no visitor-facing copy (only `leadId`/`source`/
+   * `receivedAt`), so the confirmation sentence is composed from the context
+   * the client already has rather than from a server string.
+   */
   it('transitions form -> sending -> done on a successful submission', async () => {
     const user = userEvent.setup();
-    submitLead.mockResolvedValue({ status: 'success', confirmationMessage: 'All set!' });
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-42' });
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
-    expect(await screen.findByText('All set!')).toBeInTheDocument();
+    expect(
+      await screen.findByText("We've got it — GTY will call you about Spiti Valley Circuit within business hours.")
+    ).toBeInTheDocument();
     expect(screen.getByText(/Your journey/)).toBeInTheDocument();
   });
 
-  // The submit path is `NotImplementedLeadAdapter` — there is no server, no
-  // validation service, no rate limiter and no CRM. Copy that claims otherwise
-  // is a false statement to the visitor, not a cosmetic issue.
-  describe('claims no capability the stub submit path does not have', () => {
+  // The submit path is now real (`POST /api/leads`), but that route validates
+  // and LOGS — there is still no CRM behind it, no rate limiter and no
+  // encryption. Copy claiming otherwise is a false statement to the visitor,
+  // not a cosmetic issue.
+  describe('claims no capability the submit path does not have', () => {
     const FALSE_CLAIMS = [/server-side/i, /rate.?limit/i, /\bCRM\b/, /encrypted/i];
 
     it('makes no such claim on the form step', () => {
@@ -143,7 +191,7 @@ describe('LeadModal variant="enquiry"', () => {
 
     it('makes no such claim on the sending step', async () => {
       const user = userEvent.setup();
-      const { promise } = deferred<LeadSubmissionResult>();
+      const { promise } = deferred<LeadApiResult>();
       submitLead.mockReturnValue(promise);
 
       const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);

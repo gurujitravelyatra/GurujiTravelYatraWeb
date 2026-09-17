@@ -2,13 +2,14 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { LeadModal } from '../LeadModal';
-import { leadAdapter } from '@/content/adapters/not-implemented-lead-adapter';
+import { submitLeadRequest } from '@/lib/leads/lead-api-client';
 
-jest.mock('@/content/adapters/not-implemented-lead-adapter', () => ({
-  leadAdapter: { submitLead: jest.fn() },
+jest.mock('@/lib/leads/lead-api-client', () => ({
+  ...jest.requireActual('@/lib/leads/lead-api-client'),
+  submitLeadRequest: jest.fn(),
 }));
 
-const submitLead = leadAdapter.submitLead as jest.Mock;
+const submitLead = submitLeadRequest as jest.Mock;
 
 const context = { label: 'Package', value: 'Spiti Valley Circuit' };
 
@@ -35,6 +36,21 @@ describe('LeadModal variant="brochure"', () => {
     expect(screen.getByText('Brochure for')).toBeInTheDocument();
   });
 
+  it('submits formType "brochure" with the package name taken from the context chip', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
+
+    render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Get My Brochure/ }));
+
+    expect(submitLead.mock.calls[0][0]).toMatchObject({
+      formType: 'brochure',
+      packageName: 'Spiti Valley Circuit',
+      interestedIn: 'Spiti Valley Circuit',
+    });
+  });
+
   it('required-field validation blocks submit the same as the enquiry variant', async () => {
     const user = userEvent.setup();
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
@@ -48,13 +64,13 @@ describe('LeadModal variant="brochure"', () => {
 
   it('the done step renders the 4 brochure-specific unlock buttons plus Keep Exploring', async () => {
     const user = userEvent.setup();
-    submitLead.mockResolvedValue({ status: 'success', confirmationMessage: 'Your brochure is ready.' });
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
 
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: /Get My Brochure/ }));
 
-    expect(await screen.findByText('Your brochure is ready.')).toBeInTheDocument();
+    expect(await screen.findByText('Your Spiti Valley Circuit brochure is ready.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /View Brochure/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Download Brochure/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send to Email' })).toBeInTheDocument();
@@ -64,13 +80,13 @@ describe('LeadModal variant="brochure"', () => {
 
   it('the enquiry variant\'s done step does NOT render the brochure-specific buttons', async () => {
     const user = userEvent.setup();
-    submitLead.mockResolvedValue({ status: 'success', confirmationMessage: 'All set!' });
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
-    expect(await screen.findByText('All set!')).toBeInTheDocument();
+    expect(await screen.findByText(/GTY will call you about Spiti Valley Circuit/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /View Brochure/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Download Brochure/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send to Email' })).not.toBeInTheDocument();

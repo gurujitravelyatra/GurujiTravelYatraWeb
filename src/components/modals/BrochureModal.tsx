@@ -13,5 +13,13 @@ export function BrochureModal() {
   const { modal, close } = useModal();
   const isOpen = modal?.variant === 'brochure';
 
-  return <LeadModal variant="brochure" open={isOpen} context={isOpen ? modal?.context : undefined} onClose={close} />;
+  return (
+    <LeadModal
+      variant="brochure"
+      open={isOpen}
+      context={isOpen ? modal?.context : undefined}
+      details={isOpen ? modal?.details : undefined}
+      onClose={close}
+    />
+  );
 }

@@ -7,8 +7,10 @@ import { motion, useReducedMotion } from 'framer-motion';
 
 import { ModalShell } from './ModalShell';
 import type { ModalContext } from './modal-context';
-import { leadAdapter } from '@/content/adapters/not-implemented-lead-adapter';
-import type { LeadPayload, LeadSourceTag, LeadSubmissionResult } from '@/content/ports';
+import type { LeadDetails } from './lead-details';
+import { buildLeadRequest } from './build-lead-request';
+import { submitLeadRequest } from '@/lib/leads/lead-api-client';
+import type { LeadSubmissionInput } from '@/server/leads/lead-schema';
 import { leadFormDefaultValues, leadFormSchema, type LeadFormValues } from './lead-form-schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +25,13 @@ export interface LeadModalProps {
   open: boolean;
   /** Real page/package context only — see BLOCKERS.md Decision F. Omit entirely when there is none; never fall back to a fabricated default. */
   context?: ModalContext;
+  /**
+   * The `formType`-tagged payload context from the trigger. Optional because
+   * `variant` + `context` already fully describe a plain enquiry or brochure
+   * request; only the richer flows (group reservation, custom trip) need to say
+   * more. See `detailsForVariant` for the fallback.
+   */
+  details?: LeadDetails;
   onClose: () => void;
 }
 
@@ -30,17 +39,21 @@ type Step = 'form' | 'sending' | 'done';
 
 /**
  * All modal copy. Nothing here may assert a backend capability that does not
- * exist yet: the submit path is `NotImplementedLeadAdapter` (BLOCKERS.md §1a /
- * Decision A) — no server, no validation service, no rate limiter, no CRM
- * write. `sendingLabel` and `disclaimer` in particular are worded to describe
- * intent, never infrastructure.
+ * exist yet.
+ *
+ * The submit path is now REAL — `POST /api/leads` — but what that route does is
+ * still narrower than it sounds: it validates the submission and writes it to
+ * the server log, and there is no CRM behind it (`submitLeadToCrm` reports
+ * `logged-only` on every call, BLOCKERS.md §6). So a lead genuinely reaches
+ * GTY's server and genuinely survives, and the done-step's "GTY has your
+ * details" is finally true — but the form step still may not claim server-side
+ * validation, rate limiting, encryption, or CRM storage, none of which exist.
  *
  * The disclaimers used to promise, BEFORE submit, that "our team will review
- * your enquiry and get back to you shortly" — on a path that cannot succeed,
- * since nothing is transmitted or stored. They now state only what is
- * genuinely true at that moment: what the details will be used for. The
- * post-submit step is the only place that describes what happens next, and it
- * is reached only on a success this adapter never returns.
+ * your enquiry and get back to you shortly", on a path that could not succeed.
+ * They still state only what is genuinely true at that moment: what the details
+ * will be used for. The post-submit step remains the only place that describes
+ * what happens next.
  */
 const COPY: Record<
   LeadModalVariant,
@@ -67,12 +80,40 @@ const COPY: Record<
 /** Inert stub for the Brochure done-step's unlock buttons — see TODO(brochure-unlock) below. */
 function noop() {}
 
-function buildSourceTag(variant: LeadModalVariant, context?: ModalContext): LeadSourceTag {
-  const suffix = context?.value ?? 'General enquiry';
-  return variant === 'brochure' ? `Brochure Download – ${suffix}` : `Enquire Now – ${suffix}`;
+/**
+ * The `formType` a plain Enquiry/Brochure trigger implies.
+ *
+ * `pageName`/`packageName` come from the context chip because that IS the page
+ * context — the same string the visitor is looking at while they type. There is
+ * deliberately no fallback when context is absent (the Navbar's persistent
+ * "Enquire Now" has none): the server supplies `'General enquiry'` itself, and
+ * two independent fallbacks would eventually disagree.
+ *
+ * The source tag is no longer built here at all. It is derived server-side from
+ * these fields, so a public endpoint cannot be told which CRM bucket to file a
+ * lead under.
+ */
+function detailsForVariant(variant: LeadModalVariant, context?: ModalContext): LeadDetails {
+  return variant === 'brochure'
+    ? { formType: 'brochure', packageName: context?.value }
+    : { formType: 'enquiry', pageName: context?.value };
 }
 
-function extractUtm(search: string): LeadPayload['utm'] {
+/**
+ * The inputs the visitor can actually see and fix. A 400 naming any of these
+ * is shown inline on the field itself (the same `Field error` slot client-side
+ * Zod already uses); a 400 naming anything else — `sourcePageUrl`, `batchDate`,
+ * `stops.0.nights`, `utm.source` — has no input to attach to and is appended to
+ * the banner instead, because a validation message with nowhere to render is
+ * how a form becomes un-submittable with no explanation.
+ */
+const FORM_FIELD_NAMES = ['name', 'mobile', 'email', 'travelDate', 'travellers', 'city', 'message'] as const;
+
+function isFormFieldName(key: string): key is (typeof FORM_FIELD_NAMES)[number] {
+  return (FORM_FIELD_NAMES as readonly string[]).includes(key);
+}
+
+function extractUtm(search: string): LeadSubmissionInput['utm'] {
   const params = new URLSearchParams(search);
   const utm = {
     source: params.get('utm_source') ?? undefined,
@@ -84,12 +125,13 @@ function extractUtm(search: string): LeadPayload['utm'] {
   return Object.values(utm).some(Boolean) ? utm : undefined;
 }
 
-function buildDoneLine(
-  variant: LeadModalVariant,
-  context: ModalContext | undefined,
-  result: Extract<LeadSubmissionResult, { status: 'success' }>
-): string {
-  if (result.confirmationMessage) return result.confirmationMessage;
+/**
+ * The route's success body carries no visitor-facing copy — only `leadId`,
+ * `source` and `receivedAt` — so the confirmation sentence is composed here
+ * from context the client already has, rather than from a server string that
+ * does not exist.
+ */
+function buildDoneLine(variant: LeadModalVariant, context: ModalContext | undefined): string {
   if (context) {
     return variant === 'brochure'
       ? `Your ${context.value} brochure is ready.`
@@ -102,7 +144,7 @@ function buildDoneLine(
  * The shared Enquiry/Brochure form + step machine (tech spec §4.3). Both
  * `EnquiryModal` and `BrochureModal` are thin wrappers around this.
  */
-export function LeadModal({ variant, open, context, onClose }: LeadModalProps) {
+export function LeadModal({ variant, open, context, details, onClose }: LeadModalProps) {
   const copy = COPY[variant];
   const [step, setStep] = React.useState<Step>('form');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -129,34 +171,37 @@ export function LeadModal({ variant, open, context, onClose }: LeadModalProps) {
     }
   }
 
+  const { setError } = form;
+
   const runSubmit = React.useCallback(
     async (values: LeadFormValues) => {
       setErrorMessage(null);
       setStep('sending');
 
-      const payload: LeadPayload = {
-        name: values.name,
-        mobile: values.mobile,
-        email: values.email || undefined,
+      const request = buildLeadRequest({
+        details: details ?? detailsForVariant(variant, context),
+        values: {
+          name: values.name,
+          mobile: values.mobile,
+          email: values.email,
+          travelDate: values.travelDate,
+          travellers:
+            values.travellers === '' || values.travellers === undefined ? undefined : Number(values.travellers),
+          city: values.city,
+          message: values.message,
+        },
         interestedIn: context?.value,
-        travelDate: values.travelDate || undefined,
-        travellers:
-          values.travellers === '' || values.travellers === undefined ? undefined : Number(values.travellers),
-        city: values.city || undefined,
-        message: values.message || undefined,
-        source: buildSourceTag(variant, context),
         // sourcePageUrl / utm are read ONLY here, inside the submit event
         // handler — never during render (no useSearchParams()), so no
         // hydration mismatch and no forced-dynamic route.
         sourcePageUrl: window.location.href,
-        timestamp: new Date().toISOString(),
         utm: extractUtm(window.location.search),
-      };
+      });
 
-      const result = await leadAdapter.submitLead(payload);
+      const result = await submitLeadRequest(request);
 
       if (result.status === 'success') {
-        setDoneLine(buildDoneLine(variant, context, result));
+        setDoneLine(buildDoneLine(variant, context));
         setStep('done');
         return;
       }
@@ -164,10 +209,28 @@ export function LeadModal({ variant, open, context, onClose }: LeadModalProps) {
       // Error path (BLOCKERS.md Decision B / tech spec §4.3): stay on the
       // form step, keep every entered value (no form.reset()), surface a
       // dismissible banner with "Try Again".
-      setErrorMessage(result.message);
+      //
+      // Field-level 400s are routed to the inputs themselves via RHF's
+      // `setError`, which renders through the very same `Field`/`error` slot
+      // the client-side Zod resolver already uses — so a server rule and a
+      // client rule are indistinguishable to the visitor, and no second error
+      // UI had to be invented. RHF clears these automatically on the next
+      // submit, when the resolver rebuilds the error object from scratch.
+      const unattached: string[] = [];
+      for (const [key, messages] of Object.entries(result.fields ?? {})) {
+        const [message] = messages;
+        if (!message) continue;
+        if (isFormFieldName(key)) {
+          setError(key, { type: 'server', message });
+        } else {
+          unattached.push(message);
+        }
+      }
+
+      setErrorMessage([result.message, ...unattached].join(' '));
       setStep('form');
     },
-    [context, variant]
+    [context, details, setError, variant]
   );
 
   return (
@@ -238,6 +301,13 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         {errorMessage && (
           <div
             role="alert"
+            // The per-field messages below are `role="alert"` too (they have to
+            // be — that is how a screen reader hears a validation failure), so
+            // "the banner" is no longer addressable by role alone now that both
+            // can be on screen at once. Tests target this id rather than
+            // `getByRole('alert')`, which silently matched the only alert there
+            // used to be.
+            data-testid="lead-form-error"
             className="flex flex-col gap-2 rounded-16 border border-gty-red-300 bg-gty-red-100 p-[10px] text-11-5 text-gty-primary-deep"
           >
             <div className="flex items-start justify-between gap-3">
