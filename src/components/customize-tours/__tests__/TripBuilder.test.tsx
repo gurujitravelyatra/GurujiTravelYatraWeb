@@ -4,9 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { TripBuilder } from '../TripBuilder';
 import { tripPlaceOptions } from '@/content/fixtures/places.fixture';
 
+const openCustomTrip = jest.fn();
+const openEnquiry = jest.fn();
 jest.mock('@/components/modals/modal-context', () => ({
-  useModal: () => ({ modal: null, openEnquiry: jest.fn(), openBrochure: jest.fn(), close: jest.fn() }),
+  useModal: () => ({
+    modal: null,
+    openEnquiry,
+    openBrochure: jest.fn(),
+    openGroupReservation: jest.fn(),
+    openCustomTrip,
+    close: jest.fn(),
+  }),
 }));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 const [placeA, placeB] = tripPlaceOptions;
 
@@ -169,6 +182,91 @@ describe('TripBuilder — special-requests textarea', () => {
 
     expect(textarea).toHaveValue('Hello world');
     expect(screen.getByText('11/500')).toBeInTheDocument();
+  });
+});
+
+/**
+ * BLOCKERS.md item 0. `handleGetQuote` used to call
+ * `openEnquiry({ label: 'Custom trip', value: routeSummary })` — it opened the
+ * generic enquiry modal and DROPPED the entire trip. Nights per stop, travel
+ * style, month, adults, children and notes reached no payload at all, and the
+ * lead arrived tagged `Enquire Now – Rishikesh → Manali` rather than
+ * `Custom Trip Request`.
+ */
+describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
+  it('passes every piece of builder state, including nights PER STOP', async () => {
+    const user = userEvent.setup();
+    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+
+    await user.click(addPlace(placeA.name));
+    // placeA -> 3 nights (added at 2, +1), placeB stays at the default 2.
+    await user.click(screen.getByRole('button', { name: `Add one night to ${placeA.name}` }));
+    await user.click(addPlace(placeB.name));
+
+    const styleGroup = screen.getByRole('group', { name: 'Travel style' });
+    await user.click(within(styleGroup).getByRole('button', { name: 'Luxury' }));
+    await user.selectOptions(screen.getByLabelText('Travel Month'), 'November');
+    await user.click(screen.getByRole('button', { name: 'Increase adults' }));
+    await user.click(screen.getByRole('button', { name: 'Increase children' }));
+    await user.type(screen.getByLabelText('Any special requests?'), 'Ground floor rooms please.');
+
+    await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
+
+    expect(openCustomTrip).toHaveBeenCalledTimes(1);
+    expect(openCustomTrip).toHaveBeenCalledWith({
+      stops: [
+        { slug: placeA.slug, name: placeA.name, region: placeA.region, nights: 3 },
+        { slug: placeB.slug, name: placeB.name, region: placeB.region, nights: 2 },
+      ],
+      travelStyle: 'Luxury',
+      travelMonth: 'November',
+      adults: 3,
+      childrenCount: 1,
+      notes: 'Ground floor rooms please.',
+    });
+  });
+
+  it('no longer routes a custom quote through the generic enquiry opener', async () => {
+    const user = userEvent.setup();
+    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+
+    await user.click(addPlace(placeA.name));
+    await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
+
+    expect(openEnquiry).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The button is not disabled on an empty route, and the server accepts an
+   * empty `stops` array — "I want a custom trip but haven't picked anywhere
+   * yet" is a real lead.
+   */
+  it('still submits on an empty route, with the untouched defaults', async () => {
+    const user = userEvent.setup();
+    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+
+    await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
+
+    expect(openCustomTrip).toHaveBeenCalledWith({
+      stops: [],
+      travelStyle: 'Comfort',
+      // Never chosen -> absent, rather than a guessed month or the literal
+      // display string "Any month".
+      travelMonth: undefined,
+      adults: 2,
+      childrenCount: 0,
+      notes: undefined,
+    });
+  });
+
+  it('sends no budget — the builder has no budget input to read one from', async () => {
+    const user = userEvent.setup();
+    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+
+    await user.click(addPlace(placeA.name));
+    await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
+
+    expect(openCustomTrip.mock.calls[0][0]).not.toHaveProperty('budget');
   });
 });
 

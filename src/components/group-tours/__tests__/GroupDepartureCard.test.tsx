@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { GroupDepartureCard, GROUP_DURATION_NOTE_ID, GROUP_PRICE_NOTE_ID } from '../GroupDepartureCard';
 import { groupDepartures } from '@/content/fixtures/group-departures.fixture';
@@ -8,8 +9,16 @@ import type { GroupDeparture } from '@/content/types';
 // `useModal()` to wire its CTAs, it does not render the modal itself.
 const openEnquiry = jest.fn();
 const openBrochure = jest.fn();
+const openGroupReservation = jest.fn();
 jest.mock('@/components/modals/modal-context', () => ({
-  useModal: () => ({ modal: null, openEnquiry, openBrochure, close: jest.fn() }),
+  useModal: () => ({
+    modal: null,
+    openEnquiry,
+    openBrochure,
+    openGroupReservation,
+    openCustomTrip: jest.fn(),
+    close: jest.fn(),
+  }),
 }));
 
 const bookable = groupDepartures.find((departure) => !departure.isSoldOut && !departure.durationUnverified)!;
@@ -159,6 +168,57 @@ describe('GroupDepartureCard', () => {
       expect(unverifiedPrice.name).toBe('Do Dham Yatra — Kedarnath & Badrinath');
       expect(unverifiedPrice.priceUnverified).toBe(true);
       expect(confirmedPrice.priceUnverified).toBeUndefined();
+    });
+  });
+
+  /**
+   * BLOCKERS.md item 0. "Reserve a Seat" used to call
+   * `openEnquiry({ label: 'Group Tour', value: departure.name })`, sending the
+   * departure NAME and nothing else — so the batch date that
+   * `Group Tour Reservation – [Batch Date]` is built from was transmitted by
+   * nothing on the site, and a seat request arrived indistinguishable from a
+   * general enquiry about the same tour.
+   */
+  describe('"Reserve a Seat" submits a group-tour-reservation, not a generic enquiry', () => {
+    it('passes the departure name AND its date range', async () => {
+      const user = userEvent.setup();
+      render(<GroupDepartureCard departure={bookable} />);
+
+      await user.click(screen.getByRole('button', { name: /Reserve a Seat/ }));
+
+      expect(openGroupReservation).toHaveBeenCalledTimes(1);
+      expect(openGroupReservation).toHaveBeenCalledWith({
+        departureName: bookable.name,
+        batchDate: bookable.dateRangeLabel,
+      });
+    });
+
+    it('no longer routes the reservation through the generic enquiry opener', async () => {
+      const user = userEvent.setup();
+      render(<GroupDepartureCard departure={bookable} />);
+
+      await user.click(screen.getByRole('button', { name: /Reserve a Seat/ }));
+
+      expect(openEnquiry).not.toHaveBeenCalled();
+    });
+
+    it('sanity: the fixture departure carries a real date range to send', () => {
+      expect(bookable.dateRangeLabel).toBeTruthy();
+      expect(bookable.dateRangeLabel).not.toBe(bookable.name);
+    });
+
+    /**
+     * A brochure request is not a seat reservation — it stays a plain
+     * `brochure` lead keyed on the tour, with no batch date.
+     */
+    it('"Get Brochure" still opens the brochure modal with the departure as context', async () => {
+      const user = userEvent.setup();
+      render(<GroupDepartureCard departure={bookable} />);
+
+      await user.click(screen.getByRole('button', { name: /Get Brochure/ }));
+
+      expect(openBrochure).toHaveBeenCalledWith({ label: 'Group Tour', value: bookable.name });
+      expect(openGroupReservation).not.toHaveBeenCalled();
     });
   });
 

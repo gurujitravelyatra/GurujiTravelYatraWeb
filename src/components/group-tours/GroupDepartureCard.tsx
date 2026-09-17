@@ -72,13 +72,21 @@ function UnverifiedMarker({ testId, className }: { testId: string; className: st
 }
 
 export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
-  const { openEnquiry, openBrochure } = useModal();
-  const context = { label: 'Group Tour', value: departure.name };
+  const { openGroupReservation, openBrochure } = useModal();
+  const brochureContext = { label: 'Group Tour', value: departure.name };
   const firstBoardingPoint = departure.boardingPoints.split('·')[0]?.trim() ?? departure.boardingPoints;
   const scriptLines = departure.scriptAccent.split('\n');
 
   return (
-    <div className="flex flex-wrap items-stretch gap-5 rounded-20 bg-gty-white p-[10px] shadow-gty-card transition-shadow duration-gty-card ease-gty hover:shadow-gty-card-hover">
+    <div
+      // Every bookable card renders an identically-labelled "Reserve a Seat" /
+      // "Get Brochure" pair, and the headings are nested many divs deep — so a
+      // `filter({ has: heading })` locator matches every ancestor up to the
+      // list container and silently picks another card's button. This id is
+      // the card boundary the E2E specs scope to.
+      data-testid={`group-departure-${departure.slug}`}
+      className="flex flex-wrap items-stretch gap-5 rounded-20 bg-gty-white p-[10px] shadow-gty-card transition-shadow duration-gty-card ease-gty hover:shadow-gty-card-hover"
+    >
       <PhotoPlaceholder
         photoKey={departure.photoUrl}
         alt={`${departure.name} — ${departure.destinationName}`}
@@ -176,11 +184,25 @@ export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
               </span>
             </span>
             <div className="flex flex-wrap justify-end gap-[11px] pt-[10px]">
-              <Button type="button" variant="default" onClick={() => openBrochure(context)}>
+              <Button type="button" variant="default" onClick={() => openBrochure(brochureContext)}>
                 Get Brochure <span aria-hidden="true">↓</span>
               </Button>
               {departure.isSoldOut ? null : (
-                <Button type="button" variant="primary" onClick={() => openEnquiry(context)}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  /*
+                   * `dateRangeLabel` is the load-bearing argument here. A seat
+                   * request that cannot be tied to a departure date is
+                   * unroutable, and this CTA used to send `openEnquiry({ value:
+                   * departure.name })` — the NAME only — so the batch date the
+                   * `Group Tour Reservation – [Batch Date]` tag is built from
+                   * was transmitted by nothing on the site (BLOCKERS.md item 0).
+                   */
+                  onClick={() =>
+                    openGroupReservation({ departureName: departure.name, batchDate: departure.dateRangeLabel })
+                  }
+                >
                   Reserve a Seat <span aria-hidden="true">→</span>
                 </Button>
               )}
