@@ -30,7 +30,15 @@ const sections: LegalSection[] = [
   {
     heading: '1. Information We Collect',
     paragraphs: [
-      'We collect information you choose to give us when you submit an enquiry or request a brochure on this site. We do not ask you to create an account, and there is no login area on this website.',
+      // The original sentence ended "...and there is no login area on this
+      // website." That became FALSE on 2026-09-17, when /admin/login shipped
+      // (memory/project_gty_admin_reversal.md). This page is a legal statement
+      // shown to real visitors, so a claim it makes has to stay true — and the
+      // claim a visitor actually cares about (they are never asked to register)
+      // still is. The staff area is named rather than omitted, because silently
+      // dropping the sentence would leave the page quietly incomplete instead of
+      // quietly wrong.
+      'We collect information you choose to give us when you submit an enquiry or request a brochure on this site. We do not ask you to create an account, and there is nothing on this website for you to sign in to. The staff area used by our team to update tour listings is not part of your visit and collects nothing from you.',
     ],
     bullets: [
       'Name and mobile number — required, so that we can reach you about your enquiry.',
