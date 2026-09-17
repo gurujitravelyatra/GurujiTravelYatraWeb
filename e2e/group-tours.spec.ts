@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { captureLeadRequests, expectSubmissionConfirmed, fillContactDetails, onlyLead } from './support/leads';
+
 /**
  * `/group-tours` — one of three primary nav items (Navbar, Footer AND the
  * mobile menu all link here) that 404'd until this route was built
@@ -105,5 +107,105 @@ test.describe('/group-tours departures', () => {
     await expect(
       page.getByText('*Duration for this departure is pending confirmation and is shown as reported.')
     ).toBeVisible();
+  });
+});
+
+/**
+ * BLOCKERS.md item 0. "Reserve a Seat" called
+ * `openEnquiry({ value: departure.name })`: it sent the departure NAME and
+ * never `dateRangeLabel`, so the batch date that
+ * `Group Tour Reservation – [Batch Date]` is built from was transmitted by
+ * nothing on the site — a time-sensitive seat request arrived indistinguishable
+ * from a general enquiry about the same tour.
+ *
+ * The UX is unchanged: the card holds no contact details, so the modal still
+ * opens to collect them. Only the payload it builds is different.
+ */
+test.describe('group-tour-reservation lead submission', () => {
+  /** Chardham Special — the one bookable fixture departure with no unverified figures. */
+  const DEPARTURE = 'Chardham Special';
+  const DEPARTURE_SLUG = 'chardham-special';
+  const BATCH_DATE = '02 — 13 Jun 2026';
+  const SOLD_OUT_SLUG = 'kashi-ayodhya-prayagraj';
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/group-tours');
+  });
+
+  /**
+   * Scoped by the card's own test id. Every bookable departure renders an
+   * identically-labelled CTA pair, and the headings sit many divs deep, so a
+   * `filter({ has: heading })` locator matches every ancestor div up to the
+   * list container — and then picks a different card's button.
+   */
+  function card(page: import('@playwright/test').Page, slug: string) {
+    return page.getByTestId(`group-departure-${slug}`);
+  }
+
+  test('POSTs formType:"group-tour-reservation" carrying the batch date, not just the name', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await card(page, DEPARTURE_SLUG).getByRole('button', { name: 'Reserve a Seat' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // Unchanged UX: the departure is still shown as pre-filled page context.
+    await expect(dialog.getByText('Enquiring about')).toBeVisible();
+    await expect(dialog.getByText(DEPARTURE)).toBeVisible();
+
+    await fillContactDetails(page);
+    await dialog.getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    expect(onlyLead(captured)).toMatchObject({
+      formType: 'group-tour-reservation',
+      departureName: DEPARTURE,
+      batchDate: BATCH_DATE,
+      interestedIn: DEPARTURE,
+      name: 'Asha Patel',
+      mobile: '9876543210',
+    });
+  });
+
+  test('is no longer sent as a generic enquiry', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await card(page, DEPARTURE_SLUG).getByRole('button', { name: 'Reserve a Seat' }).click();
+    await fillContactDetails(page);
+    await page.getByRole('dialog').getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    const lead = onlyLead(captured);
+    expect(lead.formType).toBe('group-tour-reservation');
+    expect(lead).not.toHaveProperty('pageName');
+  });
+
+  /** A brochure request is not a seat reservation — it stays a plain `brochure` lead. */
+  test('"Get Brochure" on the same card still submits formType:"brochure"', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await card(page, DEPARTURE_SLUG).getByRole('button', { name: 'Get Brochure' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Brochure for')).toBeVisible();
+
+    await fillContactDetails(page);
+    await dialog.getByRole('button', { name: /Get My Brochure/ }).click();
+
+    await expect(dialog.getByRole('heading', { name: /starts here/i })).toBeVisible({ timeout: 15_000 });
+
+    const lead = onlyLead(captured);
+    expect(lead).toMatchObject({ formType: 'brochure', packageName: DEPARTURE });
+    expect(lead).not.toHaveProperty('batchDate');
+  });
+
+  test('the sold-out departure offers no way to reserve, so it can send no reservation', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await expect(page.getByText('This journey is currently full.')).toBeVisible();
+    await expect(card(page, SOLD_OUT_SLUG).getByRole('button', { name: 'Reserve a Seat' })).toHaveCount(0);
+    expect(captured).toHaveLength(0);
   });
 });

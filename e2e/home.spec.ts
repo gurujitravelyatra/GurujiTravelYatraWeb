@@ -1,6 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-/** The real GTY number from the design export — the one genuinely actionable route this sprint. */
+import {
+  captureLeadRequests,
+  expectSubmissionConfirmed,
+  failLeadRequests,
+  fillContactDetails,
+  onlyLead,
+  stubLeadResponse,
+} from './support/leads';
+
+/** The real GTY number from the design export — the fallback every lead-failure message offers. */
 const PHONE_DISPLAY = '+91 90999 57658';
 
 test.describe('/ (Home)', () => {
@@ -124,7 +133,7 @@ test.describe('/ (Home)', () => {
   });
 });
 
-test.describe('Enquiry modal (stubbed ERP submit)', () => {
+test.describe('Enquiry modal (POSTs to /api/leads)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
   });
@@ -149,56 +158,86 @@ test.describe('Enquiry modal (stubbed ERP submit)', () => {
     await expect(dialog.getByText('Please enter your mobile number.')).toBeVisible();
   });
 
-  test('submitting reports the not-yet-connected stub and NEVER a fake success', async ({ page }) => {
-    // The single most important assertion in this suite: the ERP lead API is
-    // not built (BLOCKERS.md §1a / Decision A). A visitor must be told to
-    // call, and must never see a "we received your enquiry" confirmation that
-    // would be a lie — nothing is stored anywhere.
-    const requests: string[] = [];
-    page.on('request', (request) => {
-      if (request.method() === 'POST') requests.push(request.url());
+  /**
+   * The lead actually leaves the browser now, and the REAL route answers it —
+   * `captureLeadRequests` observes and continues rather than stubbing, so a
+   * payload the server would reject fails this test instead of passing against
+   * an assertion of what the author hoped the contract was.
+   */
+  test('submitting POSTs a formType:"enquiry" lead and confirms only after the route accepts it', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await page.getByRole('button', { name: /Start Your Journey/ }).first().click();
+    const dialog = page.getByRole('dialog');
+
+    await fillContactDetails(page);
+    await dialog.getByLabel('City').fill('Ahmedabad');
+    await dialog.getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    const lead = onlyLead(captured);
+    expect(lead).toMatchObject({
+      formType: 'enquiry',
+      name: 'Asha Patel',
+      mobile: '9876543210',
+      city: 'Ahmedabad',
+      pageName: 'Home',
+      interestedIn: 'Home',
+    });
+    // Server-owned: a public endpoint must not let a caller pick its own CRM
+    // routing key, or stamp its own clock.
+    expect(lead).not.toHaveProperty('source');
+    expect(lead).not.toHaveProperty('timestamp');
+    expect(lead.sourcePageUrl).toMatch(/^http/);
+  });
+
+  test('a 400 from the route is shown on the field it names, not as one generic banner', async ({ page }) => {
+    // The route cannot be made to reject a valid submission on demand, so this
+    // one outcome is stubbed. The SHAPE is the route's own (`ApiFailure`).
+    await stubLeadResponse(page, 400, {
+      error: 'Some details need fixing before we can send this.',
+      fields: { mobile: ['Please enter a valid mobile number.'] },
     });
 
     await page.getByRole('button', { name: /Start Your Journey/ }).first().click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel('Name *').fill('Asha Patel');
-    await dialog.getByLabel('Mobile Number *').fill('9876543210');
+    await fillContactDetails(page);
     await dialog.getByRole('button', { name: /Start Your Journey/ }).click();
 
-    const alert = dialog.getByRole('alert');
-    await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText("Online enquiry submission isn't connected yet");
-    await expect(alert).toContainText(PHONE_DISPLAY);
+    // Inline, on the input itself — the same slot client-side validation uses.
+    await expect(dialog.getByText('Please enter a valid mobile number.')).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByLabel('Mobile Number *')).toHaveAttribute('aria-invalid', 'true');
+    await expect(dialog.getByTestId('lead-form-error')).toContainText('Some details need fixing');
 
-    // No success step. Matched on the done-step heading rather than the bare
-    // words "Your journey": Playwright's string matcher is a case-insensitive
-    // substring, so it would also match the "Start Your Journey" CTA.
+    // And never a confirmation.
     await expect(dialog.getByRole('heading', { name: /starts here/i })).toHaveCount(0);
-    await expect(dialog.getByText(/GTY has your details/)).toHaveCount(0);
-    // The form is still on screen, ready for a retry.
-    await expect(dialog.getByLabel('Name *')).toBeVisible();
-
-    // And no lead was POSTed anywhere — the adapter makes no network call.
-    expect(requests).toEqual([]);
   });
 
   test('the error path preserves everything the visitor typed', async ({ page }) => {
+    // An unreachable endpoint — the one failure mode the visitor is most
+    // likely to actually hit, and the fastest way to lose a lead if the form
+    // resets.
+    await failLeadRequests(page);
+
     await page.getByRole('button', { name: /Start Your Journey/ }).first().click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel('Name *').fill('Asha Patel');
-    await dialog.getByLabel('Mobile Number *').fill('9876543210');
+    await fillContactDetails(page);
     await dialog.getByLabel('City').fill('Ahmedabad');
     await dialog.getByRole('button', { name: /Start Your Journey/ }).click();
 
-    await expect(dialog.getByRole('alert')).toBeVisible({ timeout: 15_000 });
+    const banner = dialog.getByTestId('lead-form-error');
+    await expect(banner).toBeVisible({ timeout: 15_000 });
+    await expect(banner).toContainText(PHONE_DISPLAY);
 
     // Re-entering a form after a failure is the fastest way to lose a lead.
     await expect(dialog.getByLabel('Name *')).toHaveValue('Asha Patel');
     await expect(dialog.getByLabel('Mobile Number *')).toHaveValue('9876543210');
     await expect(dialog.getByLabel('City')).toHaveValue('Ahmedabad');
     await expect(dialog.getByRole('button', { name: 'Try Again' })).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /starts here/i })).toHaveCount(0);
   });
 
   test('closes on Escape', async ({ page }) => {
@@ -211,25 +250,52 @@ test.describe('Enquiry modal (stubbed ERP submit)', () => {
   });
 });
 
-test.describe('Brochure modal (stubbed ERP submit)', () => {
-  test('reports the stub rather than handing over a brochure that does not exist', async ({ page }) => {
+test.describe('Brochure modal (POSTs to /api/leads)', () => {
+  test('submits a formType:"brochure" lead carrying the package name', async ({ page }) => {
     await page.goto('/tour-packages/spiti-valley-circuit');
+    const captured = await captureLeadRequests(page);
 
     await page.getByRole('button', { name: /Download Brochure/ }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText('Brochure for')).toBeVisible();
 
-    await dialog.getByLabel('Name *').fill('Asha Patel');
-    await dialog.getByLabel('Mobile Number *').fill('9876543210');
+    await fillContactDetails(page);
     await dialog.getByRole('button', { name: /Get My Brochure/ }).click();
 
-    const alert = dialog.getByRole('alert');
-    await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText(PHONE_DISPLAY);
+    await expect(dialog.getByRole('heading', { name: /starts here/i })).toBeVisible({ timeout: 15_000 });
 
-    // No PDF/file host is confirmed, so the unlock buttons must never appear.
-    await expect(dialog.getByRole('button', { name: /View Brochure/ })).toHaveCount(0);
-    await expect(dialog.getByRole('button', { name: /^Download Brochure/ })).toHaveCount(0);
+    expect(onlyLead(captured)).toMatchObject({
+      formType: 'brochure',
+      packageName: 'Spiti Valley Circuit',
+      name: 'Asha Patel',
+      mobile: '9876543210',
+    });
+  });
+
+  /**
+   * Unchanged by the wiring, and must stay that way: a lead being accepted says
+   * nothing about a PDF existing. No file host is confirmed (BLOCKERS.md Open
+   * Question 3), so the done step's unlock buttons remain inert stubs — but
+   * they must never appear as a consequence of the submission succeeding.
+   */
+  test('a confirmed brochure lead still hands over no brochure that does not exist', async ({ page }) => {
+    await page.goto('/tour-packages/spiti-valley-circuit');
+
+    await page.getByRole('button', { name: /Download Brochure/ }).click();
+    const dialog = page.getByRole('dialog');
+
+    await fillContactDetails(page);
+    await dialog.getByRole('button', { name: /Get My Brochure/ }).click();
+
+    await expect(dialog.getByRole('heading', { name: /starts here/i })).toBeVisible({ timeout: 15_000 });
+    // The done step's stubs are deliberately non-functional: they must not link
+    // out to, or fetch, a PDF that has never been uploaded.
+    const unlockHrefs = await dialog
+      .locator('a')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
+    for (const href of unlockHrefs) {
+      expect(href).not.toMatch(/\.pdf($|\?)/i);
+    }
   });
 });
 

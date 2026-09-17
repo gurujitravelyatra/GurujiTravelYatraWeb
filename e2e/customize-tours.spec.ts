@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { captureLeadRequests, expectSubmissionConfirmed, fillContactDetails, onlyLead } from './support/leads';
+
 /**
  * `/customize-tours` — one of three primary nav items (Navbar, Footer AND the
  * mobile menu all link here) that 404'd until this route was built
@@ -117,5 +119,115 @@ test.describe('trip builder', () => {
     await expect(dialog.getByText('Enquiring about')).toBeVisible();
     await expect(dialog.getByText('Rishikesh')).toBeVisible();
     await expect(dialog.getByText('pre-filled from this page')).toBeVisible();
+  });
+});
+
+/**
+ * BLOCKERS.md item 0. The builder's whole reason to exist is the detail it
+ * collects, and until now none of it was transmitted: "Get My Custom Quote"
+ * called `openEnquiry({ value: routeSummary })`, so a lead arrived tagged
+ * `Enquire Now – Rishikesh → Manali` with the nights, style, month, travellers
+ * and notes discarded.
+ *
+ * The UX is deliberately unchanged — the modal still opens, because the builder
+ * collects no name or mobile and the visitor has to supply those somewhere.
+ * What changed is what the modal's submit button builds.
+ */
+test.describe('custom-trip lead submission', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/customize-tours');
+  });
+
+  test('POSTs formType:"custom-trip" with the whole trip, nights per stop included', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    // Rishikesh at 3 nights (added at 2, +1), Manali left at the default 2.
+    await page.getByRole('button', { name: 'Add Rishikesh to your trip' }).click();
+    await page.getByRole('button', { name: 'Add one night to Rishikesh' }).click();
+    await page.getByRole('button', { name: 'Add Manali to your trip' }).click();
+
+    await page.getByRole('group', { name: 'Travel style' }).getByRole('button', { name: 'Luxury' }).click();
+    await page.getByLabel('Travel Month').selectOption('November');
+    await page.getByRole('button', { name: 'Increase adults' }).click();
+    await page.getByRole('button', { name: 'Increase children' }).click();
+    await page.getByLabel('Any special requests?').fill('Ground floor rooms please.');
+
+    await page.getByRole('button', { name: 'Get My Custom Quote' }).click();
+
+    await fillContactDetails(page);
+    await page.getByRole('dialog').getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    const lead = onlyLead(captured);
+    expect(lead).toMatchObject({
+      formType: 'custom-trip',
+      stops: [
+        { slug: 'rishikesh', name: 'Rishikesh', region: 'Uttarakhand', nights: 3 },
+        { name: 'Manali', nights: 2 },
+      ],
+      travelStyle: 'Luxury',
+      travelMonth: 'November',
+      adults: 3,
+      childrenCount: 1,
+      notes: 'Ground floor rooms please.',
+      name: 'Asha Patel',
+      mobile: '9876543210',
+    });
+  });
+
+  /**
+   * The exact regression: a custom trip must not arrive as a generic enquiry
+   * with the trip flattened into a display string.
+   */
+  test('is no longer sent as a generic enquiry', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await page.getByRole('button', { name: 'Add Rishikesh to your trip' }).click();
+    await page.getByRole('button', { name: 'Get My Custom Quote' }).click();
+    await fillContactDetails(page);
+    await page.getByRole('dialog').getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    const lead = onlyLead(captured);
+    expect(lead.formType).toBe('custom-trip');
+    expect(lead).not.toHaveProperty('pageName');
+  });
+
+  /**
+   * The button is not disabled on an empty route and the server accepts an
+   * empty `stops` array, so this is a real path — and a valuable lead.
+   */
+  test('an empty trip still submits, and is still accepted', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await page.getByRole('button', { name: 'Get My Custom Quote' }).click();
+    await fillContactDetails(page);
+    await page.getByRole('dialog').getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    expect(onlyLead(captured)).toMatchObject({ formType: 'custom-trip', stops: [] });
+  });
+
+  /**
+   * The builder's "Budget (Per Person)" control is aria-disabled and collects
+   * nothing (`ct-budget-field`), so a `budget` in the payload could only have
+   * been invented to satisfy a sentence in the docs.
+   */
+  test('sends no budget field', async ({ page }) => {
+    const captured = await captureLeadRequests(page);
+
+    await page.getByRole('button', { name: 'Add Rishikesh to your trip' }).click();
+    await page.getByRole('button', { name: 'Get My Custom Quote' }).click();
+    await fillContactDetails(page);
+    await page.getByRole('dialog').getByRole('button', { name: /Start Your Journey/ }).click();
+
+    await expectSubmissionConfirmed(page);
+
+    const lead = onlyLead(captured);
+    expect(lead).not.toHaveProperty('budget');
+    expect(lead).toHaveProperty('travelStyle');
   });
 });
