@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import { requireAdminSession } from '@/server/auth/session';
 
@@ -70,12 +71,25 @@ export default async function AdminDashboardPage() {
       </header>
 
       <section className="rounded-22 border border-gty-border bg-gty-white p-8">
-        <h2 className="mb-3 text-18 font-extrabold text-gty-ink">Nothing to manage yet</h2>
+        <h2 className="mb-3 text-18 font-extrabold text-gty-ink">Tours</h2>
+        <p className="mb-5 max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
+          Create, edit, publish and archive the tour catalogue. New tours start as drafts and stay
+          invisible to the public site until they are published.
+        </p>
+        <Link
+          href="/admin/tours"
+          className="inline-flex min-h-[42px] items-center justify-center gap-[9px] whitespace-nowrap rounded-pill bg-gty-primary px-5 py-3 text-11-5 font-bold tracking-btn text-gty-white transition-[background-color] duration-gty-fast ease-gty hover:bg-gty-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Manage tours
+        </Link>
+      </section>
+
+      <section className="mt-6 rounded-22 border border-gty-border bg-gty-white p-8">
+        <h2 className="mb-3 text-18 font-extrabold text-gty-ink">Not built yet</h2>
         <p className="max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
-          Sign-in and session handling are in place. Tour management, brochure uploads and the
-          publish workflow are not built yet — they are the next phase of this work, and they will
-          appear here when they are real. Until then the site&rsquo;s content is still changed by
-          running the seed script.
+          Image and brochure uploads are the next phase. The tour form shows those fields, but they
+          are disabled and nothing selected in them is stored — tours render a placeholder image
+          everywhere on the site until that work lands.
         </p>
       </section>
     </main>
