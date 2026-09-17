@@ -35,10 +35,20 @@ until a remote exists.
 ## npm and Prisma binaries are restricted here
 - `binaries.prisma.sh` is unreachable (**ECONNRESET**), so `@prisma/engines`'
   postinstall always fails. Install Prisma with `--ignore-scripts`:
-  `prisma validate` and `prisma generate` still work (WASM), but anything needing
-  the schema/query engine (`migrate dev`, `db seed`, any real query) cannot run.
+  `prisma validate` and `prisma generate` still work (WASM).
   `migrate diff --from-empty --script` DOES work and is how the initial migration
   SQL was produced.
+- **[UPDATED 2026-09-18] The query engine IS present now** — `migrate dev`,
+  `migrate status`, `db seed` and real queries all run against the live Railway
+  Postgres. The clause that used to say they "cannot run" is stale; do not plan
+  around it.
+- **`prisma generate` ends in `EPERM … rename query_engine-windows.dll.node`**,
+  and that is usually HARMLESS. The TypeScript client (`index.d.ts`, `index.js`)
+  is written FIRST and is up to date; the engine binary is byte-identical between
+  generates of the same Prisma version, so the failed rename replaces a file with
+  itself. Check `index.d.ts`'s mtime and grep it for the new model before chasing
+  the error. It leaves ~19MB `.tmp*` copies behind — delete them. A running
+  standalone server holds the DLL open, which is one way to cause it.
 - `npm install prisma@latest` fails with `Cannot read properties of null (reading
   'edgesOut')` — an arborist bug on this tree. Pinned `prisma@^5.22.0` installs.
 - **Never run two `npm install`s concurrently here** — they clobber each other's
@@ -80,14 +90,41 @@ is broken" and start bisecting source.
 **How to apply:** substitute `npx next build --webpack` for `npm run build`, and
 pre-start the standalone server before `npx playwright test`.
 
+## The Railway TCP proxy drops connections — budget for retries
+**Measured 2026-09-18:** a jest test whose only statement is `prisma.tour.count()`
+failed **3 runs out of 4** with `PrismaClientInitializationError: Can't reach
+database server`, then succeeded unchanged. The server is fine (`max_connections`
+500); it is the managed TCP proxy refusing connection ATTEMPTS — the same `P1001`
+the pool cap in `src/server/db/prisma.ts` was written for.
+
+Consequences to expect, none of which are a code defect:
+- **`next build` fails roughly one run in two**, during `generateStaticParams`
+  for `/tour-packages/[slug]`. Retry it in a loop; it succeeds within 2-3 tries.
+- **The first request to a freshly-started server can 500** before the connection
+  warms up, then every subsequent request is fine. Warm it with one `curl` before
+  running anything that measures.
+- Any DB-touching suite needs a connection retry in `beforeAll` — see
+  `tour-repository.integration.test.ts`'s `connectWithRetry`.
+
 ## E2E is load-sensitive against the remote database
 `/tour-packages` is a dynamic route backed by the Railway Postgres when
-`DATABASE_URL` is set. In a full 2-worker Playwright run, its two navigation
-assertions in `home.spec.ts` ("navigates to Tour Packages from the navbar",
-"the Trip Finder CTA deep-links…") intermittently blow the 5s expect timeout —
-they pass on a targeted re-run and on a stashed clean tree. Confirm a
-`/tour-packages` failure in isolation before treating it as a regression;
-this has now been observed across three separate runs.
+`DATABASE_URL` is set. In a full 2-worker Playwright run, navigation assertions
+that land on it — `home.spec.ts`'s "navigates to Tour Packages from the navbar"
+and "the Trip Finder CTA deep-links…", `tour-packages.spec.ts`'s "the detail
+breadcrumb navigates back" — intermittently blow the 5s expect default. **Exactly
+one fails per run and WHICH one moves between runs.**
+
+**Settled 2026-09-18, with the decisive measurement:** the same suite run against
+the FIXTURE path is **114 passed / 0 failed**, and those tests take 1.1-2.0s
+there versus 3.9-7.2s against the database. It is remote-query latency against a
+5s timeout, nothing else — the server log shows no query errors during the failing
+runs. Force the fixture path with an EMPTY value (`DATABASE_URL= npx next build
+--webpack`, same for the server): `-u DATABASE_URL` does NOT work, because Next
+re-loads `.env`, whereas an empty string is already "set" so dotenv leaves it, and
+the composition root treats it as falsy.
+
+Confirm any `/tour-packages` failure in isolation, or on the fixture path, before
+treating it as a regression. Observed across five separate runs now.
 
 ## Lint scope
 `eslint.config.mjs` must keep ignoring `Documents/**` (vendored Claude

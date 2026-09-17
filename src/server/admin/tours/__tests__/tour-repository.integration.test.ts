@@ -150,15 +150,15 @@ describeDb('tour CMS against the live database', () => {
       // A round-trip, not a spot check. `getAdminTourBySlug` returns FORM SHAPE
       // precisely so this comparison is possible — if load and save disagreed,
       // an edit would silently reset whatever they disagreed about.
-      expect(loaded.value.name).toBe('ZZ CMS Test Tour');
-      expect(loaded.value.audienceTags.sort()).toEqual(['Domestic', 'Group Tour']);
-      expect(loaded.value.inclusions).toEqual(['Breakfast', 'Transfers']);
-      expect(loaded.value.exclusions).toEqual(['Airfare']);
-      expect(loaded.value.itineraryDays).toEqual([
+      expect(loaded.value.form.name).toBe('ZZ CMS Test Tour');
+      expect(loaded.value.form.audienceTags.sort()).toEqual(['Domestic', 'Group Tour']);
+      expect(loaded.value.form.inclusions).toEqual(['Breakfast', 'Transfers']);
+      expect(loaded.value.form.exclusions).toEqual(['Airfare']);
+      expect(loaded.value.form.itineraryDays).toEqual([
         { title: 'Day one', description: 'Arrive.' },
         { title: 'Day two', description: 'Explore.' },
       ]);
-      expect(loaded.value.faqs).toEqual([{ question: 'Is this real?', answer: 'No, it is a test row.' }]);
+      expect(loaded.value.form.faqs).toEqual([{ question: 'Is this real?', answer: 'No, it is a test row.' }]);
       expect(loaded.value.lifecycle).toBe('DRAFT');
     });
 
@@ -240,7 +240,7 @@ describeDb('tour CMS against the live database', () => {
 
       const loaded = await getAdminTourBySlug(DRAFT_SLUG);
       if (!loaded.configured || loaded.value === null) throw new Error('missing');
-      expect(loaded.value.itineraryDays).toEqual([{ title: 'Only day', description: 'Solo.' }]);
+      expect(loaded.value.form.itineraryDays).toEqual([{ title: 'Only day', description: 'Solo.' }]);
     });
 
     it('switching to pricing tiers is the presence of rows, with no flag to drift', async () => {
@@ -258,7 +258,7 @@ describeDb('tour CMS against the live database', () => {
 
       const loaded = await getAdminTourBySlug(DRAFT_SLUG);
       if (!loaded.configured || loaded.value === null) throw new Error('missing');
-      expect(loaded.value.pricingTiers).toHaveLength(2);
+      expect(loaded.value.form.pricingTiers).toHaveLength(2);
 
       const list = await listAdminTours({ status: 'ALL' });
       const row = list.configured ? list.value.find((tour) => tour.slug === DRAFT_SLUG) : undefined;
@@ -310,7 +310,7 @@ describeDb('tour CMS against the live database', () => {
 
       const before = await getAdminTourBySlug(target.slug);
       if (!before.configured || before.value === null) throw new Error('missing');
-      const { lifecycle: _l, status: _s, archivedAt: _a, updatedAt: _u, ...beforeForm } = before.value;
+      const beforeForm = before.value.form;
 
       try {
         await updateTour(

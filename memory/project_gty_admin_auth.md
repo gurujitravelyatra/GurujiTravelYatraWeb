@@ -52,6 +52,15 @@ tour CRUD and uploads are later phases.
 6. **Jest:** `next/jest` overwrites `transformIgnorePatterns`; it must be
    re-applied by awaiting the generated config. `next-auth`/`@auth/core` are
    ESM-only. `server-only` must be mapped to its own `empty.js`.
+7. **A `'use server'` file may ONLY export async functions.** Exporting a
+   constant beside the actions (`export const EMPTY_FORM_STATE = {...}`)
+   compiles, passes `tsc`, and then fails the BUILD during "Collecting page
+   data" with `A "use server" file can only export async functions, found
+   object.` `type`/`interface` exports are fine — they are erased. Put shared
+   state shapes in a sibling module and import the type back (Phase B:
+   `src/app/admin/tours/form-state.ts`). Same family as the others here: the
+   build is the first thing that enforces it, so green typecheck and green
+   tests say nothing.
 
 ## Landmines for later phases
 

@@ -208,7 +208,9 @@ export async function setTourPublishedAction(formData: FormData): Promise<void> 
     const existing = await getAdminTourBySlug(slug);
     if (!existing.configured || existing.value === null) return;
 
-    const check = publishableTourSchema.safeParse(existing.value);
+    // Validated over the STORED form values, which is the honest question here:
+    // "is what is saved publishable", not "was some form valid".
+    const check = publishableTourSchema.safeParse(existing.value.form);
     if (!check.success) {
       /**
        * Refused, and the admin is told where to fix it. Redirecting to the edit

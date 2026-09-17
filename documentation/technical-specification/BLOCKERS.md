@@ -669,12 +669,82 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    two places (`prisma/seed.ts` and `src/content/fixtures/*`), and the ERP content API
    (§1b) is still the real resolution. Migrating to `ErpContentAdapter` and deleting
    `prisma/` is the plan.
-10. **The Prisma path has never touched a real database.** Docker is still not
-   installed (item 6), so no Postgres was started, the migration was never applied and
-   the seed was never run. Schema validity and the adapter's mapping/gating logic are
-   verified (`prisma validate`, `prisma generate`, and adapter tests against a mocked
-   client); **the SQL has not been executed and the seed has not been proven to
-   insert.** `DATABASE_URL` is unset here, so the composition root still resolves to
-   `FixtureContentAdapter` and the live site is unchanged — which is why the suite
-   passing says nothing about the database. First run against a real Postgres should be
-   treated as untested code.
+10. ~~**The Prisma path has never touched a real database.**~~ — **RESOLVED.**
+   `DATABASE_URL` now points at a managed Postgres, three migrations are applied, and
+   the seed has inserted 22 tours. The original text is preserved below.
+
+   <details><summary>Original item (now resolved)</summary>
+
+   Docker is still not installed (item 6), so no Postgres was started, the migration
+   was never applied and the seed was never run. Schema validity and the adapter's
+   mapping/gating logic are verified (`prisma validate`, `prisma generate`, and adapter
+   tests against a mocked client); **the SQL has not been executed and the seed has not
+   been proven to insert.** `DATABASE_URL` is unset here, so the composition root still
+   resolves to `FixtureContentAdapter` and the live site is unchanged — which is why the
+   suite passing says nothing about the database. First run against a real Postgres
+   should be treated as untested code.
+
+   </details>
+
+   **What is true now, and what replaced this as the caveat:** `npm test` still runs on
+   the FIXTURE path deliberately (`jest.setup.ts` deletes `DATABASE_URL`), so a green
+   unit suite still says nothing about the database. What covers the database instead is
+   `src/server/admin/tours/__tests__/tour-repository.integration.test.ts`, an opt-in
+   suite (`RUN_DB_TESTS=1`) that runs real SQL.
+
+   **New, and it affects every build:** the managed TCP proxy intermittently refuses
+   connections with `P1001`. Measured — a test whose only statement is `tour.count()`
+   failed 3 runs in 4, then succeeded unchanged. In practice `next build` fails roughly
+   one run in two during `generateStaticParams`, and the first request to a
+   freshly-started server can 500 before the connection warms up. Retrying is the
+   workaround; the integration suite has a connection retry built in for this reason.
+
+11. **Tour CMS — Phase B decisions (2026-09-17/18).** Recorded here because each was a
+   judgement call the task left open.
+
+   - **Minimum fields to publish:** name, slug, category, destination, a short
+     description, a duration, and a price — where "a price" is satisfied by EITHER
+     `priceFrom` OR at least one `TourPricingTier`. Each is a field whose absence renders
+     a visibly broken card. **Images are deliberately NOT required**, because uploads are
+     Phase C and gating publish on a field the system cannot yet accept would make
+     publishing impossible. Itinerary, FAQs, inclusions and `fullDescription` are not
+     required either — the detail page renders only what exists (Decision D), so their
+     absence is a shorter page, not a broken one. Enforced by `publishableTourSchema`,
+     and re-run server-side for BOTH the form's Publish button and the list's publish
+     toggle, so the toggle is not a laxer second path to the same state.
+   - **Slug collisions are REJECTED, not auto-suffixed.** A slug is a public URL;
+     silently saving `spiti-valley-2` gives the admin an address they did not choose and
+     may not notice. The error names the conflicting tour, and says when the conflict is
+     with an ARCHIVED tour — which the admin could not otherwise find, since archived
+     tours are hidden from the default list.
+   - **Editing a slug is allowed and changes the public URL.** Every FK is
+     `ON UPDATE CASCADE`, so children follow. **No redirect is created** — this project
+     has no redirect table and inventing one was out of scope — so the form warns, at the
+     moment the change is made, that the old address will 404.
+   - **Archiving is `archivedAt`, a timestamp, not a `TourStatus.ARCHIVED` member.** The
+     two facts are independent: an archived tour keeps the `status` it had when it was
+     pulled, so restoring returns it to that state rather than silently publishing a
+     draft. Archived tours are withheld from every public surface and from the default
+     admin list, and remain findable under the Archived/All filters. Nothing deletes a
+     `Tour` row, per §7's rule for anything with lead history.
+   - **Pricing tiers are the PRESENCE of `TourPricingTier` rows, with no boolean.** A
+     flag beside the rows is a second source of truth for one fact and drifts: set true
+     with the last tier deleted renders a tour with no price; set false with rows present
+     hides pricing the admin can still see in the form.
+   - **`audienceTags` is a second axis and is NOT merged into `category`.** `category`
+     drives the public filter chips and `/api/tours?category=`; adding Domestic/Group
+     Tour there would put four unrelated chips on the public filter bar and stop a tour
+     being both Spiritual and Domestic. `International` deliberately appears in both.
+   - **No image columns were added.** A column nothing writes and nothing reads is the
+     inert-flag shape `memory/feedback_qg_unenforced-safety-flag.md` exists to prevent,
+     so Phase C adds them with the code that fills them. The form's upload controls ship
+     visibly `disabled` with the reason stated and register nothing — the brochure
+     records' `PENDING_UPLOAD` + NULL `pdfUrl` honesty pattern.
+   - **The draft/published gate composes INTO `isPubliclyListable()`** rather than
+     sitting beside it. Every public surface already funnelled through that one
+     predicate, so all of them — Home's rails, `/tour-packages`, the detail page,
+     `/api/tours`, `/api/tours/[slug]`, `generateStaticParams()`, brochures — inherited
+     draft and archive protection with no edit at the call site and no way to opt out. A
+     parallel `isPublished()` would have had to be retro-fitted to each caller, and the
+     one that got missed would be the leak — which is precisely how item 9 above
+     happened.

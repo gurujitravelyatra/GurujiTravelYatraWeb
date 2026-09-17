@@ -45,6 +45,40 @@ adapter still withholds it. Generalisation: when data crosses into a new store,
 port the ENFORCEMENT, not just the field — and test the gate with a query that
 deliberately fails to filter, or you are only testing the `where` clause.
 
+**SIXTH opportunity, NOT an occurrence (Phase B tour CMS, 2026-09-18) — the
+highest-stakes shape so far, and the one to copy.** `Tour.status`
+(DRAFT|PUBLISHED) plus `archivedAt` is this exact pattern again, except an
+unenforced `status` publishes UNFINISHED CONTENT rather than merely quoting a
+doubtful price. Three things made it come out right, and they generalise:
+
+1. **Compose into the EXISTING predicate, do not add a parallel one.** Draft and
+   archive were added as two more early-returns inside `isPubliclyListable()`.
+   Every public surface already funnelled through it, so all of them — Home's
+   rails, `/tour-packages`, the detail page, `/api/tours`, `/api/tours/[slug]`,
+   `generateStaticParams()`, brochures — got the new protection with **no edit at
+   the call site and no way to opt out**. A sibling `isPublished()` would have
+   had to be retro-fitted to each caller, and the one that got missed would be
+   the leak. That is variant 4 reproduced *within* one type.
+2. **Make the field REQUIRED on the domain type, not optional.** An optional
+   `status?` forces `undefined` to mean "published" (or the 22 existing fixture
+   tours vanish) — i.e. default-open, where a forgotten mapper line silently
+   publishes. Required means `tsc` names every construction site. It found all
+   three, before any test ran. A type error is stronger enforcement than a test.
+3. **Prove the absence-test can FAIL.** The new suite asserts a draft is absent
+   from five public paths — and an absence assertion passes just as well when the
+   surface is broken. So each half of the gate was commented out in turn: 9 of 12
+   tests failed each time. Only then is a green run evidence.
+
+Also worth copying: the migration hand-wrote `UPDATE "Tour" SET status =
+'PUBLISHED'`. The column default is DRAFT, which is right for new rows and would
+have taken all 22 live tours dark on the existing table — **a default chosen for
+safety is the wrong value for a backfill**, and the two need separate thought.
+
+And the inverse discipline, same pass: **no image columns were added** for the
+not-yet-built upload feature. A column nothing writes and nothing reads IS the
+inert-flag shape; the upload form ships visibly `disabled` with the reason stated
+instead, and Phase C adds the columns with the code that fills them.
+
 Tell-tale in review: `grep` the flag name. If the only hits are the definition, the data, and a test asserting the flag exists, nothing enforces it. If the flag renders a *visual* marker, check the marker reaches assistive tech too — an `aria-hidden` glyph plus an unreferenced footnote is an un-enforced flag wearing a costume.
 
 **Why:** flagging feels like compliance with "don't fabricate", so the agent stops there. A test that asserts the flag is set passes whether or not the flag does anything.

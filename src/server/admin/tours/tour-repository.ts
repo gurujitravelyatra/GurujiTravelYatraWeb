@@ -76,7 +76,18 @@ export interface AdminTourListItem {
   updatedAt: Date;
 }
 
-export interface AdminTourDetail extends ParsedTourFormValues {
+/**
+ * One tour, split into the two things a caller wants separately.
+ *
+ * `form` is EXACTLY the shape the editor submits, so a round-trip (load → save
+ * unchanged) is a no-op and the publish check can be run over stored data with
+ * the same schema the form uses. The lifecycle fields sit beside it rather than
+ * being spread into it, because they are NOT editable through the form —
+ * flattening them would invite `{ ...detail }` to be passed as form values, and
+ * the fields the form does not own would ride along into a write.
+ */
+export interface AdminTourDetail {
+  form: ParsedTourFormValues;
   lifecycle: AdminTourLifecycle;
   status: TourStatus;
   archivedAt: Date | null;
@@ -220,30 +231,35 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
   return {
     configured: true,
     value: {
-      name: row.name,
-      slug: row.slug,
-      destinationSlug: row.destinationSlug,
-      category: toDomainCategory(row.category),
-      audienceTags: row.audienceTags.map((tag) => toDomainAudienceTag(tag)),
-      durationLabel: row.durationLabel || undefined,
-      subtitle: row.subtitle || undefined,
-      shortDescription: row.shortDescription ?? undefined,
-      fullDescription: row.fullDescription ?? undefined,
-      bestTimeToVisit: row.bestTimeToVisit ?? undefined,
-      priceFrom: row.priceFrom || undefined,
-      priceWas: row.priceWas ?? undefined,
-      savingsLabel: row.savingsLabel ?? undefined,
-      seatsLabel: row.seatsLabel ?? undefined,
-      isHot: row.isHot,
-      inclusions: row.inclusions,
-      exclusions: row.exclusions,
-      itineraryDays: row.itineraryDays.map((day) => ({ title: day.title, description: day.description })),
-      faqs: row.faqs.map((faq) => ({ question: faq.question, answer: faq.answer })),
-      pricingTiers: row.pricingTiers.map((tier) => ({
-        name: tier.name,
-        price: tier.price,
-        description: tier.description ?? undefined,
-      })),
+      form: {
+        name: row.name,
+        slug: row.slug,
+        destinationSlug: row.destinationSlug,
+        category: toDomainCategory(row.category),
+        audienceTags: row.audienceTags.map((tag) => toDomainAudienceTag(tag)),
+        // `|| undefined` rather than `??`: these columns are NOT NULL and hold
+        // '' for "not written yet" (see `toColumnData`). An empty string must
+        // read as absent, or `publishableTourSchema` would accept it.
+        durationLabel: row.durationLabel || undefined,
+        subtitle: row.subtitle || undefined,
+        shortDescription: row.shortDescription ?? undefined,
+        fullDescription: row.fullDescription ?? undefined,
+        bestTimeToVisit: row.bestTimeToVisit ?? undefined,
+        priceFrom: row.priceFrom || undefined,
+        priceWas: row.priceWas ?? undefined,
+        savingsLabel: row.savingsLabel ?? undefined,
+        seatsLabel: row.seatsLabel ?? undefined,
+        isHot: row.isHot,
+        inclusions: row.inclusions,
+        exclusions: row.exclusions,
+        itineraryDays: row.itineraryDays.map((day) => ({ title: day.title, description: day.description })),
+        faqs: row.faqs.map((faq) => ({ question: faq.question, answer: faq.answer })),
+        pricingTiers: row.pricingTiers.map((tier) => ({
+          name: tier.name,
+          price: tier.price,
+          description: tier.description ?? undefined,
+        })),
+      },
       lifecycle: toLifecycle(row),
       status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       archivedAt: row.archivedAt,

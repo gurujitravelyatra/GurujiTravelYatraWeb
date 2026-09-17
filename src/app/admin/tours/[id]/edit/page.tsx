@@ -58,9 +58,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
    */
   if (tour.value === null) notFound();
 
-  const { lifecycle, status, archivedAt, updatedAt, ...formValues } = tour.value;
-  void status;
-  void archivedAt;
+  const { form, lifecycle, updatedAt } = tour.value;
 
   const saved = typeof query.saved === 'string' ? query.saved : undefined;
 
@@ -73,7 +71,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         >
           ← Tours
         </Link>
-        <h1 className="text-26 font-extrabold leading-tight text-gty-ink">{tour.value.name}</h1>
+        <h1 className="text-26 font-extrabold leading-tight text-gty-ink">{form.name}</h1>
 
         <p className="flex flex-wrap items-center gap-3 text-12-5 text-gty-body">
           <span
@@ -90,7 +88,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
           </span>
           {lifecycle === 'PUBLISHED' && (
             <a
-              href={`/tour-packages/${tour.value.slug}`}
+              href={`/tour-packages/${form.slug}`}
               className="font-bold text-gty-primary underline"
               target="_blank"
               rel="noreferrer"
@@ -125,8 +123,8 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
 
       <TourForm
         destinations={destinations.value}
-        editingSlug={tour.value.slug}
-        defaultValues={formValues}
+        editingSlug={form.slug}
+        defaultValues={form}
         isPublished={lifecycle === 'PUBLISHED'}
         publishBlocked={query.publishBlocked === '1'}
       />
