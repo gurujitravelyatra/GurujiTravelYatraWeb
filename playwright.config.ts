@@ -56,7 +56,24 @@ export default defineConfig({
     // PORT/HOSTNAME are passed as env rather than CLI flags because the
     // standalone entrypoint takes no arguments — it reads both from the
     // environment, exactly as the Dockerfile's `ENV PORT=3000` does.
-    env: { PORT: String(PORT), HOSTNAME: '127.0.0.1' },
+    env: {
+      PORT: String(PORT),
+      HOSTNAME: '127.0.0.1',
+      /**
+       * The admin area refuses to issue a session without this
+       * (`assertAuthSecretConfigured`), and the standalone server runs with
+       * `NODE_ENV=production`, so without it every `/admin` request 500s and the
+       * auth suite fails for a reason that has nothing to do with auth.
+       *
+       * Hardcoding it here is safe and deliberate: it is a throwaway signing key
+       * for a server that exists for the duration of a test run on 127.0.0.1. It
+       * is NOT a credential — it grants nothing, it is visible in the repository
+       * by design, and that visibility is exactly why a real deployment must set
+       * its own. Supplying it here is what keeps `npm run test:e2e` working from
+       * a cold checkout with no `.env` at all.
+       */
+      AUTH_SECRET: 'e2e-only-auth-secret-throwaway-do-not-use-anywhere-else',
+    },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

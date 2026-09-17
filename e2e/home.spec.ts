@@ -313,8 +313,23 @@ test.describe('architecture constraints', () => {
     });
   }
 
-  test('/admin is not routable', async ({ page }) => {
-    const response = await page.goto('/admin');
-    expect(response?.status()).toBe(404);
+  /**
+   * SUPERSEDED 2026-09-17. This test used to assert `/admin` returned 404, as the
+   * "Hard Architecture Boundary" of the original spec (§9, acceptance criterion
+   * 9). The user PERMANENTLY REVERSED that rule — see
+   * `memory/project_gty_admin_reversal.md` — and `/admin` is now a real,
+   * session-gated route.
+   *
+   * The test is rewritten rather than deleted, because the property worth
+   * guarding did not disappear, it changed: `/admin` must never be reachable by
+   * an anonymous visitor. A 404 proved that by the route not existing; a redirect
+   * to the login page proves it now. Deleting the test would have left the
+   * strongest assertion about the admin boundary as a gap.
+   *
+   * Full coverage of the auth behaviour lives in `e2e/admin-auth.spec.ts`.
+   */
+  test('/admin is not reachable without signing in', async ({ page }) => {
+    await page.goto('/admin');
+    await expect(page).toHaveURL(/\/admin\/login/);
   });
 });
