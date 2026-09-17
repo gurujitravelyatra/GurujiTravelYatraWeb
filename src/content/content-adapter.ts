@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import type { BrochurePort, ContentPort } from './ports';
+import { getPrismaClient } from '@/server/db/prisma';
 import { FixtureContentAdapter } from './adapters/fixture-content-adapter';
 import { PrismaContentAdapter } from './adapters/prisma-content-adapter';
 
@@ -34,59 +34,20 @@ import { PrismaContentAdapter } from './adapters/prisma-content-adapter';
  */
 
 /**
- * Next.js recreates modules on every hot reload in development, so a
- * module-scope `new PrismaClient()` leaks a connection pool per reload until
- * Postgres refuses new connections. Caching on `globalThis` is Prisma's
- * documented remedy; production gets a fresh process and skips the cache.
+ * ## Where the `PrismaClient` went
+ *
+ * The client construction, the `globalThis` cache and the `connection_limit`
+ * ceiling that used to live here are now in `src/server/db/prisma.ts`, unchanged
+ * in behaviour except that the cache is no longer development-only (that file
+ * explains why). They moved because content is no longer the only consumer: the
+ * admin CMS reads `AdminUser` through the same database, and a second
+ * `new PrismaClient()` would be a second connection POOL — the precise shape of
+ * the `P1001` build failure those comments were written about.
+ *
+ * Nothing about this file's contract changed. `DATABASE_URL` still decides, the
+ * fixture fallback is still a supported mode, and both ports still come out of
+ * one construction pass.
  */
-const globalForPrisma = globalThis as unknown as { gtyContentPrisma?: PrismaClient };
-
-/**
- * Prisma sizes its connection pool at `num_cpus * 2 + 1` PER CLIENT. That default
- * assumes one client per process, which is not how this site builds: `next build`
- * static-generates the catalogue across a POOL OF WORKER PROCESSES (11 on a
- * 12-core machine), and each worker constructs its own client — so the default
- * asks the database for ~275 connections at once.
- *
- * The first build against the deployed database failed with `P1001 Can't reach
- * database server` partway through static generation for exactly this reason. The
- * server itself was not the limit (`max_connections` 500, 9 in use); the burst of
- * simultaneous CONNECTION ATTEMPTS through the managed TCP proxy was.
- *
- * A small per-client ceiling costs nothing here because these queries are a
- * handful of indexed reads per page, not a concurrent request workload.
- *
- * The operator stays in charge: an explicit `connection_limit` already present in
- * `DATABASE_URL` is left untouched.
- */
-const DEFAULT_CONNECTION_LIMIT = '5';
-
-function buildDatasourceUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl);
-    if (!url.searchParams.has('connection_limit')) {
-      url.searchParams.set('connection_limit', DEFAULT_CONNECTION_LIMIT);
-    }
-    return url.toString();
-  } catch {
-    // Not parseable as a URL — hand it to Prisma untouched and let Prisma be the
-    // one to report what is wrong with it, rather than masking it here.
-    return rawUrl;
-  }
-}
-
-function getPrismaClient(databaseUrl: string): PrismaClient {
-  const existing = globalForPrisma.gtyContentPrisma;
-  if (existing) return existing;
-
-  const client = new PrismaClient({
-    datasources: { db: { url: buildDatasourceUrl(databaseUrl) } },
-  });
-  if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.gtyContentPrisma = client;
-  }
-  return client;
-}
 
 /**
  * Both ports come out of ONE construction pass, and that is load-bearing.

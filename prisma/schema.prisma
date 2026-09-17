@@ -10,7 +10,16 @@
 // `documentation/technical-specification/BLOCKERS.md` §5 ("Interim content
 // database"). This schema is an INTERIM measure while the CRM finishes its own
 // endpoints. It holds CONTENT ONLY. It holds NO LEADS: lead submission remains
-// `NotImplementedLeadAdapter` and CLAUDE.md's lead prohibition is NOT overridden.
+// log-only (BLOCKERS.md §6) and CLAUDE.md's lead prohibition is NOT overridden.
+//
+// ⚠️ AMENDED 2026-09-17 — the "NO ADMIN UI" half of §5's override is GONE.
+// §5 scoped its override with "NO ADMIN SURFACE. No `/admin`, no login, no CMS",
+// and this header used to repeat that. The user PERMANENTLY REVERSED that rule on
+// 2026-09-17 (see `memory/project_gty_admin_reversal.md`): a staff admin CMS is
+// now built into this same app. `AdminUser` below is the first model that serves
+// it, and it is the ONLY non-content model here. The lead prohibition is
+// untouched and still holds — if a lead/customer model ever appears in this file,
+// it did NOT come from the admin reversal.
 //
 // When the ERP's content-read API lands, the migration path is the one the
 // architecture was built for: a new `ErpContentAdapter implements ContentPort`
@@ -25,6 +34,62 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// A STAFF member who can sign in to `/admin`. Phase A of the admin CMS.
+///
+/// NOT a visitor account and never will be. The public site has no signup, no
+/// password reset and no self-service anything — `/admin/login` is the only auth
+/// surface, rows are created ONLY by `prisma/seed-admin.ts`, and the privacy
+/// policy says so in as many words. Adding a visitor-facing registration flow
+/// would be a different product decision, not an extension of this one.
+///
+/// ## No `role` column, deliberately
+///
+/// Every row is a full admin. A `role` enum with one member is a fiction that
+/// invites `if (user.role === 'ADMIN')` checks which are tautologies today and
+/// silently wrong the day a second role appears. When GTY actually needs
+/// tiered access, that is a schema change WITH the authorization code that
+/// enforces it — `memory/feedback_qg_unenforced-safety-flag.md` records four
+/// separate times a column shipped here without the enforcement behind it.
+///
+/// ## No sessions table, deliberately
+///
+/// Sessions are stateless JWTs in an httpOnly cookie (`src/server/auth/auth.ts`).
+/// A `Session`/`Account`/`VerificationToken` triple is what NextAuth's Prisma
+/// ADAPTER needs; the Credentials provider does not use an adapter at all, so
+/// those tables would be created empty and stay empty. The cost of this choice
+/// is stated plainly in that file: a JWT cannot be revoked server-side before it
+/// expires.
+model AdminUser {
+  id String @id @default(cuid())
+
+  /// Lowercased at every write and every lookup (`normalizeAdminEmail()` in
+  /// `src/server/auth/admin-user.ts`). Postgres `@unique` is case-SENSITIVE, so
+  /// without that normalisation `Owner@gty.com` and `owner@gty.com` would be two
+  /// distinct rows that both satisfy the constraint — i.e. the uniqueness this
+  /// column advertises would not be the uniqueness anyone relies on.
+  email String @unique
+
+  /// bcrypt hash, cost 12 — `$2b$` format, 60 chars. NEVER a plaintext password
+  /// and never a reversible encryption. Written only by
+  /// `hashPassword()` (`src/server/auth/password.ts`), which is the single
+  /// place that decides the cost factor.
+  ///
+  /// This column is excluded from every query that can reach a React component:
+  /// `findAdminUserForLogin()` is the ONLY reader, it lives behind
+  /// `import 'server-only'`, and it returns the hash to the credentials
+  /// `authorize()` callback and nowhere else.
+  passwordHash String
+
+  createdAt DateTime @default(now())
+
+  /// NULL until the first successful sign-in. Written by the `signIn` event, not
+  /// by `authorize()` — a correct password that then fails a later check must
+  /// not be recorded as a login. Best-effort: a write failure here is logged and
+  /// swallowed, because losing a timestamp must never cost a valid user their
+  /// session.
+  lastLoginAt DateTime?
 }
 
 /// Mirrors the `DestinationCategory` union in `src/content/types.ts` EXACTLY.
