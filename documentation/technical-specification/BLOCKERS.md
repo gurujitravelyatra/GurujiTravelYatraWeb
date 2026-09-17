@@ -462,8 +462,8 @@ delivery that did not happen. Its `CrmSubmissionOutcome` type makes
 stub can fabricate one. `CRM_LEADS_ENDPOINT`/`CRM_API_KEY` are reserved in
 `.env.example` and do nothing yet.
 
-**The frontend is not wired to this route.** See the note below — this is the
-most important open item attached to this decision.
+~~**The frontend is not wired to this route.**~~ — **CLOSED 2026-09-17.** All four
+reachable forms now POST to it. See item 0 below for what changed.
 
 ### Scope: four source tags, not six
 
@@ -486,11 +486,62 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
 
 ## Still open after this sprint
 
-0. **The frontend does not call `POST /api/leads` yet (§6).** The route is built,
-   validated and tested, but **no component submits to it** — every form still
-   goes through `leadAdapter.submitLead()`, i.e. `NotImplementedLeadAdapter`,
-   which returns an error and transmits nothing. Until an adapter is pointed at
-   the route, the endpoint has zero callers and no lead reaches the log.
+0. ~~**The frontend does not call `POST /api/leads` yet (§6).**~~ — **RESOLVED
+   2026-09-17.** All four accepted `formType`s now have a real client-side
+   producer, and the route has callers. Original framing preserved below the
+   resolution.
+
+   **What was built**
+   - `src/lib/leads/lead-api-client.ts` — `submitLeadRequest()`, the browser's
+     side of the route. Never throws; every outcome resolves to a success or to
+     an error carrying visitor-safe text. A 200 is treated as success *only* if
+     the envelope confirms receipt, so an unparsed body cannot become a
+     fabricated "GTY has your details".
+   - `src/components/modals/lead-details.ts` — `LeadDetails`, the `formType`-
+     tagged context a trigger passes alongside the display chip. This is the
+     channel that did not exist: previously a trigger could pass one display
+     string and nothing else.
+   - `src/components/modals/build-lead-request.ts` — merges form values +
+     trigger context into the exact union member the server validates. Its
+     return type is the server's own `LeadSubmissionInput` (imported
+     type-only), so a contract drift fails `tsc` instead of 400ing a visitor.
+   - `modal-context.tsx` gained `openGroupReservation()` and `openCustomTrip()`.
+     Both open the **same enquiry modal** as before — the UX is deliberately
+     unchanged, because neither the departure card nor the trip builder collects
+     a name or mobile, so the modal is still where contact details come from.
+     Only the payload it builds is different.
+   - `LeadModal`'s error path now reads `ApiFailure.fields` and routes each
+     message to its own input via RHF `setError` — the same `Field`/`error`
+     slot client-side Zod already renders into, not a second error UI. Paths
+     with no input behind them (`batchDate`, `sourcePageUrl`, `stops.0.nights`,
+     `utm.*`) are appended to the form-level banner rather than dropped.
+
+   **What did NOT change:** `LeadSubmissionPort`/`NotImplementedLeadAdapter`
+   still exist and still back the **newsletter** form. That flow has no server
+   contract — `'Newsletter Signup'` is a `LeadSourceTag` with no union member
+   behind it (see "four source tags, not six" above) — so pointing it at this
+   route would make it 400 on a `formType` it cannot supply. Two submit paths is
+   the honest state of the system; one path claiming to cover all five forms
+   would not be.
+
+   **No `budget` was invented.** `TripBuilder`'s "Budget (Per Person)" control
+   is `aria-disabled` with a visible "coming soon" and holds no state, so
+   `travelStyle` remains the only price-tier signal transmitted. Asserted
+   explicitly in `build-lead-request.test.ts` and in both E2E suites.
+
+   **Verification:** `build-lead-request.test.ts` re-runs the *real*
+   `leadSubmissionSchema` over every built payload, so a schema change breaks
+   the tests rather than a visitor's submission. The E2E specs intercept
+   `/api/leads`, assert the body, and `route.continue()` to the real handler —
+   a payload the server would reject fails the run.
+
+   <details><summary>Original blocker text (2026-09-17, now resolved)</summary>
+
+   The route is built, validated and tested, but **no component submits to it** —
+   every form still goes through `leadAdapter.submitLead()`, i.e.
+   `NotImplementedLeadAdapter`, which returns an error and transmits nothing.
+   Until an adapter is pointed at the route, the endpoint has zero callers and no
+   lead reaches the log.
 
    Two of the four accepted `formType`s have no client-side producer *at all*,
    and this is not just missing plumbing — the data is actively discarded today:
@@ -512,6 +563,13 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    `LeadModal`'s error path taught to read `ApiFailure.fields` (it currently
    handles only a single flat `message` string, so field-level 400s would be
    shown as one generic banner).
+
+   </details>
+
+   **Still true after this fix:** a submitted lead reaches the server log and
+   nothing else. §1a (the ERP/CRM endpoint) is untouched and remains the real
+   production blocker — the modal's done step may say "GTY has your details",
+   which is now true, but no CRM has them.
 
 1. **ERP lead-creation contract (1a)** — the genuine production blocker. Decision A
    unblocked the UI; it did not satisfy CLAUDE.md's Definition of Done.
