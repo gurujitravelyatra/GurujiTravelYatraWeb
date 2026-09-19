@@ -6,6 +6,7 @@ import { CATEGORY_TO_PRISMA, toDomainCategory } from '@/content/adapters/prisma-
 import { AUDIENCE_TAG_TO_PRISMA, toDomainAudienceTag } from '@/content/adapters/prisma-audience-tag';
 import type { DestinationCategory, TourStatus } from '@/content/types';
 
+import { sanitizeTourFormValues } from './sanitize-tour-text';
 import type { ParsedTourFormValues, SubmitIntent } from './tour-form-schema';
 
 /**
@@ -591,13 +592,21 @@ function statusForIntent(intent: SubmitIntent): TourStatus {
   return intent === 'publish' ? 'PUBLISHED' : 'DRAFT';
 }
 
+/**
+ * The parameter is named `rawValues` and immediately shadowed by a sanitized
+ * `values` in both writers below, so there is no name in scope after line one
+ * that holds un-cleaned text. See `sanitize-tour-text.ts` for what this buys and
+ * why it lives here — in the repository, the last thing before the database —
+ * rather than in the Zod schema the form shares with the browser.
+ */
 export async function createTour(
-  values: ParsedTourFormValues,
+  rawValues: ParsedTourFormValues,
   intent: SubmitIntent
 ): Promise<Configured<{ slug: string }>> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return unconfigured();
 
+  const values = sanitizeTourFormValues(rawValues);
   const children = childCreates(values);
 
   const created = await prisma.$transaction(async (tx) => {
@@ -648,14 +657,16 @@ export async function createTour(
   return { configured: true, value: created };
 }
 
+/** See `createTour` for why the parameter is `rawValues` and is shadowed at once. */
 export async function updateTour(
   currentSlug: string,
-  values: ParsedTourFormValues,
+  rawValues: ParsedTourFormValues,
   intent: SubmitIntent
 ): Promise<Configured<{ slug: string }>> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return unconfigured();
 
+  const values = sanitizeTourFormValues(rawValues);
   const children = childCreates(values);
 
   const updated = await prisma.$transaction(async (tx) => {

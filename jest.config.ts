@@ -21,9 +21,22 @@ const createJestConfig = nextJest({
  * it uses to render its built-in pages. A narrow allow-list rather than
  * transforming all of `node_modules`, which would be slow and would hide the
  * next occurrence of this.
+ *
+ * ## The second group: `sanitize-html`'s parser chain (Phase D)
+ *
+ * `sanitize-html` is itself CommonJS, but the parser underneath it is not —
+ * `htmlparser2` v12 and everything it pulls (`entities`, `domhandler`,
+ * `domutils`, `dom-serializer`, `domelementtype`) declare `"type": "module"`
+ * with no CJS build.
+ *
+ * This is worth a note because `require('sanitize-html')` works perfectly in a
+ * plain `node -e` on this machine and fails in Jest, which looks like a Jest bug
+ * and is not: Node 22 can `require()` an ES module, Jest's own module runtime
+ * cannot. So "it works in node" proves nothing here, and the fix is to transform
+ * the chain rather than to go looking for a CommonJS build that does not exist.
  */
 const ESM_ONLY_PACKAGES_TO_TRANSFORM = [
-  '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|preact-render-to-string|geist|next/dist/client|next/dist/shared/lib)/)',
+  '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|preact-render-to-string|geist|htmlparser2|entities|domhandler|domutils|dom-serializer|domelementtype|next/dist/client|next/dist/shared/lib)/)',
 ];
 
 const customJestConfig: Config = {

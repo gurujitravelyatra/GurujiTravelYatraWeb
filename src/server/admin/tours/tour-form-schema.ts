@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { containsMarkup, MARKUP_REJECTED_MESSAGE } from './plain-text';
+
 /**
  * The tour editor's contract — Phase B of the admin CMS.
  *
@@ -56,9 +58,26 @@ export type AudienceTagValue = (typeof AUDIENCE_TAG_VALUES)[number];
  */
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const optionalText = z
-  .string()
-  .trim()
+/**
+ * PLAIN TEXT — the stored-XSS rule, Phase D.
+ *
+ * Wraps a string rule so it also refuses anything an HTML parser could open a tag
+ * on. Applied to every free-text field below and to nothing else; the full
+ * reasoning, including why this REFUSES rather than silently strips and why the
+ * real stripping lives server-side in `sanitize-tour-text.ts`, is in
+ * `plain-text.ts`.
+ *
+ * Takes the built `ZodString` rather than appending to it, because `.refine()`
+ * returns a `ZodEffects` that no longer carries `.min()`/`.regex()` — so the
+ * length rules must be attached first and this must be the outermost call. That
+ * ordering is also the one that produces the better error: a field whose entire
+ * contents were a tag reports "remove the HTML tags", not "too short".
+ */
+function plainText<T extends z.ZodString>(rule: T) {
+  return rule.refine((value) => !containsMarkup(value), MARKUP_REJECTED_MESSAGE);
+}
+
+const optionalText = plainText(z.string().trim())
   .optional()
   .transform((value) => (value === '' ? undefined : value));
 
@@ -69,13 +88,13 @@ const optionalText = z
  * duplicate the admin created by removing a row from the middle.
  */
 export const itineraryDaySchema = z.object({
-  title: z.string().trim().min(1, 'Give this day a title.'),
-  description: z.string().trim().min(1, 'Describe what happens on this day.'),
+  title: plainText(z.string().trim().min(1, 'Give this day a title.')),
+  description: plainText(z.string().trim().min(1, 'Describe what happens on this day.')),
 });
 
 export const faqSchema = z.object({
-  question: z.string().trim().min(1, 'Enter the question.'),
-  answer: z.string().trim().min(1, 'Enter the answer.'),
+  question: plainText(z.string().trim().min(1, 'Enter the question.')),
+  answer: plainText(z.string().trim().min(1, 'Enter the answer.')),
 });
 
 /**
@@ -157,8 +176,8 @@ export type BrochureFileValue = z.infer<typeof brochureFileSchema>;
  * why a flag beside the rows would drift).
  */
 export const pricingTierSchema = z.object({
-  name: z.string().trim().min(1, 'Name this tier (e.g. Standard).'),
-  price: z.string().trim().min(1, 'Enter this tier’s price.'),
+  name: plainText(z.string().trim().min(1, 'Name this tier (e.g. Standard).')),
+  price: plainText(z.string().trim().min(1, 'Enter this tier’s price.')),
   description: optionalText,
 });
 
@@ -176,7 +195,7 @@ export const pricingTierSchema = z.object({
  * `publishableTourSchema` below.
  */
 export const tourFormSchema = z.object({
-  name: z.string().trim().min(2, 'Enter the tour name.'),
+  name: plainText(z.string().trim().min(2, 'Enter the tour name.')),
   slug: z
     .string()
     .trim()
@@ -200,8 +219,8 @@ export const tourFormSchema = z.object({
   seatsLabel: optionalText,
   isHot: z.boolean().default(false),
 
-  inclusions: z.array(z.string().trim().min(1)).default([]),
-  exclusions: z.array(z.string().trim().min(1)).default([]),
+  inclusions: z.array(plainText(z.string().trim().min(1))).default([]),
+  exclusions: z.array(plainText(z.string().trim().min(1))).default([]),
 
   itineraryDays: z.array(itineraryDaySchema).default([]),
   faqs: z.array(faqSchema).default([]),
