@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { getAllPackages, getPackageBySlug } from '@/content/get-all-packages';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { isSafeMediaUrl } from '@/lib/cloudinary-url';
 import { PackageDetailCtas } from '@/components/tour-packages/PackageDetailCtas';
 
 interface PackageDetailPageProps {
@@ -54,6 +55,24 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
   // ("leh ladakh" / "vaishnodevi").
   const destinationName = pkg.destinationName;
 
+  /**
+   * THE GALLERY URLs ARE FILTERED BEFORE THEY REACH AN `href`.
+   *
+   * `PhotoPlaceholder` already refuses an unsafe `src`, but this page also puts
+   * each URL in an anchor, and an anchor is the more dangerous of the two: a
+   * `javascript:` `src` on an `<img>` does nothing in any current browser, while
+   * a `javascript:` `href` is one click from executing on our origin, in the
+   * visitor's session.
+   *
+   * Nothing writable through the admin can get here — `cloudinaryUrl` in the
+   * tour schema pins the host. But this column is also reachable by a direct SQL
+   * edit, by a restore of a backup predating that rule, and by any future import
+   * script, and a renderer that trusts its datastore is trusting every path that
+   * has ever written to it. Filtering (rather than refusing the page) means one
+   * bad row costs one thumbnail, not the tour.
+   */
+  const galleryUrls = (pkg.galleryImageUrls ?? []).filter(isSafeMediaUrl);
+
   return (
     <SiteShell activePath="/tour-packages" pageLabel={pkg.name}>
       <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-gx py-8">
@@ -93,13 +112,13 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
           of one is worse than none; opening the image is something every browser
           already does correctly.
         */}
-        {pkg.galleryImageUrls && pkg.galleryImageUrls.length > 0 && (
+        {galleryUrls.length > 0 && (
           <section aria-labelledby="tour-gallery-heading" className="flex flex-col gap-3">
             <h2 id="tour-gallery-heading" className="text-16 font-extrabold text-gty-ink">
               Photos
             </h2>
             <ul className="flex flex-wrap gap-3">
-              {pkg.galleryImageUrls.map((url, index) => (
+              {galleryUrls.map((url, index) => (
                 <li key={url}>
                   <a
                     href={url}
@@ -110,7 +129,7 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
                     <PhotoPlaceholder
                       photoKey={pkg.photoUrl}
                       imageUrl={url}
-                      alt={`${pkg.name} — photo ${index + 1} of ${pkg.galleryImageUrls?.length ?? 0}`}
+                      alt={`${pkg.name} — photo ${index + 1} of ${galleryUrls.length}`}
                       className="h-[110px] w-[150px]"
                     />
                   </a>

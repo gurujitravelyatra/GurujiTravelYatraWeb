@@ -43,7 +43,12 @@ jest.mock('@/server/db/prisma', () => ({
 
 import { createTour, updateTour } from '../tour-repository';
 import { parseTourForm, tourFormSchema } from '../tour-form-schema';
-import { MARKUP_REJECTED_MESSAGE, containsMarkup } from '../plain-text';
+import {
+  MARKUP_DECODE_ROUNDS_FOR_TESTS as MAX_DECODE_ROUNDS,
+  MARKUP_REJECTED_MESSAGE,
+  containsMarkup,
+  decodeForMarkupDetection,
+} from '../plain-text';
 import { sanitizeTourFormValues, toPlainText } from '../sanitize-tour-text';
 import type { ParsedTourFormValues } from '../tour-form-schema';
 
@@ -434,5 +439,178 @@ describe('the sanitizer itself', () => {
     const cleaned = sanitizeTourFormValues(values({ fullDescription: undefined, priceWas: undefined }));
     expect(cleaned.fullDescription).toBeUndefined();
     expect(cleaned.priceWas).toBeUndefined();
+  });
+});
+
+/**
+ * M1 — ENTITY-ENCODED PAYLOADS, the 2026-09-19 independent review.
+ *
+ * Every payload above contains a literal `<`, which is what `MARKUP_OPENER`
+ * looks for. `&lt;img src=x onerror=alert(1)&gt;` contains none — so the schema
+ * accepted it, `toPlainText`'s guard clause returned it untouched, and the row
+ * was stored byte-for-byte.
+ *
+ * ## Why that matters even though our own pages are safe
+ *
+ * On a GTY page it is inert: React escapes the `&`, and a visitor sees the
+ * characters `&lt;img …`. The exposure is entirely on the other side of the
+ * HTTP boundary — `/api/tours` and `/api/tours/[slug]` publish this text as
+ * JSON to consumers this repository does not own, and the first one to assign a
+ * field to `innerHTML` decodes the entities and runs the payload. That is
+ * precisely the property `sanitize-tour-text.ts`'s header claims to buy ("the
+ * stored row is clean regardless of who reads it"), and it was the one encoding
+ * that walked straight through.
+ *
+ * ## The assertion is on the DECODED stored value
+ *
+ * `expect(stored).not.toContain('<')` is the wrong test — it passes for
+ * `&lt;script&gt;`, which is the bug. So every assertion below decodes what
+ * would have been stored, the way a consumer's `innerHTML` would, and asks
+ * whether a tag can be built from the result.
+ */
+describe('entity-encoded markup', () => {
+  /** The same payloads, written without a single literal angle bracket. */
+  const ENCODED = {
+    NAMED: '&lt;img src=x onerror=alert(1)&gt;',
+    NUMERIC: '&#60;script&#62;alert(1)&#60;/script&#62;',
+    HEX: '&#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;',
+    /** Zero-padded numeric — a browser accepts these, a naive `&#60;` match does not. */
+    PADDED_NUMERIC: '&#060;script&#062;alert(1)&#060;/script&#062;',
+    /** No trailing semicolon. `&lt` is a legacy reference a browser still resolves. */
+    NO_SEMICOLON: '&ltscript&gtalert(1)&lt/script&gt',
+    /** Double-encoded: one decode pass leaves `&lt;script&gt;`, which still executes. */
+    DOUBLE: '&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;',
+    /** The round-trip case — detected as markup, and the old single pass MANUFACTURED a payload from it. */
+    ROUND_TRIP: '<p>&amp;lt;script&gt;alert(1)&amp;lt;/script&gt;</p>',
+  } as const;
+
+  const ALL_ENCODED = Object.values(ENCODED);
+
+  /**
+   * Decodes the way a consumer's HTML sink would, then asks the structural
+   * question. `decodeForMarkupDetection` is the module's own decoder, which is
+   * deliberate: if it under-decodes, this test under-checks, so the two are
+   * pinned together by the non-vacuity assertions below rather than by trust.
+   */
+  function decodesToMarkup(stored: string): boolean {
+    return /<[a-zA-Z!/?]/.test(decodeForMarkupDetection(stored));
+  }
+
+  it('the payload set is real, and each one is genuinely entity-encoded', () => {
+    // GUARD THE GUARD. Every assertion in this block is an ABSENCE, and an
+    // absence assertion over an empty or wrongly-built set is free.
+    expect(ALL_ENCODED.length).toBeGreaterThanOrEqual(7);
+
+    for (const [name, payload] of Object.entries(ENCODED)) {
+      // ...and each one really does decode to executable markup, or the test
+      // below proves nothing by rejecting something that was never dangerous.
+      expect({ name, dangerous: decodesToMarkup(payload) }).toEqual({ name, dangerous: true });
+    }
+
+    // All but the round-trip case carry no literal `<` at all — i.e. the OLD
+    // detector saw nothing in them. That is the defect, stated as data.
+    const withoutLiteralAngle = ALL_ENCODED.filter((p) => !p.includes('<'));
+    expect(withoutLiteralAngle.length).toBe(ALL_ENCODED.length - 1);
+  });
+
+  it.each(ALL_ENCODED)('the schema refuses it: %j', (payload) => {
+    expect(containsMarkup(payload)).toBe(true);
+
+    const parsed = tourFormSchema.safeParse(values({ shortDescription: payload }));
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.some((i) => i.message === MARKUP_REJECTED_MESSAGE)).toBe(true);
+    }
+  });
+
+  it.each(ALL_ENCODED)('and the write path neutralises it anyway: %j', (payload) => {
+    /**
+     * The second layer, tested independently of the first — the repository is
+     * handed the raw payload with no schema in the way, which is the only
+     * honest way to test a fallback.
+     */
+    const stored = toPlainText(payload);
+
+    expect(decodesToMarkup(stored)).toBe(false);
+    // And repeatedly decoding the stored value never produces a tag either —
+    // the property a consumer's sink actually exercises.
+    expect(decodeForMarkupDetection(stored)).not.toMatch(/<[a-zA-Z!/?]/);
+  });
+
+  it('is idempotent: re-saving stored text does not erode it further', () => {
+    // The whole tour is re-submitted on every save, including fields nobody
+    // touched. A transform that changed its own output would eat the copy a
+    // little more each time the admin pressed Save.
+    for (const payload of ALL_ENCODED) {
+      const once = toPlainText(payload);
+      expect(toPlainText(once)).toBe(once);
+    }
+  });
+
+  /**
+   * THE LOAD-BEARING NON-REGRESSION. The guard clause in `toPlainText` exists
+   * so that ordinary text is stored byte-for-byte — no escaping artefacts, no
+   * entity resolution. Making the detector entity-aware moves that boundary,
+   * and moving it too far would mean `Tea &amp; coffee` came back as
+   * `Tea &amp;amp; coffee` and the tour page showed the literal `&amp;`.
+   */
+  it.each([
+    'Tea &amp; coffee',
+    'Rooms for &lt; 4 guests',
+    'Price: 5 &gt; 3',
+    '&amp; &lt; &nbsp;',
+    'Breakfast &amp; dinner included, 5 &gt; 3 nights',
+    'Use &amp;amp; for an ampersand',
+  ])('leaves ordinary escaped text exactly as typed: %j', (text) => {
+    expect(containsMarkup(text)).toBe(false);
+    expect(toPlainText(text)).toBe(text);
+  });
+
+  /**
+   * NESTING vs. REPETITION — worth pinning, because they look alike and behave
+   * completely differently, and the first version of this test confused them.
+   *
+   * `'&amp;'.repeat(n)` is n SIBLING references, not n layers: a single global
+   * replace resolves all of them in one pass. Real nesting re-encodes the `&` of
+   * the layer below, giving `&` + `amp;` × (n-1) + `lt;` — and that costs
+   * exactly one pass per layer.
+   */
+  it('peels exactly one nesting layer per pass, and detects anything a real sink could decode', () => {
+    const nest = (layers: number) => `${'&'}${'amp;'.repeat(layers - 1)}lt;script&gt;`;
+
+    // Confirms the construction is what it claims — otherwise the cap assertion
+    // below is measuring something else entirely.
+    expect(nest(1)).toBe('&lt;script&gt;');
+    expect(nest(2)).toBe('&amp;lt;script&gt;');
+    expect(decodeForMarkupDetection(nest(2))).toContain('<script>');
+
+    // Every depth a sink could plausibly reach is caught.
+    for (let layers = 1; layers <= MAX_DECODE_ROUNDS; layers += 1) {
+      expect({ layers, caught: containsMarkup(nest(layers)) }).toEqual({ layers, caught: true });
+    }
+  });
+
+  it('is bounded on a pathological input, and that is SAFE rather than a gap', () => {
+    /**
+     * 20,000 genuine nesting layers. The detector gives up after
+     * `MAX_DECODE_ROUNDS`, so it reports "no markup" — which is the honest
+     * answer to the question that matters:
+     *
+     * **An n-layer encoding needs n decodes to become executable.** A consumer
+     * assigning to `innerHTML` decodes ONCE. A 20,000-layer payload therefore
+     * renders as the literal characters `&amp;amp;…` in every sink that exists;
+     * it is text, not a tag, and treating it as a threat would mean refusing
+     * ordinary copy that happens to contain a lot of ampersands.
+     *
+     * The cap is five, i.e. five times deeper than any real sink decodes. What
+     * it buys is that an attacker cannot choose how long a save takes — an
+     * uncapped "repeat until stable" is a CPU denial-of-service on a path that
+     * runs on every keystroke in the admin form.
+     */
+    const deeplyNested = `${'&'}${'amp;'.repeat(20_000)}lt;script&gt;`;
+
+    const started = Date.now();
+    expect(containsMarkup(deeplyNested)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(2_000);
   });
 });

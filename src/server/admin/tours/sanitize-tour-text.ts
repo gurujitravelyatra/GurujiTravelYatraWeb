@@ -112,8 +112,64 @@ const STRIP_ALL: sanitizeHtml.IOptions = {
  */
 export function toPlainText(value: string): string {
   if (!containsMarkup(value)) return value;
-  return decodeHTML(sanitizeHtml(value, STRIP_ALL));
+
+  /**
+   * ## Why this is a LOOP now, and not one round trip
+   *
+   * One round trip is not a fixed point, and the counterexample is not exotic:
+   *
+   *   `<p>&amp;lt;script&gt;</p>`
+   *
+   * The parser reads the `<p>`'s text content as `&lt;script>` (it resolved
+   * `&amp;` → `&`), `sanitize-html` re-escapes that for output, and `decodeHTML`
+   * undoes the escaping — leaving `&lt;script>` stored. So a single pass took an
+   * input that WAS detected as markup and turned it into an entity-encoded
+   * payload that the old detector would then have called clean. The round trip
+   * manufactured the very thing this file exists to remove.
+   *
+   * Entity decoding is not idempotent on text that contains encoded entities,
+   * and a parser round trip performs one level of it. The fix is to keep going
+   * while the result still looks like markup, which converges quickly because
+   * each pass strips one encoding layer:
+   *
+   *   `<p>&amp;lt;script&gt;</p>` → `&lt;script>` → `<script>` → `` (empty)
+   *
+   * Empty is the correct destination for that input — `script` is a
+   * `nonTextTag`, so its content is dropped, exactly as a literal
+   * `<script>alert(1)</script>` has always been dropped here.
+   *
+   * ## The loop cannot erode legitimate text
+   *
+   * It is entered only when `containsMarkup()` is true, and it exits the moment
+   * `containsMarkup()` goes false — so `<b>Deluxe</b>` runs exactly one pass and
+   * stops at `Deluxe`, and `Tea &amp; coffee` never enters at all (the guard
+   * clause above returns it byte-for-byte, which is the property this whole file
+   * is built around). The cap is a backstop for a pathological input rather than
+   * an expected exit; an input that is still markup after five passes has been
+   * whittled to something no browser would build an element from anyway.
+   */
+  let current = value;
+
+  for (let round = 0; round < MAX_STRIP_ROUNDS; round += 1) {
+    const stripped = decodeHTML(sanitizeHtml(current, STRIP_ALL));
+
+    // A genuine fixed point. Further passes would only re-escape and re-decode
+    // the same string forever.
+    if (stripped === current) return current;
+
+    current = stripped;
+    if (!containsMarkup(current)) return current;
+  }
+
+  return current;
 }
+
+/**
+ * Matches `MAX_DECODE_ROUNDS` in `plain-text.ts` and for the same reason: each
+ * pass peels one encoding layer, real payloads use one or two, and the bound is
+ * what stops a hand-crafted input choosing how long a save takes.
+ */
+const MAX_STRIP_ROUNDS = 5;
 
 /** `toPlainText` over an optional field, preserving `undefined`. */
 function optional(value: string | undefined): string | undefined {

@@ -20,6 +20,67 @@
  */
 
 /**
+ * The host every legitimate media URL in this project starts with.
+ *
+ * Duplicated deliberately from `CLOUDINARY_URL_PREFIX` in
+ * `tour-form-schema.ts` rather than imported: that module lives under
+ * `src/server/admin/`, and a PUBLIC page importing from the admin tree would
+ * invert the one-way boundary `tour-repository.ts` documents at length. The two
+ * constants are pinned to each other by a test instead, which is the cheaper
+ * side of that trade.
+ */
+const CLOUDINARY_DELIVERY_PREFIX = 'https://res.cloudinary.com/';
+
+/**
+ * RENDER-TIME URL REFUSAL — defence in depth, added after the 2026-09-19 review.
+ *
+ * ## The hole
+ *
+ * `/tour-packages/[slug]` rendered `<a href={url}>` straight from
+ * `pkg.galleryImageUrls`, and `PhotoPlaceholder` renders `<img src>` the same
+ * way. Both trusted the database.
+ *
+ * Every WRITE path already pins these to Cloudinary — `cloudinaryUrl` in
+ * `tour-form-schema.ts` refuses anything else, which is why a `javascript:` URL
+ * cannot be saved through the admin. But "cannot be saved through the admin" is
+ * not "is not in the database". A direct SQL edit, a restore from a backup taken
+ * before that rule existed, or any future import script puts a value in the
+ * column that no validator ever saw — and the render site would have turned a
+ * `javascript:` gallery URL into a live link, on a public page, for every
+ * visitor.
+ *
+ * That is the same reasoning `sanitize-tour-text.ts` gives for cleaning at write
+ * time rather than trusting a renderer; this is the other half of it. A stored
+ * value is untrusted input to a renderer no matter who was supposed to have
+ * written it.
+ *
+ * ## Why a prefix check and not a scheme check
+ *
+ * Refusing `javascript:` and `data:` by name is a blocklist, and a blocklist of
+ * URL schemes is a losing position — `vbscript:`, control characters a browser
+ * strips before reading the scheme, `javascript:`. Requiring the exact
+ * Cloudinary delivery prefix is an allowlist, it is what every real value
+ * already satisfies, and it costs one `startsWith`.
+ */
+export function isSafeMediaUrl(url: string | undefined | null): boolean {
+  if (typeof url !== 'string') return false;
+  return url.startsWith(CLOUDINARY_DELIVERY_PREFIX);
+}
+
+/**
+ * The URL when it is safe to put in an `href`/`src`, and `undefined` when it is
+ * not — so a call site that forgets to check still cannot emit it, and the
+ * absent case falls through to whatever placeholder already exists.
+ *
+ * Returning `undefined` rather than throwing is the same call the rest of this
+ * module makes: a tour with one bad URL should render without that image, not
+ * 500 the whole page.
+ */
+export function safeMediaUrl(url: string | undefined | null): string | undefined {
+  return isSafeMediaUrl(url) ? (url as string) : undefined;
+}
+
+/**
  * Matches the point in a Cloudinary delivery URL where transformations go —
  * immediately after `/<resource_type>/upload/`.
  *

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server.node';
 
 import { PackageCard } from '@/components/cards/PackageCard';
 import { toTourJson } from '@/app/api/_lib/serializers';
+import { isSafeMediaUrl } from '@/lib/cloudinary-url';
 import type { Package } from '@/content/types';
 
 import PackageDetailPage, { generateMetadata } from '../[slug]/page';
@@ -73,8 +74,38 @@ const PLANTED: Package = {
   durationLabel: '"><script>alert("duration")</script>',
   subtitle: '<iframe src="javascript:alert(\'subtitle\')"></iframe>',
   photoUrl: 'Spiti Valley',
-  coverImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/cover.jpg',
-  galleryImageUrls: ['https://res.cloudinary.com/demo/image/upload/v1/g1.jpg'],
+  /**
+   * MEDIA URLs — planted hostile, as of the 2026-09-19 review (L5).
+   *
+   * The first version of this fixture used two well-formed Cloudinary URLs,
+   * which made the media half of every assertion below vacuous: the page could
+   * have interpolated them into `href`/`src` with no checking whatsoever — and
+   * it did — and the test would still have been green, because nothing it was
+   * handed was dangerous.
+   *
+   * `cloudinaryUrl` in `tour-form-schema.ts` means these cannot be SAVED
+   * through the admin. That is not the threat model here. This file's premise,
+   * stated in its own header, is "if one were already in the database — planted
+   * before Phase D, restored from a backup, written by a direct SQL edit". A
+   * URL column is reachable by exactly the same routes as a text column, and it
+   * is the more dangerous one: a stored `<script>` reaches a visitor as visible
+   * characters, while a stored `javascript:` href reaches them as a live link.
+   *
+   * The gallery keeps one legitimate URL alongside the hostile ones, so the
+   * assertions can tell "refused the bad URL" apart from "rendered no gallery".
+   */
+  coverImageUrl: 'javascript:alert("cover")' as string,
+  galleryImageUrls: [
+    'https://res.cloudinary.com/demo/image/upload/v1/g1.jpg',
+    'javascript:alert("gallery")',
+    // Whitespace and control characters are stripped by a browser before the
+    // scheme is read, so this is a live `javascript:` URL to everything that
+    // matters and a novel string to a naive `startsWith('javascript:')`.
+    ' java\tscript:alert("gallery-obfuscated")',
+    'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+    // Right host name, wrong host — the classic prefix-check bypass.
+    'https://res.cloudinary.com.evil.example/image/upload/v1/x.jpg',
+  ],
   photosCount: 11,
   priceFrom: '<body onload=alert("price")>₹42,500',
   priceWas: '<a href="javascript:alert(\'was\')">₹50,000</a>',
@@ -195,6 +226,83 @@ describe('a tour whose stored copy is full of XSS payloads', () => {
    * the argument for cleaning at WRITE time (`sanitize-tour-text.ts`) instead of
    * trusting a renderer we do not own.
    */
+  /**
+   * L5 — THE MEDIA HALF, which the payload set above now actually exercises.
+   *
+   * `executableFindings` already asks whether any URL attribute holds a
+   * `javascript:` or `data:text/html` scheme, so these payloads are covered by
+   * the two assertions at the top of this file. What the tests below add is the
+   * distinction those cannot make on their own: **refusing a hostile URL and
+   * rendering no gallery at all look identical to an absence assertion.**
+   */
+  it('renders the one legitimate gallery image and drops the hostile ones', async () => {
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const html = renderToStaticMarkup(element);
+
+    // The safe URL survived — so the filter is a filter, not an off switch.
+    expect(html).toContain('res.cloudinary.com/demo/image/upload');
+
+    const document = new DOMParser().parseFromString(html, 'text/html');
+
+    /**
+     * Scoped to the MEDIA elements — the gallery section's own links, and every
+     * `<img>` on the page — rather than to every `a[href]`. The site shell
+     * legitimately renders `tel:`, `mailto:` and `https://wa.me/…` links in the
+     * header and footer, and an allowlist that swept those up would either fail
+     * on correct markup or have to be widened until it permitted the schemes
+     * this test exists to forbid.
+     */
+    const gallery = document.querySelector('section[aria-labelledby="tour-gallery-heading"]');
+    expect(gallery).not.toBeNull();
+
+    const urls = [
+      ...Array.from(gallery!.querySelectorAll('a[href]')).map((a) => a.getAttribute('href') ?? ''),
+      ...Array.from(document.querySelectorAll('img[src]')).map((img) => img.getAttribute('src') ?? ''),
+    ];
+
+    // GUARD THE GUARD: the section really did emit URL-bearing elements to
+    // inspect. An allowlist over an empty array is satisfied by anything.
+    expect(urls.length).toBeGreaterThan(0);
+
+    /**
+     * Every one is either a Cloudinary delivery URL or a same-origin path.
+     * Stated as an allowlist, because a blocklist of schemes is exactly what
+     * `isSafeMediaUrl` exists to avoid having to maintain.
+     *
+     * Same-origin paths are permitted because the site shell's logo is a local
+     * asset served through `/_next/image`. That is not tour data and cannot be
+     * a payload — it is a relative path, so no scheme can be smuggled into it.
+     */
+    expect(
+      urls.filter((url) => !url.startsWith('https://res.cloudinary.com/') && !url.startsWith('/'))
+    ).toEqual([]);
+
+    // Precisely one gallery item survived — the five hostile URLs were dropped,
+    // and the drop is a filter rather than the section failing to render.
+    expect(gallery!.querySelectorAll('a[href]').length).toBe(1);
+  });
+
+  it('falls back to the placeholder for a hostile COVER url rather than emitting it', async () => {
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const html = renderToStaticMarkup(element);
+
+    // The cover is `javascript:alert("cover")`. It must not reach a `src`...
+    expect(html).not.toContain('src="javascript:');
+    // ...and the slot must still render something, via the placeholder branch.
+    expect(html).toContain('Image placeholder');
+  });
+
+  it('the lookalike host does not satisfy the check', () => {
+    // `https://res.cloudinary.com.evil.example/…` starts with the right
+    // CHARACTERS and is a different host. The prefix includes the trailing
+    // slash precisely so this fails, and that is worth pinning directly rather
+    // than inferring from the render.
+    expect(isSafeMediaUrl('https://res.cloudinary.com.evil.example/image/upload/v1/x.jpg')).toBe(
+      false
+    );
+    expect(isSafeMediaUrl('https://res.cloudinary.com/demo/image/upload/v1/g1.jpg')).toBe(true);
+  });
+
   it('publishes stored text verbatim over the JSON API — which is why storage is cleaned', () => {
     const json = toTourJson(PLANTED);
 

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { cloudinaryDisplayUrl } from '@/lib/cloudinary-url';
+import { cloudinaryDisplayUrl, safeMediaUrl } from '@/lib/cloudinary-url';
 
 export interface PhotoPlaceholderProps {
   /** Opaque fixture photo key (Assumption A4) — not a URL. */
@@ -73,7 +73,24 @@ export function placeholderAriaLabel(alt: string): string {
  * destinations/departures/reviews still have no upload path at all.
  */
 export function PhotoPlaceholder({ photoKey, imageUrl, alt, className, children }: PhotoPlaceholderProps) {
-  if (imageUrl) {
+  /**
+   * REFUSED AT THE RENDER SITE, not merely at the write site.
+   *
+   * `imageUrl` arrives from a database column. Every write path pins it to
+   * Cloudinary, but a direct SQL edit, a restore from an older backup or a
+   * future import script reaches the column without passing any validator — and
+   * this component is the one place every card, hero, rail and gallery thumbnail
+   * turns a stored string into a `src` a browser will fetch.
+   *
+   * Putting the check HERE rather than at each call site is the same
+   * composition rule that put the `imageUrl` branch here in the first place:
+   * every surface inherits it, and no call site can be the one that was
+   * forgotten. An unsafe URL falls through to the placeholder branch below,
+   * which is a grey box rather than a 500 — the right failure for one bad row.
+   */
+  const safeImageUrl = safeMediaUrl(imageUrl);
+
+  if (safeImageUrl) {
     return (
       <div className={cn('relative flex items-end overflow-hidden bg-gty-img-bg', className)}>
         {/*
@@ -89,7 +106,7 @@ export function PhotoPlaceholder({ photoKey, imageUrl, alt, className, children 
         */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cloudinaryDisplayUrl(imageUrl, 1200)}
+          src={cloudinaryDisplayUrl(safeImageUrl, 1200)}
           alt={alt}
           loading="lazy"
           decoding="async"
