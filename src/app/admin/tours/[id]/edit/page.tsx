@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { requireAdminSession } from '@/server/auth/session';
 import { getAdminTourBySlug, listDestinationOptions } from '@/server/admin/tours/tour-repository';
 import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
+import { publicWithholdReason, WITHHOLD_REASON_TEXT } from '@/content/public-listing';
 import { TourForm } from '@/components/admin/TourForm';
 
 export const metadata: Metadata = {
@@ -63,6 +64,20 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
 
   const saved = typeof query.saved === 'string' ? query.saved : undefined;
 
+  /**
+   * THE one question this page kept answering wrongly: is this tour actually
+   * reachable by a visitor?
+   *
+   * Answered by calling the PUBLIC site's own predicate on this tour's real
+   * lifecycle columns — not by reading `lifecycle === 'PUBLISHED'`, which is a
+   * display flattening that knows nothing about `pricingUnverified`. Every
+   * claim below ("View on site", the post-save message, the banner) is derived
+   * from this one value, so they cannot disagree with the site or with each
+   * other.
+   */
+  const withheld = publicWithholdReason(tour.value);
+  const liveOnPublicSite = withheld === null;
+
   return (
     <main className="mx-auto w-full max-w-[860px] px-5 py-12 860:px-8">
       <header className="mb-8 flex flex-col gap-3 border-b border-gty-border pb-6">
@@ -87,7 +102,17 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
           <span>
             Last updated <time dateTime={updatedAt.toISOString()}>{updatedAt.toISOString().slice(0, 10)}</time>
           </span>
-          {lifecycle === 'PUBLISHED' && (
+          {/*
+            The link is offered ONLY when the page it points at exists.
+
+            It used to appear for any `lifecycle === 'PUBLISHED'` tour, which
+            includes every `pricingUnverified` one — and `/tour-packages/[slug]`
+            calls `notFound()` for those, so the admin's own "View on site" link
+            was a 404 they had no way to explain. A link that is broken by
+            construction is worse than no link: it reads as a bug in the site
+            rather than as a deliberate withholding.
+          */}
+          {liveOnPublicSite && (
             <a
               href={`/tour-packages/${form.slug}`}
               className="font-bold text-gty-primary underline"
@@ -113,10 +138,53 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
           </p>
         )}
 
+        {/*
+          THE WITHHELD BANNER — the `pricingUnverified` case, which is the one
+          the rest of this page has no vocabulary for.
+
+          Draft and archived tours already have their own explanations (the pill
+          above, and the archive notice just above this), and both are states the
+          admin put the tour into deliberately. `PRICE_UNCONFIRMED` is neither:
+          the tour IS published, nobody in the admin UI set the flag, and until
+          now nothing on any admin screen mentioned it existed. Hence a banner
+          rather than a badge, and hence the explanation of what a visitor sees.
+
+          There is deliberately NO control here to clear the flag (the user's
+          decision, 2026-09-19). Clearing it means someone confirmed the price
+          against the source, which is not something a button on this page can
+          evidence — so it stays a developer-managed column and this banner says
+          who to ask.
+        */}
+        {withheld === 'PRICE_UNCONFIRMED' && (
+          <p
+            role="status"
+            className="rounded-12 border border-gty-primary bg-gty-red-50 px-4 py-3 text-12-5 leading-relaxed text-gty-ink"
+          >
+            <strong className="font-bold">Withheld from the public site — price unconfirmed.</strong>{' '}
+            {WITHHOLD_REASON_TEXT.PRICE_UNCONFIRMED.replace(
+              'Withheld from the public site — price unconfirmed. ',
+              ''
+            )}{' '}
+            The flag is set in the database and cannot be cleared from this screen — ask a developer to
+            confirm the price against the source and clear <code>pricingUnverified</code>.
+          </p>
+        )}
+
         {saved && (
           <p role="status" className="rounded-12 border border-gty-green-border bg-gty-green-bg px-4 py-3 text-12-5 text-gty-green-text">
+            {/*
+              DERIVED, not asserted. The old message said "Saved and published.
+              This tour is now visible on the public site." on the strength of
+              the submit intent alone — a sentence the code had no basis for,
+              and one that was simply false for every withheld tour.
+
+              `liveOnPublicSite` is the public gate's own answer, so this line
+              cannot drift from what a visitor actually gets.
+            */}
             {saved === 'publish'
-              ? 'Saved and published. This tour is now visible on the public site.'
+              ? liveOnPublicSite
+                ? 'Saved and published. This tour is now visible on the public site.'
+                : 'Saved and published in the CMS — but it is still NOT visible on the public site. See the reason above.'
               : 'Saved as a draft. This tour is not visible on the public site.'}
           </p>
         )}
@@ -129,6 +197,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         isPublished={lifecycle === 'PUBLISHED'}
         publishBlocked={query.publishBlocked === '1'}
         uploadsEnabled={isCloudinaryConfigured()}
+        withheldFromPublicSite={withheld === 'PRICE_UNCONFIRMED'}
       />
     </main>
   );

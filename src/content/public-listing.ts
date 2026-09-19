@@ -50,8 +50,57 @@ import { popularPackages } from './fixtures/popular.fixture';
  * The three conditions are ordered strongest-first and read as one sentence: a
  * tour is publicly listable when it has been PUBLISHED, has not been ARCHIVED,
  * and carries no UNCONFIRMED PRICE.
+ *
+ * ## Phase E: the gate now also answers WHY, for the admin
+ *
+ * `isPubliclyListable` returns a boolean, which is all the public side needs —
+ * but it left the ADMIN side with no way to explain a withheld tour except by
+ * re-implementing the three conditions. It did not re-implement them; it
+ * ignored them, and showed a green "Published" pill plus the words "This tour
+ * is now visible on the public site" for a tour the public gate was silently
+ * withholding (the H1 finding, 2026-09-19).
+ *
+ * So the conditions live in ONE function that returns a reason, and the boolean
+ * is derived from it. That ordering matters: a sibling `withholdReason()` beside
+ * an independent `isPubliclyListable()` is two copies of a security predicate,
+ * and the copy that drifts is the one nobody is testing. Here, a new condition
+ * added below is inherited by both the public gate and every admin explanation
+ * of it, with no call-site edit — the same composition rule the draft/archive
+ * checks followed into this function in Phase B.
  */
-export function isPubliclyListable(pkg: Package): boolean {
+
+/**
+ * The fields the gate actually reads — nothing else. Declared structurally so
+ * the ADMIN row types can be passed in directly, rather than being mapped into
+ * a full `Package` (which would mean inventing the dozen fields the gate does
+ * not look at) or checked against a second predicate.
+ *
+ * `archivedAt` is the widest of the three, because the two sides genuinely spell
+ * the same fact differently and neither spelling is wrong:
+ *
+ *  - the domain `Package` carries an ISO `string` and OMITS it when not archived
+ *    (it is fixture/JSON-shaped, and a `Date` does not survive a JSON round trip);
+ *  - a Prisma row carries a `Date` and holds `null`.
+ *
+ * Accepting all four is what lets one predicate serve both, and it costs nothing
+ * in safety: the check below is `!= null`, so every non-null spelling —
+ * including an empty string — reads as ARCHIVED, which is the closed direction.
+ */
+export interface PublicListingFacts {
+  status: Package['status'];
+  archivedAt?: Date | string | null;
+  pricingUnverified?: boolean;
+}
+
+/**
+ * Why the public site withholds this tour, or `null` when it does not.
+ *
+ * THE single source of truth for public visibility. `isPubliclyListable` is a
+ * thin derivation of it, and the admin UI renders the reason.
+ */
+export type PublicWithholdReason = 'DRAFT' | 'ARCHIVED' | 'PRICE_UNCONFIRMED';
+
+export function publicWithholdReason(pkg: PublicListingFacts): PublicWithholdReason | null {
   /**
    * DEFAULT-CLOSED. An equality test against `'PUBLISHED'`, never
    * `!== 'DRAFT'` — those are identical today and stop being identical the
@@ -59,18 +108,43 @@ export function isPubliclyListable(pkg: Package): boolean {
    * publishes it. The safe direction is to name what may be shown, not what
    * may not.
    */
-  if (pkg.status !== 'PUBLISHED') return false;
+  if (pkg.status !== 'PUBLISHED') return 'DRAFT';
 
   /**
    * Archived means withdrawn from sale. The row is kept (product-spec §7's
    * "never hard-delete something with lead history"), the listing is not.
-   * `!== undefined` rather than truthiness so a hypothetical empty-string
-   * timestamp cannot read as "not archived".
+   *
+   * `== null` (loose, deliberately) rather than truthiness, so a hypothetical
+   * empty-string timestamp cannot read as "not archived" — while still treating
+   * the domain type's `undefined` and a database row's `null` as the same fact.
    */
-  if (pkg.archivedAt !== undefined) return false;
+  if (pkg.archivedAt != null) return 'ARCHIVED';
 
-  return pkg.pricingUnverified !== true;
+  if (pkg.pricingUnverified === true) return 'PRICE_UNCONFIRMED';
+
+  return null;
 }
+
+export function isPubliclyListable(pkg: PublicListingFacts): boolean {
+  return publicWithholdReason(pkg) === null;
+}
+
+/**
+ * The reason, as a sentence an admin can act on.
+ *
+ * Lives here, beside the predicate, rather than in the admin components: the
+ * copy and the condition it describes are the thing that must not drift, and
+ * `feedback_qg_stale-invariant-after-fix` is a catalogue of what happens when
+ * prose is authored away from the rule it describes.
+ */
+export const WITHHOLD_REASON_TEXT: Record<PublicWithholdReason, string> = {
+  DRAFT: 'Not published — this tour is a draft and is not on the public site.',
+  ARCHIVED: 'Archived — this tour is hidden from the public site regardless of its publish status.',
+  PRICE_UNCONFIRMED:
+    'Withheld from the public site — price unconfirmed. This tour is published in the CMS, but the public ' +
+    'site refuses to quote a price that was never confirmed, so its card does not appear anywhere and its ' +
+    'page returns “not found”.',
+};
 
 /** Every tour the site may show publicly, each exactly once. */
 export const publiclyListedTours: Package[] = allTours.filter(isPubliclyListable);

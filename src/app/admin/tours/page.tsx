@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { requireAdminSession } from '@/server/auth/session';
 import { listAdminTours, type ListToursFilter, type TourStatusFilter } from '@/server/admin/tours/tour-repository';
 import { CATEGORY_VALUES } from '@/server/admin/tours/tour-form-schema';
+import { publicWithholdReason } from '@/content/public-listing';
+import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import type { DestinationCategory } from '@/content/types';
 
 import { setTourArchivedAction, setTourPublishedAction } from './actions';
@@ -159,18 +161,25 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                       <th scope="row" className="px-4 py-4 font-normal">
                         <span className="flex items-center gap-3">
                           {/*
-                            A neutral placeholder tile, not an <img>. No cover
-                            images exist yet — uploads are Phase C — and a
-                            plausible-looking thumbnail URL here would be the
-                            same fabricated asset the whole project refuses to
-                            invent (Assumption A4).
+                            The REAL uploaded cover when the tour has one, and
+                            the token-coloured placeholder when it does not —
+                            routed through `PhotoPlaceholder`, the same component
+                            every public card uses, so the admin sees precisely
+                            what a visitor would rather than a proxy for it.
+
+                            This replaced a hard-coded emoji tile sitting under a
+                            comment that asserted "No cover images exist yet —
+                            uploads are Phase C". True when written, false since
+                            Phase C shipped, and nothing failed when it stopped
+                            being true: an admin who uploaded a cover could not
+                            tell from this screen whether it had taken.
                           */}
-                          <span
-                            aria-hidden="true"
-                            className="grid h-[42px] w-[56px] shrink-0 place-items-center rounded-8 bg-gty-bg text-16 text-gty-faint"
-                          >
-                            🏔
-                          </span>
+                          <PhotoPlaceholder
+                            photoKey={tour.photoKey}
+                            imageUrl={tour.coverImageUrl ?? undefined}
+                            alt=""
+                            className="h-[42px] w-[56px] shrink-0 rounded-8"
+                          />
                           <span className="flex flex-col gap-[2px]">
                             <span className="text-14 font-bold text-gty-ink">{tour.name}</span>
                             <span className="text-12 text-gty-subtle">/{tour.slug}</span>
@@ -188,16 +197,44 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-pill border px-[10px] py-[4px] text-11-5 font-bold ${
-                            LIFECYCLE_STYLES[tour.lifecycle]
-                          }`}
-                        >
-                          {tour.lifecycle === 'PUBLISHED'
-                            ? 'Published'
-                            : tour.lifecycle === 'DRAFT'
-                              ? 'Draft'
-                              : 'Archived'}
+                        {/*
+                          THE PILL IS NOT THE WHOLE TRUTH, and this cell now says
+                          so. `lifecycle` is a flattening of `status`/`archivedAt`
+                          for display; whether a visitor can actually reach the
+                          tour is `publicWithholdReason()`, the public site's own
+                          predicate, called here on the row's real columns.
+
+                          A `pricingUnverified` tour is PUBLISHED in the CMS and
+                          withheld by that gate, so it used to render a green
+                          "Published" pill and nothing else — the admin's only
+                          view of the catalogue disagreed with the site and
+                          neither side reported it.
+                        */}
+                        <span className="flex flex-col items-start gap-[6px]">
+                          <span
+                            className={`inline-flex items-center rounded-pill border px-[10px] py-[4px] text-11-5 font-bold ${
+                              LIFECYCLE_STYLES[tour.lifecycle]
+                            }`}
+                          >
+                            {tour.lifecycle === 'PUBLISHED'
+                              ? 'Published'
+                              : tour.lifecycle === 'DRAFT'
+                                ? 'Draft'
+                                : 'Archived'}
+                          </span>
+
+                          {/*
+                            Shown only for the reason the pill does NOT already
+                            state. A draft's pill says "Draft" and an archived
+                            tour's says "Archived"; re-stating those underneath
+                            would be noise on every row and would train the eye
+                            to skip the one line that carries new information.
+                          */}
+                          {publicWithholdReason(tour) === 'PRICE_UNCONFIRMED' && (
+                            <span className="inline-flex items-center rounded-pill border border-gty-border-9 bg-gty-bg px-[10px] py-[4px] text-11 font-bold text-gty-primary">
+                              Withheld from the public site — price unconfirmed
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-13 text-gty-body">
@@ -229,11 +266,31 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                                 name="publish"
                                 value={tour.lifecycle === 'PUBLISHED' ? 'false' : 'true'}
                               />
+                              {/*
+                                The label names what the button DOES, which for a
+                                withheld tour is not what "Publish" means anywhere
+                                else on this screen: it moves `status` and the
+                                tour still does not appear. Saying "Publish" there
+                                is the same over-claim as the green pill, one
+                                click further along.
+
+                                `title` carries the reason rather than a longer
+                                label, so the column does not reflow for one row.
+                              */}
                               <button
                                 type="submit"
+                                title={
+                                  tour.pricingUnverified
+                                    ? 'This tour’s price is unconfirmed, so the public site withholds it. Publishing changes its CMS status only — it will not appear on the site.'
+                                    : undefined
+                                }
                                 className="rounded-8 border border-gty-border-9 px-[10px] py-[6px] text-12 font-bold text-gty-ink transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:text-gty-primary"
                               >
-                                {tour.lifecycle === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+                                {tour.lifecycle === 'PUBLISHED'
+                                  ? 'Unpublish'
+                                  : tour.pricingUnverified
+                                    ? 'Publish in CMS only'
+                                    : 'Publish'}
                               </button>
                             </form>
                           )}

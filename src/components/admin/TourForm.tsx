@@ -43,6 +43,21 @@ interface TourFormProps {
    * — not even its absence — is decided in the browser.
    */
   uploadsEnabled?: boolean;
+  /**
+   * True when the public site withholds this tour NO MATTER WHAT this form does
+   * — today, only `pricingUnverified`.
+   *
+   * Resolved on the server by `publicWithholdReason()`, the public gate itself,
+   * and passed down as a boolean rather than re-derived here: the browser has no
+   * business owning a copy of a visibility rule, and a second copy is how the
+   * admin's claim and the site's behaviour came to disagree in the first place.
+   *
+   * It does NOT disable Publish. Publishing a withheld tour is still a
+   * meaningful act — it records the editorial state, and the tour appears the
+   * moment the price is confirmed. What it must not do is TELL the admin the
+   * tour is now live.
+   */
+  withheldFromPublicSite?: boolean;
 }
 
 const EMPTY_VALUES: TourFormValues = {
@@ -102,6 +117,7 @@ export function TourForm({
   isPublished = false,
   publishBlocked = false,
   uploadsEnabled = false,
+  withheldFromPublicSite = false,
 }: TourFormProps) {
   const [state, formAction, pending] = useActionState<TourFormState, FormData>(
     saveTourAction,
@@ -684,13 +700,25 @@ export function TourForm({
           disabled={pending}
           onClick={() => void submitWith('publish')()}
         >
-          {pending ? 'Saving…' : 'Publish'}
+          {pending ? 'Saving…' : withheldFromPublicSite ? 'Publish in CMS only' : 'Publish'}
         </Button>
 
+        {/*
+          Both of these sentences claimed a visibility the code could not
+          promise. "This tour is live" was printed for every published tour
+          including the withheld ones, and "Save as Draft will remove it from
+          the public site" described removing something that was never there.
+
+          The withheld case is therefore its own branch rather than a qualifier
+          bolted onto the other two — it is a different fact about the tour, not
+          a softening of the same one.
+        */}
         <p className="text-12 text-gty-subtle">
-          {isPublished
-            ? 'This tour is live. “Save as Draft” will remove it from the public site.'
-            : 'Drafts are never visible on the public site.'}
+          {withheldFromPublicSite
+            ? 'This tour is withheld from the public site while its price is unconfirmed. Publishing records its CMS status; it will not appear on the site either way.'
+            : isPublished
+              ? 'This tour is live. “Save as Draft” will remove it from the public site.'
+              : 'Drafts are never visible on the public site.'}
         </p>
       </div>
     </form>

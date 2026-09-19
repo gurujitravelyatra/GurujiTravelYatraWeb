@@ -68,12 +68,35 @@ export interface AdminTourListItem {
   category: DestinationCategory;
   destinationName: string;
   photoKey: string;
+  /**
+   * The uploaded cover, when there is one — Phase C columns, surfaced to the
+   * admin list in Phase E.
+   *
+   * The list rendered a hard-coded emoji tile under a comment asserting "No
+   * cover images exist yet — uploads are Phase C", which stopped being true the
+   * day uploads shipped. An admin who uploaded a cover had no way to confirm
+   * from the list that it took.
+   */
+  coverImageUrl: string | null;
   lifecycle: AdminTourLifecycle;
   /** `priceFrom` when the tour uses a single price; null when it uses tiers. */
   priceFrom: string | null;
   /** Number of `TourPricingTier` rows — 0 means "single price". */
   pricingTierCount: number;
   pricingUnverified: boolean;
+  /**
+   * The two REAL lifecycle columns, carried alongside the flattened
+   * {@link AdminTourLifecycle} above.
+   *
+   * `lifecycle` is a display flattening and is explicitly not a gate (see
+   * `toLifecycle`). These are what `publicWithholdReason()` reads, and they are
+   * surfaced here so the admin list can call THE public predicate rather than
+   * re-deriving public visibility from a display string — which is how the list
+   * came to show a green "Published" pill for a tour the public site was
+   * withholding.
+   */
+  status: TourStatus;
+  archivedAt: Date | null;
   updatedAt: Date;
 }
 
@@ -92,6 +115,14 @@ export interface AdminTourDetail {
   lifecycle: AdminTourLifecycle;
   status: TourStatus;
   archivedAt: Date | null;
+  /**
+   * NOT a form field — it sits here with the other lifecycle facts for exactly
+   * that reason, and `toColumnData` still refuses to write it. The editor READS
+   * it to explain why a published tour is not on the site; there is deliberately
+   * no way to CLEAR it from the admin UI (the user's decision, 2026-09-19), so
+   * it stays developer-managed and a save cannot silently un-flag a tour.
+   */
+  pricingUnverified: boolean;
   updatedAt: Date;
 }
 
@@ -181,6 +212,7 @@ export async function listAdminTours(filter: ListToursFilter = {}): Promise<Conf
       category: toDomainCategory(row.category),
       destinationName: row.destination.name,
       photoKey: row.photoKey,
+      coverImageUrl: row.coverImageUrl,
       lifecycle: toLifecycle(row),
       // A tour with tiers shows "N tiers" instead of a single figure, so the
       // single price is withheld here rather than rendered beside them — showing
@@ -188,6 +220,8 @@ export async function listAdminTours(filter: ListToursFilter = {}): Promise<Conf
       priceFrom: row._count.pricingTiers > 0 ? null : row.priceFrom,
       pricingTierCount: row._count.pricingTiers,
       pricingUnverified: row.pricingUnverified,
+      status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+      archivedAt: row.archivedAt,
       updatedAt: row.updatedAt,
     })),
   };
@@ -309,6 +343,7 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
       lifecycle: toLifecycle(row),
       status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       archivedAt: row.archivedAt,
+      pricingUnverified: row.pricingUnverified,
       updatedAt: row.updatedAt,
     },
   };

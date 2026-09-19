@@ -2,23 +2,27 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { requireAdminSession } from '@/server/auth/session';
+import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
 
 import { logoutAction } from './actions';
 
 /**
  * `/admin` — the post-login shell.
  *
- * ## Scope: this page proves the gate works, and nothing else
+ * ## The "Not built yet" panel was itself the thing that went stale
  *
- * Phase A is auth only. Tour CRUD, brochure/file uploads and the tour schema
- * changes they need are later phases, so this page deliberately ships no
- * management UI at all rather than disabled buttons or "coming soon" cards for
- * screens that do not exist. That is the same discipline BLOCKERS.md Decision H
- * applies to placeholder content: an obvious absence beats a plausible-looking
- * stub.
+ * Phase A shipped this page with one management link and one honest panel
+ * saying uploads were "the next phase", "disabled", and that "nothing selected
+ * in them is stored". Every word of that was true on the day it was written and
+ * false from Phase C onward — uploads are real, they store, and the tour form's
+ * controls are live. Nothing failed when it stopped being true, because prose is
+ * what no gate checks (`memory/feedback_qg_stale-invariant-after-fix`).
  *
- * What it does do is establish the two things Phase B needs: a route that is
- * genuinely session-gated, and a place to hang links from.
+ * The replacement is deliberately not a second fixed sentence. It reads
+ * `isCloudinaryConfigured()` — the SAME function `/api/admin/uploads` and the
+ * tour form ask — so this panel describes the environment the admin is actually
+ * in rather than the environment whoever last edited it was in. A dashboard that
+ * derives its claim cannot go stale the way one that asserts it does.
  */
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -40,6 +44,13 @@ export default async function AdminDashboardPage() {
    * rather than hoisted.
    */
   const session = await requireAdminSession();
+
+  /**
+   * Read on the SERVER, where the credentials are. The boolean crosses to the
+   * markup; nothing about the secret — not even its absence — is decided in the
+   * browser. Same shape as the `uploadsEnabled` prop the tour form takes.
+   */
+  const uploadsEnabled = isCloudinaryConfigured();
 
   return (
     <main className="mx-auto w-full max-w-[1080px] px-5 py-12 860:px-8">
@@ -85,12 +96,44 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="mt-6 rounded-22 border border-gty-border bg-gty-white p-8">
-        <h2 className="mb-3 text-18 font-extrabold text-gty-ink">Not built yet</h2>
-        <p className="max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
-          Image and brochure uploads are the next phase. The tour form shows those fields, but they
-          are disabled and nothing selected in them is stored — tours render a placeholder image
-          everywhere on the site until that work lands.
-        </p>
+        <h2 className="mb-3 text-18 font-extrabold text-gty-ink">Images &amp; brochures</h2>
+
+        {uploadsEnabled ? (
+          <p className="max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
+            Cover photos, gallery images and brochure PDFs upload from the tour form and are stored
+            against the tour. A tour with no cover photo renders a placeholder everywhere on the
+            site — and <strong className="font-bold text-gty-ink">cannot be published</strong>, since
+            a cover image is required to publish.
+          </p>
+        ) : (
+          <>
+            {/*
+              `role="status"` because this is a live environment fact the admin
+              needs before they try, not decoration — the same treatment the
+              "no content database" panel on `/admin/tours` gets.
+            */}
+            <p role="status" className="max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
+              Uploads are built and working, but{' '}
+              <strong className="font-bold text-gty-ink">
+                no Cloudinary account is configured in this environment
+              </strong>
+              , so the upload controls in the tour form are disabled and say so. Set{' '}
+              <code className="rounded-6 bg-gty-bg px-[6px] py-[2px] text-13">CLOUDINARY_CLOUD_NAME</code>,{' '}
+              <code className="rounded-6 bg-gty-bg px-[6px] py-[2px] text-13">CLOUDINARY_API_KEY</code> and{' '}
+              <code className="rounded-6 bg-gty-bg px-[6px] py-[2px] text-13">CLOUDINARY_API_SECRET</code>{' '}
+              (see <code className="rounded-6 bg-gty-bg px-[6px] py-[2px] text-13">.env.example</code>) to
+              enable them.
+            </p>
+            <p className="mt-3 max-w-[60ch] text-13-5 leading-relaxed text-gty-body">
+              The consequence worth knowing before you start:{' '}
+              <strong className="font-bold text-gty-ink">
+                no new tour can be published until then
+              </strong>
+              , because a cover image is required to publish and there is no way to upload one.
+              Existing tours are unaffected and stay live.
+            </p>
+          </>
+        )}
       </section>
     </main>
   );
