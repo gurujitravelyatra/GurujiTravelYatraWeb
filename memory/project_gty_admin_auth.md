@@ -74,6 +74,47 @@ tour CRUD and uploads are later phases.
   `PrismaClient` (outside the standalone seed scripts). A second client is a
   second connection pool, which is the documented `P1001` build failure.
 
+## Phase D (2026-09-19) — what actually stops CSRF here
+
+**Do not record this as "Next's origin check stops CSRF".** Measured live
+against the standalone production server, with a real session and one header
+varied at a time:
+
+| Request | Result |
+|---|---|
+| `Origin: https://evil.example.com` | 500 — aborted before the action decoded |
+| `Origin: null` | 500 — aborted |
+| `Origin:` *(own)* | 303 — ran, correctly |
+| **no `Origin` header** | **303 — RAN.** Next warns and proceeds |
+| `Origin: evil` + **`X-Forwarded-Host: evil.example.com`** | **303 — RAN.** Defeated |
+
+Two real holes, **neither browser-reachable**: a cross-origin form POST cannot
+set headers and always sends `Origin`, and a cross-origin `fetch()` carrying
+`X-Forwarded-Host` triggers a preflight this app never approves. The defence
+that does not depend on any of that is **`SameSite=Lax; HttpOnly` on the session
+cookie + `requireAdminSession()` in every action**; the origin check is defence
+in depth. `e2e/admin-csrf.spec.ts` asserts today's behaviour including the gaps,
+so a Next upgrade that closes one fails loudly instead of leaving a stale note.
+
+Other Phase D outcomes: admin-authored tour copy is plain text (refused at the
+form, stripped at the write — `sanitize-tour-text.ts`); `dangerouslySetInnerHTML`
+appears nowhere in `src/` and a source scan keeps it that way; the secret-leak
+E2E check now plants sentinels into the server's env, proves by handshake that
+the server holds them, and scans HTML + RSC payload + the **JS chunks** (where a
+Next secret actually leaks, inlined at build time). Full record: BLOCKERS.md
+item 13.
+
+**Two traps found while writing those tests, both of which look green:**
+1. A leak check that read `process.env` in the Playwright RUNNER asserted over
+   zero values — the runner loads no `.env`. See
+   [[feedback_qg_vacuous-guard-test]].
+2. **Playwright's `request` fixture keeps a cookie jar, and Auth.js re-issues
+   the sliding session cookie on every authenticated request.** So one
+   authenticated call makes every later call in that test authenticated too —
+   `/admin/login` then 307s to `/admin` and you scan the dashboard while the
+   test name says login page. Use a fresh context per anonymous request and
+   assert `maxRedirects: 0` + status 200.
+
 **Why:** this is a new subsystem with several non-obvious constraints, most of
 which produced a green build and a broken app before being found.
 **How to apply:** read this before touching `/admin`, `src/server/auth/*`,

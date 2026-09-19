@@ -111,8 +111,40 @@ database, including 6 new media round-trip tests), Playwright **114 passed / 10
 skipped**. One `/tour-packages` navigation flake on a first full run, green on
 re-run — the known item-8 latency issue, unrelated.
 
+- `c0017c4`..`554c60e`: **Admin CMS Phase D — security hardening + doc sync. No
+  new features; the CMS build is now CLOSED.** Full record in **BLOCKERS.md item
+  13**; the CSRF measurement table is in `project_gty_admin_auth.md`.
+  - **Stored XSS, two layers:** `plain-text.ts` refuses markup at validation,
+    `sanitize-tour-text.ts` strips it at write time inside
+    `createTour`/`updateTour`. The second layer is the guarantee (it covers write
+    paths that never touch the Zod schema, and `/api/tours` publishes this text
+    to clients we do not own). `toPlainText`'s no-markup guard clause is
+    load-bearing: without it `sanitize-html` would store `Tea &amp; coffee`.
+  - **CSRF measured, not assumed.** Next's origin check refuses a forged
+    `Origin` and `null`, but lets through a request with NO `Origin` and is
+    defeated by `Origin` + `X-Forwarded-Host`. Neither is browser-reachable.
+    **What actually stops CSRF is `SameSite=Lax` + `requireAdminSession()`** —
+    the latter now asserted exhaustively over the action SOURCE.
+  - **Secret-leak check rebuilt and PROVEN able to fail** (a temporary
+    `NEXT_PUBLIC` probe on `/admin/login` turned the HTML and JS-chunk scans
+    red). Sentinels are planted into the server env from `playwright.config.ts`;
+    a handshake proves the server holds them. See
+    [[feedback_qg_vacuous-guard-test]] for the three ways the first versions were
+    green and empty.
+  - Every new test was mutation-checked: disabling the sanitizer → 34 red,
+    disabling the schema refusal → 47 red, adding `dangerouslySetInnerHTML` →
+    both render and source-scan red, removing a `requireAdminSession()` → red.
+  - **Docs reconciled** — product-spec §7 (+ new §7.1, what actually exists), §12
+    and §13; CLAUDE.md §6, §10 (narrowed to LEADS only) and §12. All dated, all
+    preserving the original text.
+
+Gate status at `554c60e`: `tsc --noEmit` clean, `eslint` clean (0/0), `npx next
+build --webpack` clean, Jest **68 suites / 880 tests** pass (+22 skipped opt-in
+DB tests), Playwright **128 passed / 10 skipped** against the live database —
+**no flakes this run**. Still no git remote, so no PR.
+
 ## Still open before merge
-1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either.
+1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either. **As of 2026-09-19 this extends to the WHOLE admin CMS (Phases A–D, `cfc68e4`..`554c60e`): every phase was reviewed by the agent that wrote it. The Phase D security work is mutation-checked and verified against a running server, which is real evidence, but it is still self-assessed. An independent adversary pass over the admin surface is the outstanding gate.**
 1b. ~~**`/group-tours` publishes the ₹28,900 the catalogue withholds**~~ — **CLOSED `af92be2`** (user chose the asterisk-mark option). Folded into open item 4: the underlying price is still unconfirmed.
 2. **Legal copy is placeholder** — written by the build, not reviewed by counsel. It must go to GTY's lawyer before launch, and the banner + `robots: index=false` stay until it does.
 3. **Four Support links still 404 by Decision G**: `/legal/faqs`, `/legal/travel-tips`, `/legal/cancellation-policy`, `/legal/refund-policy`. Deliberate — invented cancellation terms would be worse than a 404. Pinned by `e2e/legal.spec.ts`.
