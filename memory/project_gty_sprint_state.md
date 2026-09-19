@@ -79,6 +79,38 @@ Gate status at `8d807fa`: `tsc --noEmit` clean, `eslint` clean (0/0), **`npx nex
 
 Gate status at `61cc5d9`: `tsc --noEmit` clean, `eslint` clean (0 errors / 0 warnings), `npx next build --webpack` clean (19 SSG tour paths — gate intact, all 3 admin routes `ƒ`, `ƒ Proxy (Middleware)` present), Jest **59 suites / 640 tests** pass (+16 skipped opt-in DB tests; all 16 pass under `RUN_DB_TESTS=1`), Playwright **114/114 on the fixture path**; against the live DB 113 pass with one latency-flaky `/tour-packages` navigation (known, item 8).
 
+- `6eb49ab`..`62579cc`: **Admin CMS Phase C — file uploads (Cloudinary).** See
+  `project_gty_admin_uploads.md` and **BLOCKERS.md item 12**. `Tour` gained
+  `coverImageUrl`/`coverImagePublicId`, new `TourGalleryImage` child table,
+  `Brochure` gained `pdfPublicId`/`pdfFileName`; migration
+  `20260917210338_add_tour_media_phase_c` applied live and verified. New
+  `POST /api/admin/uploads` (session-gated, 401 JSON not a redirect) validates on
+  **magic bytes**, not the declared MIME type or filename. The Phase B disabled
+  stub is replaced by real pickers, real XHR progress, previews and per-reason
+  failure messages.
+  - **A cover image is now REQUIRED TO PUBLISH**, reversing Phase B's interim
+    rule (which had stated its own expiry). Gallery + brochure stay optional.
+  - Uploaded images RENDER PUBLICLY via `PhotoPlaceholder`'s new `imageUrl` prop —
+    one branch, every surface inherits it. Gallery strip added to the detail page.
+  - The brochure writes to the existing `Brochure` table, **not** a new
+    `Tour.brochurePdfUrl` (that would have made `/api/brochures/[slug]` lie).
+  - Two defects the live integration suite caught and now pins: `photosCount`
+    derived on SAVE silently changed a field the admin never touched (11 → 0 on a
+    real seeded row — repaired; now derived at read time), and the save
+    transaction needed an explicit budget after one extra round trip pushed it
+    past Prisma's 5s default over Railway's proxy.
+  - **NO CLOUDINARY CREDENTIALS EXIST HERE.** The Cloudinary leg is mocked
+    throughout and has never run against a real account — see the memory file.
+
+Gate status at `62579cc`: `tsc --noEmit` clean, `eslint` clean (0/0), `npx next
+build` clean (19 SSG tour paths — gate intact, `ƒ /api/admin/uploads` present,
+`ƒ Proxy (Middleware)` present and confirmed in
+`functions-config-manifest.json`), Jest **64 suites / 750 tests** pass (+22
+skipped opt-in DB tests; **all 22 pass under `RUN_DB_TESTS=1`** against the live
+database, including 6 new media round-trip tests), Playwright **114 passed / 10
+skipped**. One `/tour-packages` navigation flake on a first full run, green on
+re-run — the known item-8 latency issue, unrelated.
+
 ## Still open before merge
 1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either.
 1b. ~~**`/group-tours` publishes the ₹28,900 the catalogue withholds**~~ — **CLOSED `af92be2`** (user chose the asterisk-mark option). Folded into open item 4: the underlying price is still unconfirmed.
@@ -90,6 +122,14 @@ Gate status at `61cc5d9`: `tsc --noEmit` clean, `eslint` clean (0 errors / 0 war
 7. Non-Instagram social handles (`YouTube`, `Facebook`, `X`, `LinkedIn`) remain `href="#"` — still unconfirmed, deliberately not invented.
 
 8. ~~**The content database has never touched a real Postgres.**~~ — **CLOSED.** A managed Railway Postgres is configured and reachable; three migrations are applied and the seed has inserted 22 tours. Real SQL is now covered by an opt-in suite (`RUN_DB_TESTS=1`, `tour-repository.integration.test.ts`, 16 tests). `npm test` still runs on the fixture path deliberately (`jest.setup.ts` deletes `DATABASE_URL`), so a green unit suite still says nothing about the database — that caveat survives. **New caveat:** Railway's TCP proxy refuses ~3 connection attempts in 4, so `next build` fails about one run in two and needs retrying; see `project_gty_pipeline_environment.md`.
+10. **No Cloudinary account exists** — the Phase C upload path is complete and
+   unit-tested, but has never run against a real Cloudinary account; there are no
+   `CLOUDINARY_*` credentials in this repo or environment. Until someone creates
+   the account and fills in the three `.env` variables, uploads answer 503 and —
+   because a cover image is now required to publish — **no tour can be published
+   through the admin UI**. Existing published tours are unaffected. See
+   `project_gty_admin_uploads.md`.
+
 9. **Content now exists in two places** (`prisma/seed.ts` projects `src/content/fixtures/*`) until the ERP content API lands. The seed importing the fixtures keeps them from drifting, but the real fix is still §1b.
 
 **Why:** several prior executor runs were cut off by rate limits; this records verified state so the next run resumes instead of redoing work.

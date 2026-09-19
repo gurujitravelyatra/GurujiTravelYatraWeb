@@ -79,6 +79,46 @@ not-yet-built upload feature. A column nothing writes and nothing reads IS the
 inert-flag shape; the upload form ships visibly `disabled` with the reason stated
 instead, and Phase C adds the columns with the code that fills them.
 
+**SEVENTH opportunity, NOT an occurrence (Phase C uploads, 2026-09-18) — the
+forecast above being cashed in, and the first one where the risk was a VALUE
+rather than a flag.** Phase B's closing note said the image columns were withheld
+because "a column nothing writes and nothing reads IS the inert-flag shape", and
+that Phase C would "add the columns with the code that fills them". It did. Three
+things generalise beyond this project:
+
+1. **A required field is not an enforced one.** `coverImageUrl` is required to
+   PUBLISH, which feels like enforcement and is not: the admin uploads, the
+   column fills, the gate passes — and the visitor still sees a grey
+   `PhotoPlaceholder`, because nothing carried the value through the public
+   query. "Written and read by the validator" is not "read by the reader".
+   The fix is the variant-1 playbook applied to a value: the render branch went
+   into `PhotoPlaceholder`, the ONE component every card/hero/rail already routes
+   through, so every surface inherited it with no call-site edit. The test that
+   matters asserts the URL survives `PrismaContentAdapter.getAllTours()`, not
+   that the column is set.
+2. **Check whether an existing model already owns the thing you are about to add
+   a column for.** `Tour.brochurePdfUrl` was the obvious place for the brochure
+   upload and would have been variant 4 exactly: `Brochure.pdfUrl` already meant
+   "this tour's brochure PDF" and was already what `/api/brochures/[slug]` and
+   `BrochureModal` read, so the admin would have seen a successful upload while
+   the public endpoint kept answering `pdfUrl: null, PENDING_UPLOAD` — with
+   nothing anywhere reporting the disagreement. Grep the CONCEPT, not the column
+   name, before adding a column.
+3. **A derived value written at SAVE time is a silent side effect on every
+   unrelated edit.** `photosCount` was briefly derived as `galleryImages.length`
+   in the save path. It is not a form field, so editing a tour's *description*
+   changed its photo count — caught going 11 → 0 on a real seeded row by the live
+   integration test "editing one field of a live seeded tour leaves every other
+   field untouched", which then had to repair live data. Derive at READ time, or
+   not at all. The inverse of the inert-column defect: not "written and never
+   read" but "written when nobody asked".
+
+Also worth copying: the absence-assertions were mutation-tested before being
+believed — `overwrite: true` was spliced into the upload options and the publish
+gate was stubbed to `if (false)`, each confirming the relevant tests went red.
+Phase B's discipline 3 ("prove the absence-test can FAIL"), applied to a property
+that would otherwise rot silently the day someone "fixes a duplicate".
+
 Tell-tale in review: `grep` the flag name. If the only hits are the definition, the data, and a test asserting the flag exists, nothing enforces it. If the flag renders a *visual* marker, check the marker reaches assistive tech too — an `aria-hidden` glyph plus an unreferenced footnote is an un-enforced flag wearing a costume.
 
 **Why:** flagging feels like compliance with "don't fabricate", so the agent stops there. A test that asserts the flag is set passes whether or not the flag does anything.
