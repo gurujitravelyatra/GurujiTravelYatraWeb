@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { requireAdminSession } from '@/server/auth/session';
 import { listDestinationOptions } from '@/server/admin/tours/tour-repository';
+import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
 import { TourForm } from '@/components/admin/TourForm';
 
 export const metadata: Metadata = {
@@ -56,7 +57,9 @@ export default async function NewTourPage() {
             itineraryDays: [],
             faqs: [],
             pricingTiers: [],
+            galleryImages: [],
           }}
+          uploadsEnabled={isCloudinaryConfigured()}
         />
       )}
     </main>

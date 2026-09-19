@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { requireAdminSession } from '@/server/auth/session';
 import { getAdminTourBySlug, listDestinationOptions } from '@/server/admin/tours/tour-repository';
+import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
 import { TourForm } from '@/components/admin/TourForm';
 
 export const metadata: Metadata = {
@@ -127,6 +128,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         defaultValues={form}
         isPublished={lifecycle === 'PUBLISHED'}
         publishBlocked={query.publishBlocked === '1'}
+        uploadsEnabled={isCloudinaryConfigured()}
       />
     </main>
   );

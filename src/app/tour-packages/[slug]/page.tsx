@@ -73,9 +73,52 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
 
         <PhotoPlaceholder
           photoKey={pkg.photoUrl}
+          imageUrl={pkg.coverImageUrl}
           alt={`${pkg.name} — ${destinationName}`}
           className="h-[280px] w-full rounded-18 760:h-[380px]"
         />
+
+        {/*
+          The gallery, when the tour has one — Phase C.
+
+          Rendered here rather than left as admin-only data on purpose. The badge
+          two elements below says "{photosCount} Photos", and `photosCount` is now
+          derived from this very gallery, so without somewhere to see them the
+          page would promise photographs and provide no way to reach them —
+          the "flag that renders but leads nowhere" shape
+          `memory/feedback_qg_unenforced-safety-flag.md` catalogues.
+
+          A strip of links to the full-size images, not a lightbox. A lightbox is
+          a real component with focus management and keyboard handling, and half
+          of one is worse than none; opening the image is something every browser
+          already does correctly.
+        */}
+        {pkg.galleryImageUrls && pkg.galleryImageUrls.length > 0 && (
+          <section aria-labelledby="tour-gallery-heading" className="flex flex-col gap-3">
+            <h2 id="tour-gallery-heading" className="text-16 font-extrabold text-gty-ink">
+              Photos
+            </h2>
+            <ul className="flex flex-wrap gap-3">
+              {pkg.galleryImageUrls.map((url, index) => (
+                <li key={url}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block overflow-hidden rounded-12 border border-gty-border transition-transform duration-gty-fast ease-gty hover:-translate-y-[2px]"
+                  >
+                    <PhotoPlaceholder
+                      photoKey={pkg.photoUrl}
+                      imageUrl={url}
+                      alt={`${pkg.name} — photo ${index + 1} of ${pkg.galleryImageUrls?.length ?? 0}`}
+                      className="h-[110px] w-[150px]"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="flex flex-wrap items-center gap-[10px]">
           <span className="inline-flex items-center gap-[6px] rounded-pill bg-gty-red-150 px-3 py-[6px] text-12-5 font-semibold text-gty-primary">

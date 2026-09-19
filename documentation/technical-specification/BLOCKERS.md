@@ -703,15 +703,38 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    judgement call the task left open.
 
    - **Minimum fields to publish:** name, slug, category, destination, a short
-     description, a duration, and a price — where "a price" is satisfied by EITHER
-     `priceFrom` OR at least one `TourPricingTier`. Each is a field whose absence renders
-     a visibly broken card. **Images are deliberately NOT required**, because uploads are
-     Phase C and gating publish on a field the system cannot yet accept would make
-     publishing impossible. Itinerary, FAQs, inclusions and `fullDescription` are not
-     required either — the detail page renders only what exists (Decision D), so their
-     absence is a shorter page, not a broken one. Enforced by `publishableTourSchema`,
-     and re-run server-side for BOTH the form's Publish button and the list's publish
-     toggle, so the toggle is not a laxer second path to the same state.
+     description, a duration, a price — where "a price" is satisfied by EITHER
+     `priceFrom` OR at least one `TourPricingTier` — and, **as of Phase C, a cover
+     image**. Each is a field whose absence renders a visibly broken card. Itinerary,
+     FAQs, inclusions and `fullDescription` are not required — the detail page renders
+     only what exists (Decision D), so their absence is a shorter page, not a broken one.
+     Enforced by `publishableTourSchema`, and re-run server-side for BOTH the form's
+     Publish button and the list's publish toggle, so the toggle is not a laxer second
+     path to the same state.
+
+     **[SUPERSEDED 2026-09-18 by Phase C]** This item previously read "**Images are
+     deliberately NOT required**, because uploads are Phase C and gating publish on a
+     field the system cannot yet accept would make publishing impossible." That was
+     correct while it stood and is recorded rather than deleted, because it is the shape
+     of interim decision worth being able to find again: it stated its own expiry
+     ("when uploads land, whether a cover image becomes mandatory is a decision for that
+     phase"), and the expiry has now been honoured rather than quietly forgotten. The
+     user's original specification said "Cover image (single, required)", so with uploads
+     working, that requirement is enforced as written.
+
+     Three things make the new requirement safe to add to a live system:
+     it gates PUBLISH and not SAVE, so a draft with no cover still saves; nothing
+     re-validates stored rows, so the 22 already-published fixture tours are untouched
+     until someone edits and re-publishes one; and the column is NULLABLE, because a NOT
+     NULL `coverImageUrl` would have made saving a draft impossible — the safe default
+     and the publish bar are different questions, which is the same distinction the Phase
+     B migration got right in the other direction when it backfilled
+     `status = 'PUBLISHED'` over a DRAFT column default.
+
+     **Gallery images and the brochure PDF remain optional**, which is the original spec
+     read literally — only the cover was marked required. Requiring a brochure would
+     block publishing outright, since no brochure PDF exists for any tour in this
+     project: exactly the mistake the superseded decision above existed to avoid.
    - **Slug collisions are REJECTED, not auto-suffixed.** A slug is a public URL;
      silently saving `spiti-valley-2` gives the admin an address they did not choose and
      may not notice. The error names the conflicting tour, and says when the conflict is
@@ -735,11 +758,13 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      drives the public filter chips and `/api/tours?category=`; adding Domestic/Group
      Tour there would put four unrelated chips on the public filter bar and stop a tour
      being both Spiritual and Domestic. `International` deliberately appears in both.
-   - **No image columns were added.** A column nothing writes and nothing reads is the
-     inert-flag shape `memory/feedback_qg_unenforced-safety-flag.md` exists to prevent,
-     so Phase C adds them with the code that fills them. The form's upload controls ship
-     visibly `disabled` with the reason stated and register nothing — the brochure
-     records' `PENDING_UPLOAD` + NULL `pdfUrl` honesty pattern.
+   - **No image columns were added** *(in Phase B — added in Phase C, see item 12)*. A
+     column nothing writes and nothing reads is the inert-flag shape
+     `memory/feedback_qg_unenforced-safety-flag.md` exists to prevent, so Phase C adds
+     them with the code that fills them. The form's upload controls shipped visibly
+     `disabled` with the reason stated and registered nothing — the brochure records'
+     `PENDING_UPLOAD` + NULL `pdfUrl` honesty pattern. That stub is now replaced by
+     working controls.
    - **The draft/published gate composes INTO `isPubliclyListable()`** rather than
      sitting beside it. Every public surface already funnelled through that one
      predicate, so all of them — Home's rails, `/tour-packages`, the detail page,
@@ -748,3 +773,85 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      parallel `isPublished()` would have had to be retro-fitted to each caller, and the
      one that got missed would be the leak — which is precisely how item 9 above
      happened.
+
+12. **Tour CMS — Phase C, file uploads (2026-09-18).** Cloudinary, chosen by the user for
+   its free tier, automatic image optimisation and direct PDF hosting.
+
+   - **NO CLOUDINARY CREDENTIALS EXIST IN THIS REPO OR ENVIRONMENT, and no upload has
+     ever been performed against a real account.** `.env` has only `DATABASE_URL`; there
+     are no `CLOUDINARY_*` variables in `.env`, in the shell, or anywhere else.
+     `.env.example` documents the three that are needed. Everything below is built,
+     typechecked and unit-tested **against a mocked Cloudinary SDK**; the live
+     integration — that a real signed upload is accepted, that the returned `secure_url`
+     resolves, that `raw` PDF delivery works on the account's security settings — is
+     **UNVERIFIED and cannot be verified without an account**. The code path is complete;
+     the claim "uploads work" is not yet evidence-backed. This is the same honesty
+     discipline as item 10's note about the database.
+   - **Signed server-side upload, not an unsigned browser preset.** An unsigned preset is
+     a permanent public write token embedded in page JavaScript — it cannot be scoped to
+     a session, which defeats the point of an admin-only surface. The browser POSTs to
+     `/api/admin/uploads`; only the server holds `CLOUDINARY_API_SECRET`.
+   - **Validation sniffs magic bytes, and does not trust the declared MIME type or the
+     filename.** Both are written by the client, so any rule reading them is a rule an
+     attacker restates for free — an SVG renamed `holiday.jpg` and declared `image/jpeg`
+     is a stored-XSS vector, and it is refused on its leading bytes. Accepted: JPEG, PNG,
+     WebP (10 MB) and PDF (20 MB), checked against the field the file was uploaded to.
+     `allowed_formats` on the Cloudinary call is a second, independent check on the far
+     side. The client runs the identical validator as a courtesy, never as the check.
+   - **Replacement safety: upload-then-repoint, and nothing is ever destroyed.**
+     `overwrite: false` + `unique_filename: true` + no explicit `public_id` means every
+     upload is a NEW asset, so a replacement is an addition. The stored URL moves only
+     when the admin saves, which is strictly after the upload returned a URL — so the old
+     asset keeps serving the live page until the swap, and an abandoned upload changes
+     nothing. **The cost, stated: replaced assets are never deleted** and orphans
+     accumulate against the free tier's storage. Reclaiming them is a follow-up sweep
+     over `publicId`s no row references. Likewise `Brochure.version` increments on each
+     replacement, but **version HISTORY with preview/restore is NOT built** — the older
+     URLs still resolve, nothing lists them.
+   - **The brochure PDF writes to the existing `Brochure` table, NOT to a new
+     `Tour.brochurePdfUrl` column.** That column was the obvious place and is the one
+     that must not be used: `Brochure.pdfUrl` already means "this tour's brochure PDF"
+     and is already what `GET /api/brochures/[slug]` and `BrochureModal` read. A parallel
+     column would have shown the admin a successful upload while the public endpoint kept
+     answering `pdfUrl: null, status: PENDING_UPLOAD` — the two-models-one-entity drift
+     recorded as variant 4 in `memory/feedback_qg_unenforced-safety-flag.md`. This is
+     also the first code in the project that can truthfully move a row out of
+     `PENDING_UPLOAD`.
+   - **The gallery is a `TourGalleryImage` child table, not a `String[]` of URLs.** A
+     gallery image carries a `publicId` and its dimensions as well as a URL, and two
+     parallel arrays (`galleryImageUrls[]` + `galleryPublicIds[]`) have nothing tying
+     index `n` of one to index `n` of the other — the same drift, inside a single row.
+     This follows the test the schema already states: bare lines of text are arrays,
+     items with fields of their own are tables.
+   - **Reordering is ↑/↓ buttons, not drag-and-drop.** The form already reorders itinerary
+     days, FAQs and pricing tiers exactly this way, so it is the idiom the admin has
+     learned, it needs no new dependency, and it is keyboard- and screen-reader-reachable
+     without a bespoke implementation. `sortOrder` is rewritten from array position on
+     every save, as day numbers are.
+   - **Progress is real `XMLHttpRequest` upload progress, not a decorative spinner** —
+     `fetch()` still cannot report bytes-sent. The bar measures browser → our server
+     only; at 100% the label changes to "Sending to Cloudinary…" rather than sitting full,
+     because the server-to-Cloudinary leg is still running.
+   - **`photosCount` is now DERIVED from the gallery on every admin save.** It previously
+     carried the design export's figure, which described photography that does not exist
+     ("24 Photos" backed by nothing). Consequence worth knowing: the first time an admin
+     saves one of the 22 seeded tours, its inherited count drops to the real number. That
+     is a correction, not a regression, but it is a visible change to a field the admin
+     did not touch.
+   - **Uploaded images are rendered publicly, via `PhotoPlaceholder`'s new `imageUrl`
+     prop.** The branch lives in the one component every card, hero and rail already
+     routes through, so every surface inherited it with no call-site edit — the same
+     composition rule as `isPubliclyListable()`. Without this the columns would be
+     written and never read, which is the inert-column shape this project keeps
+     re-learning. The gallery is rendered as a thumbnail strip on the detail page for
+     the same reason: the "N Photos" badge would otherwise promise photographs with no
+     way to reach them. **No lightbox** — half of one is worse than none, and the browser
+     already opens an image correctly.
+   - **`/api/admin/uploads` is NOT covered by `src/proxy.ts`**, whose matcher is
+     `/admin` and `/admin/:path*`. That is not a gap: the proxy is an optimistic
+     pre-filter for navigations, and the route gates itself with `getAdminSession()`
+     before reading the request body. It uses `getAdminSession()` rather than
+     `requireAdminSession()` deliberately — the latter REDIRECTS, and a 307 to an HTML
+     login form arriving at a `fetch()` surfaces as a parse error rather than "your
+     session expired". CSRF is covered by the session cookie's `SameSite=Lax` plus a
+     `Sec-Fetch-Site` check.

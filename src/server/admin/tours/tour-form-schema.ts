@@ -79,6 +79,79 @@ export const faqSchema = z.object({
 });
 
 /**
+ * A Cloudinary delivery URL, and nothing else — Phase C.
+ *
+ * ## Why the host is pinned instead of accepting any `https://` URL
+ *
+ * These values travel through the browser. The tour form serialises them into
+ * the hidden `payload` field and the server action re-parses them, which means
+ * `coverImageUrl` is attacker-controlled in exactly the way this module's header
+ * note says every field is — a hand-crafted POST can put any string here, and
+ * `/api/admin/uploads` is not the only way one arrives.
+ *
+ * A bare `z.string().url()` would therefore let a signed-in admin (or anyone who
+ * got hold of a session) point a published tour's cover at any host on the
+ * internet. That is a real, if modest, hole: the public page would hotlink an
+ * asset this project does not control, which can be swapped for anything after
+ * review, and every visitor's browser would make a request to a third party from
+ * a page carrying our domain.
+ *
+ * Pinning the host closes it for the cost of one `startsWith`, and costs nothing
+ * legitimate — the only supported way to get a URL into these fields is to upload
+ * a file, and every upload returns a `res.cloudinary.com` URL.
+ *
+ * It also rejects, for free, the scheme games a URL field attracts
+ * (`javascript:`, `data:`), because neither can satisfy the prefix.
+ */
+export const CLOUDINARY_URL_PREFIX = 'https://res.cloudinary.com/';
+
+const cloudinaryUrl = z
+  .string()
+  .trim()
+  .url('That is not a valid image address.')
+  .startsWith(CLOUDINARY_URL_PREFIX, 'Images must be uploaded through this form, not linked from elsewhere.');
+
+/**
+ * One uploaded gallery image. Mirrors `TourGalleryImage` minus its ordering
+ * column, which is DERIVED from array position on save exactly as itinerary day
+ * numbers are — see `childCreates()`.
+ *
+ * `url` and `publicId` travel together as one object rather than as two parallel
+ * arrays for the reason the schema's own note gives: nothing would keep index `n`
+ * of one aligned with index `n` of the other.
+ */
+export const galleryImageSchema = z.object({
+  url: cloudinaryUrl,
+  publicId: z.string().trim().min(1),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+
+export type GalleryImageValue = z.infer<typeof galleryImageSchema>;
+
+/**
+ * The brochure PDF, as the form carries it.
+ *
+ * All four fields or none — which is why this is a nested object rather than four
+ * optional siblings. A `brochurePdfUrl` with no `brochurePdfPublicId` is not a
+ * partially-filled brochure, it is a corrupt one, and the object shape makes that
+ * unrepresentable instead of something the persistence layer has to check for.
+ *
+ * Note where this ends up: the `Brochure` table, NOT a column on `Tour`. See the
+ * note on `Brochure.pdfUrl` in `prisma/schema.prisma` for why a
+ * `Tour.brochurePdfUrl` would have made `GET /api/brochures/[slug]` lie.
+ */
+export const brochureFileSchema = z.object({
+  url: cloudinaryUrl,
+  publicId: z.string().trim().min(1),
+  /** The admin's own filename, shown back to them so they can confirm the right file. */
+  fileName: z.string().trim().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+});
+
+export type BrochureFileValue = z.infer<typeof brochureFileSchema>;
+
+/**
  * One named price tier. The PRESENCE of rows is what switches a tour from single
  * price to tiered — there is no boolean (see `TourPricingTier` in the schema for
  * why a flag beside the rows would drift).
@@ -133,6 +206,19 @@ export const tourFormSchema = z.object({
   itineraryDays: z.array(itineraryDaySchema).default([]),
   faqs: z.array(faqSchema).default([]),
   pricingTiers: z.array(pricingTierSchema).default([]),
+
+  /**
+   * MEDIA — Phase C. Optional at the draft level like everything else here, so a
+   * half-finished tour can be saved before anyone has found the photos.
+   *
+   * `coverImage` becomes REQUIRED at the publish level below — the one media
+   * field that does.
+   */
+  coverImage: z
+    .object({ url: cloudinaryUrl, publicId: z.string().trim().min(1) })
+    .optional(),
+  galleryImages: z.array(galleryImageSchema).default([]),
+  brochureFile: brochureFileSchema.optional(),
 });
 
 export type TourFormValues = z.input<typeof tourFormSchema>;
@@ -158,15 +244,34 @@ export type ParsedTourFormValues = z.output<typeof tourFormSchema>;
  *     single/tiered choice expressed as validation — a tour with neither quotes
  *     no price at all, which for a sellable product is the one field that cannot
  *     be missing.
+ *  7. **a cover image** — NEW IN PHASE C, and a reversal of Phase B's rule.
+ *
+ * ## The cover-image requirement, and why it was absent until now
+ *
+ * The user's original specification said "Cover image (single, required)". Phase
+ * B did not enforce it, and recorded why: uploads did not exist, so requiring a
+ * cover would have made publishing impossible rather than making it better. That
+ * was an interim decision with a stated expiry — "when uploads land, whether a
+ * cover image becomes mandatory is a decision for that phase" — and this is that
+ * phase.
+ *
+ * Uploads now work, so the original requirement is enforced as written. Note the
+ * asymmetry that makes this safe: it is required to PUBLISH, not to SAVE. A draft
+ * with no cover still saves, which is the whole point of drafts, and an existing
+ * PUBLISHED tour is not retroactively invalidated — nothing re-validates stored
+ * rows, so the 22 live fixture tours are untouched until someone edits and
+ * re-publishes one. Making it a NOT NULL column would have done the opposite.
  *
  * ## What is deliberately NOT required
  *
- * **No image requirement.** Cover image, gallery and brochure uploads are Phase
- * C and are not wired to storage yet (see `TourForm`'s upload section). Gating
- * publish on a field the system cannot currently accept would make publishing
- * impossible, so a published tour renders the same token-coloured
- * `PhotoPlaceholder` the whole site already uses (Assumption A4). When uploads
- * land, whether a cover image becomes mandatory is a decision for that phase.
+ * **Gallery images and the brochure PDF stay optional.** The original spec marked
+ * only the cover image required, and that reading is kept literally. A tour with
+ * one good cover photo and no gallery renders a complete card and a complete
+ * detail page; the detail page's gallery section is simply absent, which is
+ * Decision D's rule (render what exists) and not a broken layout. Requiring a
+ * brochure would be worse than cosmetic — no brochure PDF exists for any tour in
+ * this project, so it would block publishing outright, which is exactly the
+ * mistake this requirement's own history warns about.
  *
  * **No itinerary, FAQ, inclusions or full description requirement.** The public
  * detail page renders only the fields that exist (BLOCKERS.md Decision D) and
@@ -200,6 +305,22 @@ export const publishableTourSchema = tourFormSchema.superRefine((values, ctx) =>
       code: z.ZodIssueCode.custom,
       path: ['priceFrom'],
       message: 'A published tour needs a price — either a single price or at least one pricing tier.',
+    });
+  }
+
+  /**
+   * The cover image. Phase C — see the block comment above for why this was
+   * absent in Phase B and is enforced now.
+   *
+   * The `path` is `coverImage` and not `coverImage.url`, because the form renders
+   * one error slot for the whole upload control; pointing at the nested field
+   * would address a slot that does not exist and the message would vanish.
+   */
+  if (!values.coverImage) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['coverImage'],
+      message: 'A cover image is required to publish — it is the photo on the tour card and at the top of the tour page.',
     });
   }
 });

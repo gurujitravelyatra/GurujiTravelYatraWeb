@@ -81,6 +81,11 @@ function baseValues(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFo
     ],
     faqs: [{ question: 'Is this real?', answer: 'No, it is a test row.' }],
     pricingTiers: [],
+    // Phase C media. Absent by default — the base row is a DRAFT, and a draft with
+    // no cover is the state most of these tests are about.
+    coverImage: undefined,
+    galleryImages: [],
+    brochureFile: undefined,
     ...overrides,
   };
 }
@@ -413,6 +418,213 @@ describeDb('tour CMS against the live database', () => {
       expect((await new PrismaContentAdapter(prisma!).getAllTours()).map((t) => t.slug)).toContain(
         DRAFT_SLUG
       );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  /**
+   * PHASE C media, against real SQL.
+   *
+   * Worth its own block because everything else about uploads is verified against
+   * mocks — and, more to the point, because **no upload in this project has ever
+   * been performed against a real Cloudinary account** (BLOCKERS.md item 12).
+   * There are no credentials in this repo or environment. So the URLs below are
+   * realistic strings rather than assets that exist, and what these tests prove
+   * is exactly the half that does not need an account: that the new columns and
+   * the new `TourGalleryImage` table hold what they are given, that a
+   * replacement repoints the row, and that an uploaded cover reaches a public
+   * query. The Cloudinary leg remains unverified.
+   */
+  describe('media (Phase C)', () => {
+    const CDN = 'https://res.cloudinary.com/demo/image/upload/v1/gty/tours/zz-cms-test';
+    const RAW = 'https://res.cloudinary.com/demo/raw/upload/v1/gty/tours/zz-cms-test';
+
+    const OLD_COVER = { url: `${CDN}/cover_old111.jpg`, publicId: 'gty/tours/zz-cms-test/cover_old111' };
+    const NEW_COVER = { url: `${CDN}/cover_new222.jpg`, publicId: 'gty/tours/zz-cms-test/cover_new222' };
+
+    it('round-trips a cover, a gallery and a brochure through real SQL', async () => {
+      await updateTour(
+        DRAFT_SLUG,
+        {
+          ...baseValues(),
+          coverImage: OLD_COVER,
+          galleryImages: [
+            { url: `${CDN}/g1.jpg`, publicId: 'g1', width: 1600, height: 1000 },
+            { url: `${CDN}/g2.jpg`, publicId: 'g2' },
+          ],
+          brochureFile: {
+            url: `${RAW}/brochure_v1.pdf`,
+            publicId: 'gty/tours/zz-cms-test/brochure_v1',
+            fileName: 'zz-test-2026.pdf',
+            sizeBytes: 1_234_567,
+          },
+        },
+        'draft'
+      );
+
+      const reloaded = await getAdminTourBySlug(DRAFT_SLUG);
+      if (!reloaded.configured || reloaded.value === null) throw new Error('missing');
+
+      // Load → save unchanged must be a no-op, which is only true if every field
+      // survives the round trip in the shape the form submits.
+      expect(reloaded.value.form.coverImage).toEqual(OLD_COVER);
+      expect(reloaded.value.form.galleryImages).toEqual([
+        { url: `${CDN}/g1.jpg`, publicId: 'g1', width: 1600, height: 1000 },
+        // Dimensions Cloudinary did not report stay absent rather than becoming 0.
+        { url: `${CDN}/g2.jpg`, publicId: 'g2', width: undefined, height: undefined },
+      ]);
+      expect(reloaded.value.form.brochureFile).toEqual({
+        url: `${RAW}/brochure_v1.pdf`,
+        publicId: 'gty/tours/zz-cms-test/brochure_v1',
+        fileName: 'zz-test-2026.pdf',
+        sizeBytes: 1_234_567,
+      });
+    });
+
+    it('keeps the gallery in the admin’s order, with contiguous sortOrder', async () => {
+      const prisma = getOptionalPrismaClient();
+
+      await updateTour(
+        DRAFT_SLUG,
+        {
+          ...baseValues(),
+          galleryImages: [
+            { url: `${CDN}/b.jpg`, publicId: 'b' },
+            { url: `${CDN}/c.jpg`, publicId: 'c' },
+            { url: `${CDN}/a.jpg`, publicId: 'a' },
+          ],
+        },
+        'draft'
+      );
+
+      const rows = await prisma!.tourGalleryImage.findMany({
+        where: { tourSlug: DRAFT_SLUG },
+        orderBy: { sortOrder: 'asc' },
+      });
+
+      // The order is the admin's arrangement, not alphabetical and not insertion
+      // order by id. `@@unique([tourSlug, sortOrder])` is what makes the
+      // renumbering worth asserting: a gap or a duplicate would be a constraint
+      // violation rather than a cosmetic bug.
+      expect(rows.map((row) => [row.publicId, row.sortOrder])).toEqual([
+        ['b', 0],
+        ['c', 1],
+        ['a', 2],
+      ]);
+    });
+
+    it('removing a middle image renumbers the rest rather than leaving a gap', async () => {
+      const prisma = getOptionalPrismaClient();
+
+      await updateTour(
+        DRAFT_SLUG,
+        {
+          ...baseValues(),
+          galleryImages: [
+            { url: `${CDN}/b.jpg`, publicId: 'b' },
+            { url: `${CDN}/a.jpg`, publicId: 'a' },
+          ],
+        },
+        'draft'
+      );
+
+      const rows = await prisma!.tourGalleryImage.findMany({ where: { tourSlug: DRAFT_SLUG }, orderBy: { sortOrder: 'asc' } });
+      expect(rows.map((row) => row.sortOrder)).toEqual([0, 1]);
+      expect(rows.map((row) => row.publicId)).toEqual(['b', 'a']);
+    });
+
+    /**
+     * REPLACEMENT SAFETY, end to end against real SQL.
+     *
+     * `cloudinary.test.ts` proves a replacement never overwrites the live asset;
+     * this proves the database pointer moves cleanly to the new one, in one
+     * statement, leaving no trace of the old id anywhere in the row.
+     */
+    it('repoints a published tour’s cover to a new asset without disturbing anything else', async () => {
+      const prisma = getOptionalPrismaClient();
+
+      await updateTour(DRAFT_SLUG, { ...baseValues(), coverImage: OLD_COVER }, 'publish');
+      const before = await prisma!.tour.findUnique({ where: { slug: DRAFT_SLUG } });
+      expect(before!.coverImageUrl).toBe(OLD_COVER.url);
+      expect(before!.status).toBe('PUBLISHED');
+
+      await updateTour(DRAFT_SLUG, { ...baseValues(), coverImage: NEW_COVER }, 'publish');
+
+      const after = await prisma!.tour.findUnique({ where: { slug: DRAFT_SLUG } });
+      expect(after!.coverImageUrl).toBe(NEW_COVER.url);
+      expect(after!.coverImagePublicId).toBe(NEW_COVER.publicId);
+      // The tour stayed live throughout — a replacement is not an un-publish.
+      expect(after!.status).toBe('PUBLISHED');
+      expect(after!.catalogueOrder).toBe(before!.catalogueOrder);
+    });
+
+    it('bumps the brochure version on replacement and keeps the row when it is removed', async () => {
+      const prisma = getOptionalPrismaClient();
+
+      const first = {
+        url: `${RAW}/brochure_v1.pdf`,
+        publicId: 'gty/tours/zz-cms-test/brochure_v1',
+        fileName: 'v1.pdf',
+        sizeBytes: 1000,
+      };
+      const second = { ...first, url: `${RAW}/brochure_v2.pdf`, publicId: 'gty/tours/zz-cms-test/brochure_v2', fileName: 'v2.pdf' };
+
+      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: first }, 'draft');
+      const v1 = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
+      expect(v1!.status).toBe('PUBLISHED');
+      expect(v1!.version).toBe(1);
+
+      // A save that does not touch the brochure must not inflate the version.
+      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: first, priceFrom: '₹12,345' }, 'draft');
+      expect((await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } }))!.version).toBe(1);
+
+      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: second }, 'draft');
+      const v2 = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
+      expect(v2!.version).toBe(2);
+      expect(v2!.pdfUrl).toBe(second.url);
+
+      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: undefined }, 'draft');
+      const cleared = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
+      // The RECORD survives with its metadata; only the file is detached. Nothing
+      // hard-deletes a brochure (product-spec §7).
+      expect(cleared).not.toBeNull();
+      expect(cleared!.pdfUrl).toBeNull();
+      expect(cleared!.status).toBe('PENDING_UPLOAD');
+      expect(cleared!.title).toBe(v2!.title);
+    });
+
+    it('delivers an uploaded cover and gallery to the PUBLIC adapter, not just the admin one', async () => {
+      const prisma = getOptionalPrismaClient();
+
+      await updateTour(
+        DRAFT_SLUG,
+        {
+          ...baseValues(),
+          coverImage: NEW_COVER,
+          galleryImages: [
+            { url: `${CDN}/g1.jpg`, publicId: 'g1' },
+            { url: `${CDN}/g2.jpg`, publicId: 'g2' },
+          ],
+        },
+        'publish'
+      );
+
+      const published = (await new PrismaContentAdapter(prisma!).getAllTours()).find(
+        (tour) => tour.slug === DRAFT_SLUG
+      );
+
+      /**
+       * The assertion that makes the whole feature real. Everything upstream can
+       * be correct — the upload, the column, the publish gate — and a visitor
+       * still sees a grey placeholder unless the value survives the public query
+       * as well. That gap is the defect
+       * `memory/feedback_qg_unenforced-safety-flag.md` exists for, and this is
+       * where it would show.
+       */
+      expect(published?.coverImageUrl).toBe(NEW_COVER.url);
+      expect(published?.galleryImageUrls).toEqual([`${CDN}/g1.jpg`, `${CDN}/g2.jpg`]);
+      // Derived from the gallery, so it cannot contradict the strip beneath it.
+      expect(published?.photosCount).toBe(2);
     });
   });
 });

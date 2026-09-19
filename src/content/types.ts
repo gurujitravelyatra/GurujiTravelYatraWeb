@@ -78,7 +78,33 @@ export interface Package {
   category: DestinationCategory;
   durationLabel: string; // e.g. "9 Days 8 Nights"
   subtitle: string; // e.g. "Shimla - Kaza - Chandratal"
+  /**
+   * The PLACEHOLDER key — an opaque token, not a fetchable address (Assumption
+   * A4). Kept as the fallback now that `coverImageUrl` exists: a tour with no
+   * uploaded cover still renders the token-coloured `PhotoPlaceholder`, which is
+   * every one of the 22 fixture tours.
+   */
   photoUrl: string;
+  /**
+   * The uploaded cover photo — a real Cloudinary https URL. Phase C.
+   *
+   * Optional because most tours do not have one, and absent rather than empty-
+   * string for the same reason every other optional here is: `''` would be a
+   * value that renders as a broken image, and `undefined` cannot be.
+   *
+   * `PhotoPlaceholder` takes this and `photoUrl` together and picks: a real
+   * `<img>` when this is set, the token box when it is not. Consumers do not
+   * branch themselves — that is what stops one surface rendering the upload and
+   * another quietly ignoring it.
+   */
+  coverImageUrl?: string;
+  /** Uploaded gallery photos in the admin's chosen order. Phase C. */
+  galleryImageUrls?: string[];
+  /**
+   * The "N Photos" badge. Now derived from the gallery on every admin save (see
+   * `toColumnData`), so for any tour edited since Phase C it is the real number
+   * of uploaded photos rather than the design export's inherited figure.
+   */
   photosCount: number;
   priceFrom: string; // pre-formatted, e.g. "₹42,500"
   priceWas?: string;

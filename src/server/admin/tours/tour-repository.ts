@@ -223,6 +223,17 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
       itineraryDays: { orderBy: { dayNumber: 'asc' } },
       faqs: { orderBy: { sortOrder: 'asc' } },
       pricingTiers: { orderBy: { sortOrder: 'asc' } },
+      galleryImages: { orderBy: { sortOrder: 'asc' } },
+      /**
+       * The brochure comes back as part of the TOUR because that is how the
+       * editor presents it — one "Images & brochure" section, one save. The row
+       * lives in its own table (see `Brochure.pdfUrl`'s note on why there is no
+       * `Tour.brochurePdfUrl`), but that is a storage fact the form does not need
+       * to know.
+       */
+      brochure: {
+        select: { pdfUrl: true, pdfPublicId: true, pdfFileName: true, fileSizeBytes: true },
+      },
     },
   });
 
@@ -259,6 +270,40 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
           price: tier.price,
           description: tier.description ?? undefined,
         })),
+
+        /**
+         * MEDIA — Phase C. `coverImageUrl` and `coverImagePublicId` are two
+         * columns but one value, so they collapse into a single optional object:
+         * the form cannot then represent "a URL with no publicId", and neither
+         * can a round-trip through it.
+         *
+         * The pair is only surfaced when BOTH are present. A row holding one and
+         * not the other would be data this code has no honest reading of, and
+         * passing half of it to the form would let a save write the half back and
+         * make the inconsistency permanent.
+         */
+        coverImage:
+          row.coverImageUrl && row.coverImagePublicId
+            ? { url: row.coverImageUrl, publicId: row.coverImagePublicId }
+            : undefined,
+
+        galleryImages: row.galleryImages.map((image) => ({
+          url: image.url,
+          publicId: image.publicId,
+          width: image.width ?? undefined,
+          height: image.height ?? undefined,
+        })),
+
+        // Same all-or-nothing rule as `coverImage` above.
+        brochureFile:
+          row.brochure?.pdfUrl && row.brochure.pdfPublicId
+            ? {
+                url: row.brochure.pdfUrl,
+                publicId: row.brochure.pdfPublicId,
+                fileName: row.brochure.pdfFileName ?? 'brochure.pdf',
+                sizeBytes: row.brochure.fileSizeBytes ?? 0,
+              }
+            : undefined,
       },
       lifecycle: toLifecycle(row),
       status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
@@ -323,7 +368,34 @@ function toColumnData(values: ParsedTourFormValues) {
     isHot: values.isHot,
     inclusions: values.inclusions,
     exclusions: values.exclusions,
+
+    /**
+     * MEDIA — Phase C. Written as a PAIR, always, including the null case: a
+     * removed cover clears both columns in the same statement, so the two cannot
+     * end up describing different assets.
+     */
+    coverImageUrl: values.coverImage?.url ?? null,
+    coverImagePublicId: values.coverImage?.publicId ?? null,
   };
+
+  /**
+   * NOTE WHAT IS STILL NOT HERE: `photosCount`.
+   *
+   * It was briefly written from here as `values.galleryImages.length`, on the
+   * reasoning that a derived count cannot disagree with the gallery it counts.
+   * The live integration suite rejected it, and was right to: `photosCount` is
+   * not a form field, so writing it made editing a tour's DESCRIPTION silently
+   * change its photo count — 11 to 0 on the first seeded tour the suite touched.
+   * That is exactly the class of side effect the list above exists to prevent,
+   * and the test that caught it ("editing one field of a live seeded tour leaves
+   * every other field untouched") is more valuable than the tidiness it blocked.
+   *
+   * The count is instead DERIVED AT READ TIME by `PrismaContentAdapter`, which
+   * returns the gallery's length when a gallery exists and the stored column
+   * when it does not. So a tour with uploads cannot show a count that contradicts
+   * its own gallery strip, and a tour without uploads keeps the figure it has
+   * always had rather than having it rewritten by an unrelated edit.
+   */
 }
 
 /**
@@ -351,8 +423,168 @@ function childCreates(values: ParsedTourFormValues) {
       description: tier.description ?? null,
       sortOrder: index,
     })),
+    /**
+     * Gallery order IS array order — the up/down buttons in the editor reorder
+     * the array and `sortOrder` is rewritten from scratch here, so it is
+     * contiguous from 0 by construction and `@@unique([tourSlug, sortOrder])`
+     * cannot be violated by a removal from the middle.
+     */
+    galleryImages: values.galleryImages.map((image, index) => ({
+      url: image.url,
+      publicId: image.publicId,
+      width: image.width ?? null,
+      height: image.height ?? null,
+      sortOrder: index,
+    })),
   };
 }
+
+/**
+ * Writes the tour's brochure PDF into the `Brochure` table — Phase C.
+ *
+ * ## Why the brochure is written here and not as a column on `Tour`
+ *
+ * `Brochure` already exists, already holds `pdfUrl`, and is already what
+ * `GET /api/brochures/[slug]` and `BrochureModal` read. A `Tour.brochurePdfUrl`
+ * column would have produced an admin UI showing a successfully uploaded
+ * brochure while the public endpoint continued to answer `pdfUrl: null, status:
+ * PENDING_UPLOAD` — the two-models-one-entity drift recorded as variant 4 in
+ * `memory/feedback_qg_unenforced-safety-flag.md`. Writing to the table the
+ * readers already read is what makes the upload actually reach a visitor.
+ *
+ * ## Replacement safety, the database half
+ *
+ * The Cloudinary half is in `uploadAsset()`: a replacement is a new asset with a
+ * new `public_id`, never an overwrite. This is the half that decides WHEN the
+ * pointer moves — and it moves here, inside the same transaction as the rest of
+ * the save, strictly after the upload returned a URL. So the sequence for
+ * replacing a live tour's brochure is:
+ *
+ *   1. new PDF uploads to Cloudinary, old asset untouched and still serving;
+ *   2. admin presses Save;
+ *   3. this row's `pdfUrl` moves to the new asset, in one statement.
+ *
+ * There is no window in which `pdfUrl` names an asset that does not exist yet,
+ * and an upload the admin abandons changes nothing at all.
+ *
+ * `version` is incremented only on a genuine replacement — a save that did not
+ * touch the brochure must not inflate the count, or the number stops meaning
+ * anything.
+ */
+async function syncBrochure(
+  tx: Pick<PrismaClient, 'brochure'>,
+  tourSlug: string,
+  values: ParsedTourFormValues
+): Promise<void> {
+  const existing = await tx.brochure.findUnique({
+    where: { tourSlug },
+    select: { pdfPublicId: true },
+  });
+
+  const file = values.brochureFile;
+
+  if (!file) {
+    // Nothing submitted and nothing stored — the ordinary case for the 22 seeded
+    // tours, and there is nothing to do.
+    if (!existing || existing.pdfPublicId === null) return;
+
+    /**
+     * The admin removed the brochure. The FILE fields are cleared and the row is
+     * KEPT: `Brochure` also holds title, itinerary summary and download count,
+     * which are metadata about the tour's brochure rather than about the file,
+     * and deleting the row would discard them. `PENDING_UPLOAD` is exactly the
+     * state this returns to — the same one every seeded row is in.
+     *
+     * The Cloudinary asset is deliberately not destroyed; see `uploadAsset()`.
+     */
+    await tx.brochure.update({
+      where: { tourSlug },
+      data: {
+        pdfUrl: null,
+        pdfPublicId: null,
+        pdfFileName: null,
+        fileSizeBytes: null,
+        uploadedAt: null,
+        status: 'PENDING_UPLOAD',
+      },
+    });
+    return;
+  }
+
+  // Submitted unchanged — a save of some other field. Touching nothing here keeps
+  // `uploadedAt` and `version` meaning what they say.
+  if (existing && existing.pdfPublicId === file.publicId) return;
+
+  const fileFields = {
+    pdfUrl: file.url,
+    pdfPublicId: file.publicId,
+    pdfFileName: file.fileName,
+    fileSizeBytes: file.sizeBytes,
+    uploadedAt: new Date(),
+    /**
+     * PUBLISHED because a real file now backs the record, which is the condition
+     * the enum's own note sets: "A brochure may only move to PUBLISHED when a
+     * real file backs it." This is the first code in the project that can
+     * truthfully move a row out of PENDING_UPLOAD.
+     */
+    status: 'PUBLISHED' as const,
+  };
+
+  if (existing) {
+    await tx.brochure.update({
+      where: { tourSlug },
+      data: {
+        ...fileFields,
+        // A genuine replacement only when a different file was there before.
+        ...(existing.pdfPublicId !== null ? { version: { increment: 1 } } : {}),
+      },
+    });
+    return;
+  }
+
+  /**
+   * No brochure row yet — a tour created through the admin UI, since every
+   * SEEDED tour has one. The metadata is derived from the tour exactly as
+   * `prisma/seed.ts` derives it, so a brochure created here is indistinguishable
+   * from a seeded one. Nothing is invented: `dateRangeLabel` stays NULL because
+   * tours carry no dates anywhere in this project.
+   */
+  await tx.brochure.create({
+    data: {
+      tourSlug,
+      title: values.name,
+      itinerarySummary: values.subtitle ?? '',
+      priceLabel: values.priceFrom ?? null,
+      dateRangeLabel: null,
+      coverImageKey: values.destinationSlug,
+      category: CATEGORY_TO_PRISMA[values.category],
+      ...fileFields,
+    },
+  });
+}
+
+/**
+ * Transaction budget for the save path, widened from Prisma's 5-second default.
+ *
+ * Not a guess and not defensive padding — the default was measured failing.
+ * Phase C added one more round trip inside the save (the brochure lookup), and
+ * over the managed Postgres proxy this project connects through, that was enough
+ * to push a save past 5s and abort it with "Transaction not found. Transaction ID
+ * is invalid, refers to an old closed transaction". The failure is intermittent,
+ * which is the dangerous part: it would have shipped and then eaten roughly one
+ * save in five, at random, with a generic "Saving failed" in front of it.
+ *
+ * `prisma/seed.ts` reached the same conclusion independently and carries the same
+ * two options with the same reasoning — `maxWait` covers the initial wait for a
+ * pool connection over a slow link, `timeout` covers the work itself. The numbers
+ * here are smaller than the seed's because this is one tour rather than the whole
+ * catalogue, but they are generous against a link whose ordinary latency is tens
+ * of milliseconds: the point is to survive a slow connection, not to hide a slow
+ * query.
+ *
+ * BLOCKERS.md item 10 records the proxy's `P1001` behaviour this sits alongside.
+ */
+const SAVE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
 
 /** The status a submit intent writes. `'draft'` un-publishes; see `SUBMIT_INTENTS`. */
 function statusForIntent(intent: SubmitIntent): TourStatus {
@@ -379,33 +611,39 @@ export async function createTour(
     const last = await tx.tour.findFirst({ orderBy: { catalogueOrder: 'desc' }, select: { catalogueOrder: true } });
     const catalogueOrder = (last?.catalogueOrder ?? -1) + 1;
 
-    return tx.tour.create({
+    const tour = await tx.tour.create({
       data: {
         ...toColumnData(values),
         slug: values.slug,
         status: statusForIntent(intent),
         catalogueOrder,
         /**
-         * Opaque display key, NOT a URL (Assumption A4) — the same contract the
-         * fixtures use, where `photoUrl` holds the destination name and the card
-         * renders a token-coloured `PhotoPlaceholder` from it. Real uploads are
-         * Phase C; seeding this with the destination name gives a new tour the
-         * same honest placeholder every existing tour has, rather than a
-         * fabricated CDN path.
+         * The PLACEHOLDER key, still written and still opaque (Assumption A4).
+         * It is not superseded by `coverImageUrl`: it is the fallback the card
+         * renders when no cover has been uploaded, which is every new tour at the
+         * moment of creation and every draft saved before the photos arrived.
+         * `PhotoPlaceholder` reads `coverImageUrl` first and falls back to this.
          */
         photoKey: values.destinationSlug,
         /**
-         * ZERO, and honestly so: no photos have been uploaded for a tour created
-         * here, because uploads are not built yet. The card renders "0 Photos".
+         * ZERO, and honestly so: a tour created here has no design-export figure
+         * to inherit, and the real count of uploaded photos is whatever its
+         * gallery holds. Set only on CREATE — `toColumnData` deliberately does
+         * not write it on update, so no later edit can move it.
          */
         photosCount: 0,
         itineraryDays: { create: children.itineraryDays },
         faqs: { create: children.faqs },
         pricingTiers: { create: children.pricingTiers },
+        galleryImages: { create: children.galleryImages },
       },
       select: { slug: true },
     });
-  });
+
+    await syncBrochure(tx, tour.slug, values);
+
+    return tour;
+  }, SAVE_TRANSACTION_OPTIONS);
 
   return { configured: true, value: created };
 }
@@ -436,8 +674,16 @@ export async function updateTour(
     await tx.tourItineraryDay.deleteMany({ where: { tourSlug: currentSlug } });
     await tx.tourFaq.deleteMany({ where: { tourSlug: currentSlug } });
     await tx.tourPricingTier.deleteMany({ where: { tourSlug: currentSlug } });
+    /**
+     * The gallery is replaced on the same terms as the other child collections.
+     * Note this deletes only DATABASE ROWS — the Cloudinary assets they pointed
+     * at are left alone, so an image removed here and re-added by an undo is the
+     * same asset, and an image removed by mistake is recoverable from the media
+     * library rather than gone.
+     */
+    await tx.tourGalleryImage.deleteMany({ where: { tourSlug: currentSlug } });
 
-    return tx.tour.update({
+    const tour = await tx.tour.update({
       where: { slug: currentSlug },
       data: {
         ...toColumnData(values),
@@ -458,10 +704,22 @@ export async function updateTour(
         itineraryDays: { create: children.itineraryDays },
         faqs: { create: children.faqs },
         pricingTiers: { create: children.pricingTiers },
+        galleryImages: { create: children.galleryImages },
       },
       select: { slug: true },
     });
-  });
+
+    /**
+     * AFTER the tour update, and keyed on the NEW slug. `Brochure.tourSlug` is
+     * `ON UPDATE CASCADE`, so a renamed tour's brochure row has already followed
+     * by this point — looking it up under `currentSlug` here would find nothing
+     * and silently create a second brochure for the same tour, which
+     * `@@unique` would then reject.
+     */
+    await syncBrochure(tx, tour.slug, values);
+
+    return tour;
+  }, SAVE_TRANSACTION_OPTIONS);
 
   return { configured: true, value: updated };
 }

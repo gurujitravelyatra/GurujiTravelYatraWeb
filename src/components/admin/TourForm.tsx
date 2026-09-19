@@ -36,6 +36,13 @@ interface TourFormProps {
   isPublished?: boolean;
   /** Set when the list view's Publish toggle bounced the admin here. */
   publishBlocked?: boolean;
+  /**
+   * Whether this environment has a Cloudinary account configured. Resolved on the
+   * SERVER (`isCloudinaryConfigured()` reads the API secret's siblings and is
+   * `server-only`) and passed down as a boolean, so nothing about the credential
+   * — not even its absence — is decided in the browser.
+   */
+  uploadsEnabled?: boolean;
 }
 
 const EMPTY_VALUES: TourFormValues = {
@@ -59,6 +66,9 @@ const EMPTY_VALUES: TourFormValues = {
   itineraryDays: [],
   faqs: [],
   pricingTiers: [],
+  coverImage: undefined,
+  galleryImages: [],
+  brochureFile: undefined,
 };
 
 /**
@@ -91,6 +101,7 @@ export function TourForm({
   defaultValues,
   isPublished = false,
   publishBlocked = false,
+  uploadsEnabled = false,
 }: TourFormProps) {
   const [state, formAction, pending] = useActionState<TourFormState, FormData>(
     saveTourAction,
@@ -636,7 +647,20 @@ export function TourForm({
         )}
       </section>
 
-      <TourUploadsSection />
+      {/*
+        `control` and `setValue` rather than `register`: a file input's value
+        cannot be controlled by React, so what is registered is the UPLOAD RESULT
+        (a URL and a publicId), which the section writes with `setValue` once the
+        file is safely in Cloudinary. Registering the input itself would bind the
+        form to a `FileList` the server never receives.
+      */}
+      <TourUploadsSection
+        control={control}
+        setValue={setValue}
+        editingSlug={editingSlug}
+        uploadsEnabled={uploadsEnabled}
+        coverError={fieldError('coverImage')}
+      />
 
       {/* ---------------------------------------------------------------- */}
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-gty-border bg-gty-bg/95 py-4 backdrop-blur">

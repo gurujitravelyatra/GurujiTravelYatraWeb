@@ -61,6 +61,21 @@ const PUBLICLY_LISTABLE_WHERE = {
   pricingUnverified: false,
 } as const;
 
+/**
+ * What every tour query joins — Phase C added the gallery to it.
+ *
+ * One shared constant for the same reason `PUBLICLY_LISTABLE_WHERE` is one: the
+ * three surfaces that return a `Package` (the catalogue, Home's popular grid,
+ * and the rails) must return the SAME shape, and the failure mode of writing the
+ * include three times is that a tour's gallery appears on two of them and
+ * silently not the third. The detail page reads through `getAllTours()`, so a
+ * missed join there would empty the gallery on the one page that renders it.
+ */
+const TOUR_INCLUDE = {
+  destination: true,
+  galleryImages: { orderBy: { sortOrder: 'asc' } },
+} as const;
+
 export class PrismaContentAdapter implements ContentPort, BrochurePort {
   private readonly prisma: PrismaClient;
 
@@ -82,7 +97,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
   async getAllTours(): Promise<Package[]> {
     const rows = await this.prisma.tour.findMany({
       where: PUBLICLY_LISTABLE_WHERE,
-      include: { destination: true },
+      include: TOUR_INCLUDE,
       orderBy: { catalogueOrder: 'asc' },
     });
     return rows.map(toPackage).filter(isPubliclyListable);
@@ -91,7 +106,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
   async getPopularDestinations(): Promise<Package[]> {
     const rows = await this.prisma.tour.findMany({
       where: { ...PUBLICLY_LISTABLE_WHERE, popularOrder: { not: null } },
-      include: { destination: true },
+      include: TOUR_INCLUDE,
       orderBy: { popularOrder: 'asc' },
     });
     return rows.map(toPackage).filter(isPubliclyListable);
@@ -117,7 +132,7 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
       include: {
         items: {
           orderBy: { sortOrder: 'asc' },
-          include: { tour: { include: { destination: true } } },
+          include: { tour: { include: TOUR_INCLUDE } },
         },
       },
     });
@@ -226,6 +241,7 @@ type TourRow = {
   durationLabel: string;
   subtitle: string;
   photoKey: string;
+  coverImageUrl: string | null;
   photosCount: number;
   priceFrom: string;
   priceWas: string | null;
@@ -236,6 +252,14 @@ type TourRow = {
   status: string;
   archivedAt: Date | null;
   destination: { name: string };
+  /**
+   * Optional on the ROW TYPE, not on the schema: it is present on every query
+   * that includes it and absent on any future one that does not. Typing it as
+   * required would force every caller to join the gallery even when nothing
+   * renders it; typing it optional means a caller that forgets simply yields a
+   * tour with no gallery, which is the same as a tour that has none.
+   */
+  galleryImages?: { url: string }[];
 };
 
 function toPackage(row: TourRow): Package {
@@ -254,7 +278,39 @@ function toPackage(row: TourRow): Package {
     // is still called `photoUrl`; the column is not, so nothing downstream in
     // the database layer mistakes it for a fetchable address.
     photoUrl: row.photoKey,
-    photosCount: row.photosCount,
+    /**
+     * The uploaded cover, when there is one. Unlike `photoKey` this IS a
+     * fetchable address, which is why the two are separate fields rather than
+     * one column that changed meaning — a consumer that has not been updated
+     * still renders the placeholder instead of putting an https URL through
+     * `PhotoPlaceholder`'s uppercase label.
+     */
+    coverImageUrl: optional(row.coverImageUrl),
+    galleryImageUrls: row.galleryImages?.map((image) => image.url),
+    /**
+     * The "N Photos" badge, derived at READ TIME rather than stored.
+     *
+     * A tour with uploaded photos reports how many it has; a tour with none keeps
+     * the design export's inherited figure, which is what all 22 seeded tours
+     * still show.
+     *
+     * Derived here and not written on save, because `photosCount` is not a form
+     * field: writing it from the admin form made editing a tour's description
+     * silently change its photo count, which the live integration suite caught
+     * (see `toColumnData`). Deriving it costs nothing and cannot drift from the
+     * gallery, so the badge and the gallery strip on the detail page can never
+     * contradict each other — "8 Photos" above a strip of three was the failure
+     * worth designing out.
+     *
+     * The inherited figure for a tour with no uploads is NOT corrected here.
+     * Those numbers describe photography that does not exist in this project,
+     * which is a real honesty problem — but it is the pre-existing one, it
+     * affects all 22 tours equally, and silently zeroing the catalogue is a
+     * content decision for the business rather than a side effect of shipping
+     * uploads.
+     */
+    photosCount:
+      row.galleryImages && row.galleryImages.length > 0 ? row.galleryImages.length : row.photosCount,
     priceFrom: row.priceFrom,
     priceWas: optional(row.priceWas),
     savingsLabel: optional(row.savingsLabel),

@@ -26,6 +26,7 @@ export function PackageCard({ package: pkg }: PackageCardProps) {
       <span className="relative block w-full">
         <PhotoPlaceholder
           photoKey={pkg.photoUrl}
+          imageUrl={pkg.coverImageUrl}
           alt={`${pkg.name} — ${pkg.destinationName}`}
           className="h-[250px] w-full rounded-14"
         />

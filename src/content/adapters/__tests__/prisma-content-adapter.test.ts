@@ -175,6 +175,91 @@ describe('PrismaContentAdapter — row → domain mapping', () => {
   });
 });
 
+describe('PrismaContentAdapter — uploaded media reaches the public surfaces (Phase C)', () => {
+  const COVER = 'https://res.cloudinary.com/demo/image/upload/v1/gty/tours/spiti/cover_a1.jpg';
+
+  it('carries an uploaded cover through to the domain object', async () => {
+    /**
+     * The assertion that stops `coverImageUrl` becoming an inert column. An admin
+     * can upload a cover, the row can hold it, and the publish gate can require
+     * it — and a visitor still sees a grey placeholder unless the adapter carries
+     * it across. That is the exact shape
+     * `memory/feedback_qg_unenforced-safety-flag.md` catalogues, applied to a
+     * value rather than a flag.
+     */
+    const { client } = mockPrisma({ tour: [tourRow({ coverImageUrl: COVER })] });
+    const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+    expect(tour.coverImageUrl).toBe(COVER);
+  });
+
+  it('leaves coverImageUrl undefined — never null — for a tour with no upload', async () => {
+    // `null` would make `'coverImageUrl' in tour` true, and `PhotoPlaceholder`
+    // branches on truthiness; the domain types mark it optional throughout.
+    const { client } = mockPrisma({ tour: [tourRow({ coverImageUrl: null })] });
+    const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+    expect(tour.coverImageUrl).toBeUndefined();
+  });
+
+  it('carries the gallery across in its stored order', async () => {
+    const { client } = mockPrisma({
+      tour: [
+        tourRow({
+          galleryImages: [{ url: `${COVER}#one` }, { url: `${COVER}#two` }, { url: `${COVER}#three` }],
+        }),
+      ],
+    });
+    const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+    // Order is the query's `orderBy: { sortOrder: 'asc' }`; the mapper must not
+    // re-sort or reverse it, since that order is the admin's own arrangement.
+    expect(tour.galleryImageUrls).toEqual([`${COVER}#one`, `${COVER}#two`, `${COVER}#three`]);
+  });
+
+  describe('the "N Photos" badge', () => {
+    it('reports the real gallery length when the tour has uploads', async () => {
+      const { client } = mockPrisma({
+        tour: [tourRow({ photosCount: 14, galleryImages: [{ url: `${COVER}#a` }, { url: `${COVER}#b` }] })],
+      });
+      const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+      /**
+       * 2, not the stored 14. The detail page renders this badge directly above a
+       * strip of the gallery images, so a stored count that disagreed with the
+       * strip would be contradicted on screen, in the same viewport.
+       */
+      expect(tour.photosCount).toBe(2);
+    });
+
+    it('keeps the stored figure for a tour with no uploads', async () => {
+      const { client } = mockPrisma({ tour: [tourRow({ photosCount: 14, galleryImages: [] })] });
+      const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+      /**
+       * 14 — the design export's inherited figure, left exactly as it was.
+       *
+       * It describes photography that does not exist in this project, which is a
+       * genuine honesty problem, and it is deliberately NOT corrected here: it
+       * predates this work, affects all 22 seeded tours equally, and zeroing the
+       * catalogue's photo counts is a content decision for the business rather
+       * than a side effect of shipping uploads.
+       */
+      expect(tour.photosCount).toBe(14);
+    });
+
+    it('keeps the stored figure when the gallery was not joined at all', async () => {
+      // A future query that omits the include must degrade to the old behaviour
+      // rather than reporting every tour as having zero photos.
+      const { client } = mockPrisma({ tour: [tourRow({ photosCount: 14 })] });
+      const [tour] = await new PrismaContentAdapter(client).getAllTours();
+
+      expect(tour.photosCount).toBe(14);
+      expect(tour.galleryImageUrls).toBeUndefined();
+    });
+  });
+});
+
 describe('PrismaContentAdapter — the public-listing gate is enforced, not merely queried', () => {
   /**
    * THE test of this change. `memory/feedback_qg_unenforced-safety-flag.md`

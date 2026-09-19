@@ -36,6 +36,16 @@ const MINIMAL_DRAFT: TourFormValues = {
   pricingTiers: [],
 };
 
+/**
+ * A cover image as the form carries one. The URL must be on Cloudinary's
+ * delivery host — see `CLOUDINARY_URL_PREFIX` for why the host is pinned rather
+ * than any `https://` URL being accepted.
+ */
+const COVER: NonNullable<TourFormValues['coverImage']> = {
+  url: 'https://res.cloudinary.com/demo/image/upload/v1/gty/tours/spiti/cover_a1b2c3.jpg',
+  publicId: 'gty/tours/spiti/cover_a1b2c3',
+};
+
 const PUBLISHABLE: TourFormValues = {
   ...MINIMAL_DRAFT,
   name: 'Spiti Valley Circuit',
@@ -43,6 +53,8 @@ const PUBLISHABLE: TourFormValues = {
   shortDescription: 'A high-altitude loop through the Spiti valley.',
   durationLabel: '9 Days 8 Nights',
   priceFrom: '₹42,500',
+  // REQUIRED to publish as of Phase C — see the cover-image tests below.
+  coverImage: COVER,
 };
 
 describe('draft-level validation accepts work in progress', () => {
@@ -113,9 +125,12 @@ describe('the publish bar', () => {
     expect(publishableTourSchema.safeParse(priceless).success).toBe(false);
   });
 
-  it('does NOT require images, itinerary, FAQs or a full description', () => {
-    // Uploads are Phase C and are not wired to storage. Gating publish on a
-    // field the system cannot yet accept would make publishing impossible.
+  it('does NOT require an itinerary, FAQs, a gallery, a brochure or a full description', () => {
+    // The detail page renders only what exists (BLOCKERS.md Decision D), so the
+    // absence of these is a shorter page, not a broken one. The original spec
+    // marked only the COVER image required, and that reading is kept literally —
+    // requiring a brochure in particular would block publishing outright, since
+    // no brochure PDF exists for any tour in this project.
     const bare: TourFormValues = {
       ...PUBLISHABLE,
       fullDescription: '',
@@ -123,8 +138,95 @@ describe('the publish bar', () => {
       faqs: [],
       inclusions: [],
       exclusions: [],
+      galleryImages: [],
+      brochureFile: undefined,
     };
     expect(publishableTourSchema.safeParse(bare).success).toBe(true);
+  });
+
+  /**
+   * THE PHASE C REVERSAL.
+   *
+   * Phase B recorded "images are deliberately NOT required" with a stated reason
+   * — uploads did not exist, so the requirement would have made publishing
+   * impossible — and a stated expiry: the decision was to be revisited when
+   * uploads landed. They have, so the user's original specification ("Cover
+   * image (single, required)") is now enforced as written.
+   */
+  it('refuses to publish without a cover image, and says so on the cover field', () => {
+    const uncovered: TourFormValues = { ...PUBLISHABLE, coverImage: undefined };
+
+    const result = publishableTourSchema.safeParse(uncovered);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // The path is the control's own id, not `coverImage.url`: the form renders
+      // ONE error slot for the upload section, and an error addressed to a nested
+      // path would be dropped on the floor rather than shown.
+      const issue = result.error.issues.find((candidate) => candidate.path.join('.') === 'coverImage');
+      expect(issue).toBeDefined();
+      expect(issue?.message).toMatch(/cover image is required to publish/i);
+    }
+  });
+
+  it('SAVES a draft with no cover image — the requirement is to publish, not to exist', () => {
+    // The asymmetry that makes the requirement safe. A draft is half-finished by
+    // definition, and a tour nobody can save until the photos arrive is a tour
+    // whose copy gets written in a text file instead.
+    const uncovered: TourFormValues = { ...PUBLISHABLE, coverImage: undefined };
+    expect(tourFormSchema.safeParse(uncovered).success).toBe(true);
+    expect(parseTourForm('draft', uncovered).success).toBe(true);
+  });
+
+  it('publishes once a cover image is attached', () => {
+    // The other half of the assertion above: without this, the previous test
+    // would still pass if `publishableTourSchema` rejected EVERYTHING.
+    const uncovered: TourFormValues = { ...PUBLISHABLE, coverImage: undefined };
+    expect(publishableTourSchema.safeParse(uncovered).success).toBe(false);
+    expect(publishableTourSchema.safeParse({ ...uncovered, coverImage: COVER }).success).toBe(true);
+  });
+
+  it('rejects a cover image hosted anywhere but Cloudinary', () => {
+    /**
+     * These fields arrive inside the form's hidden `payload`, so they are
+     * attacker-controlled exactly as every other field is — a hand-crafted POST
+     * can put any string here without going near `/api/admin/uploads`. Pinning
+     * the host stops a published tour hotlinking an asset this project does not
+     * control, and rules out the scheme games a URL field attracts.
+     */
+    for (const url of [
+      'https://evil.example/tracker.jpg',
+      'http://res.cloudinary.com/demo/image/upload/v1/x.jpg', // http, not https
+      'javascript:alert(1)',
+      'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      '//res.cloudinary.com/demo/image/upload/v1/x.jpg',
+    ]) {
+      const result = publishableTourSchema.safeParse({
+        ...PUBLISHABLE,
+        coverImage: { url, publicId: 'x' },
+      });
+      expect(result.success).toBe(false);
+    }
+  });
+
+  it('rejects a gallery image or brochure hosted anywhere but Cloudinary', () => {
+    expect(
+      tourFormSchema.safeParse({
+        ...PUBLISHABLE,
+        galleryImages: [{ url: 'https://evil.example/x.jpg', publicId: 'x' }],
+      }).success
+    ).toBe(false);
+
+    expect(
+      tourFormSchema.safeParse({
+        ...PUBLISHABLE,
+        brochureFile: {
+          url: 'https://evil.example/x.pdf',
+          publicId: 'x',
+          fileName: 'x.pdf',
+          sizeBytes: 10,
+        },
+      }).success
+    ).toBe(false);
   });
 
   it('does not require priceWas/savingsLabel — the fabricated-discount fields', () => {
