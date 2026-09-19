@@ -347,7 +347,20 @@ needs to emit the underlying events.
 
 ---
 
-## 7. Owner/Admin Concepts (inside the existing CRM, not a separate site)
+## 7. Owner/Admin Concepts
+
+> **Heading changed 2026-09-19. Originally "…(inside the existing CRM, not a
+> separate site)".** That framing governed this repo from project start and was
+> **deliberately reversed by the owner on 2026-09-17**: the admin CMS is now
+> built into THIS repository, in the same Next.js app as the public site. The
+> reversal was confirmed by direct question after the contradiction with this
+> section was flagged — it is an intentional, permanent pivot, not drift. Record:
+> `memory/project_gty_admin_reversal.md` and
+> `documentation/technical-specification/BLOCKERS.md` items 11–13.
+>
+> The *requirements* below are unchanged and still authoritative — only the
+> answer to "where does this live" changed. What is built today is described in
+> §7.1; anything in this section not listed there is not built.
 
 The owner must be able to publish tours and manage brochures **without
 developer involvement**:
@@ -373,6 +386,55 @@ Enquiries, Bookings, Conversion Rate — e.g.:
 SPITI VALLEY
 Views 1,842 · Brochure Requests 327 · Downloads 291 · Enquiries 84 · Bookings 19
 ```
+
+### 7.1 What is actually built, in this repo (as of 2026-09-19)
+
+**Routes.** `/admin/login`, `/admin` (dashboard), `/admin/tours` (list),
+`/admin/tours/new`, `/admin/tours/[id]/edit`, and the upload endpoint
+`POST /api/admin/uploads`. `src/proxy.ts` gates `/admin` and `/admin/:path*`;
+the upload route gates itself (it must answer JSON, not redirect to an HTML
+login form).
+
+**Authentication.** NextAuth v5 / Auth.js `5.0.0-beta.32`, Credentials
+provider, passwords hashed with `bcryptjs` at cost 12, session held in a 7-day
+sliding JWT — no session table, no server-side lookup on each request. There is
+no sign-up, no password reset and no invite flow: an admin account is created by
+running **`npm run db:seed:admin`**, which prompts for an email and password and
+writes one `AdminUser` row. `AUTH_SECRET` must be set in production; the app
+refuses to issue a session without it.
+
+**Media.** Cloudinary, uploaded **server-side and signed** — the browser never
+holds a credential. Files are validated by their leading bytes, not by the
+declared MIME type or the filename (JPEG/PNG/WebP up to 10 MB, PDF up to 20 MB).
+`overwrite: false`, so a replacement is always a new asset and the live page
+keeps serving the old one until the admin saves.
+
+**Publishing.** Draft / published plus an archive action — archive, never
+hard-delete, matching the brochure rule above. The publish bar refuses to
+publish a tour with **no cover image**; a draft may be saved without one.
+
+**Pricing.** Per-tour and optional: a tour with no tier rows has a single price,
+a tour with rows has named tiers. The row count IS the toggle — there is no
+separate mode flag to drift out of sync with the rows.
+
+**Tagging — two axes, deliberately not merged.** `category` is THEMATIC and a
+tour has exactly one (Spiritual, Mountains, Cultural, Family, Adventure,
+International, Beach, Himalaya, Family Trip, Pilgrimage). `audienceTags` is
+about WHICH SURFACE a tour belongs on and a tour has any number of them
+(Domestic, International, Group Tour, Custom-eligible). `International` appears
+in both lists and means different things in each, which is exactly why one
+merged field would not work. **Stated honestly: nothing public reads
+`audienceTags` yet** — it is admin-side categorisation being captured now so the
+data exists when a public filter is built. Every pre-existing tour has none
+until someone sets them.
+
+**Content safety.** All admin-authored tour copy is plain text: markup is
+refused by the form's validation and stripped again at the write, so the stored
+row is markup-free regardless of which path wrote it.
+
+**Not built:** scheduling a future publish, video upload, testimonials
+management, brochure version history with preview/restore, and the per-tour
+analytics above. See BLOCKERS.md item 13 for the full open list.
 
 ---
 
@@ -447,6 +509,20 @@ the public frontend, audit logging for admin actions.
 
 ## 12. Data Principle
 
+> **PARTIALLY SUPERSEDED 2026-09-19.** The principle below — "not hardcoded tour
+> content" — still holds, and holds better than before: content is no longer
+> hardcoded, it is in a real database. What changed on 2026-09-17 is the
+> *direction of the arrow for CONTENT*. Content is now authored and owned in
+> this repo's own admin (§7.1) against its own Postgres database. **Only LEADS
+> still go to the CRM**, and even that is log-only today — `crm-client.ts` is a
+> stub with no endpoint, so a submitted lead reaches this app's log and nothing
+> else. See BLOCKERS.md §5 (the interim content database) and item 1a (the CRM
+> lead endpoint, still the real production blocker).
+>
+> Preserved below as originally written, because it records what was planned and
+> because the CONTENT arrow may yet be reinstated if the CRM exposes a content
+> API.
+
 The website should be driven by the CRM/API, not hardcoded tour content:
 
 ```
@@ -456,6 +532,13 @@ GTY CRM / Backend → API → GTY Website
 Website requests Destinations, Tours, Group departures, Prices, Dates,
 Availability, Brochures, Reviews, and Content from the backend — see
 `CLAUDE.md` section 6 & 10 for the exact integration contract requirements.
+
+**What is actually true as of 2026-09-19:**
+
+```
+GTY Admin (this repo, /admin) → Postgres (this repo) → GTY Website   [content]
+GTY Website → POST /api/leads → server log → (CRM endpoint: NOT BUILT)  [leads]
+```
 
 ---
 
@@ -469,8 +552,12 @@ Brochure Lead Popup · Search Results · 404 · Loading/Empty/Error states
 **Future customer area:** Login, My Journeys, Booking Details, Trip
 Documents, Profile
 
-**Admin concepts (inside CRM):** Dashboard, Tour Management, Create/Edit
-Tour, Brochure Library, Lead Management, Lead Activity, Analytics
+**Admin concepts** *(originally planned inside the CRM; deliberately changed
+2026-09-17 — these live in THIS repo now, see §7.1):* Dashboard ✅, Tour
+Management ✅, Create/Edit Tour ✅, Brochure Library — partial (upload and
+replace work; no version-history UI), Lead Management ❌, Lead Activity ❌,
+Analytics ❌. The three unbuilt items are lead-side and belong with the CRM
+integration that is still open.
 
 ---
 

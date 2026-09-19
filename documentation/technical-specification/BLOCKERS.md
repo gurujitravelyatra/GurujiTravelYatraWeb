@@ -855,3 +855,100 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      login form arriving at a `fetch()` surfaces as a parse error rather than "your
      session expired". CSRF is covered by the session cookie's `SameSite=Lax` plus a
      `Sec-Fetch-Site` check.
+
+13. **Tour CMS — Phase D, security hardening and doc sync (2026-09-19). CLOSING ENTRY
+   for the admin/CMS build (items 11 and 12).** Phase D added no features. It closed the
+   three security questions item 11's note left open — stored XSS, CSRF on the mutation
+   path, and secret exposure — and then reconciled the documentation, which had still
+   described the admin as living inside the CRM.
+
+   **What was hardened**
+
+   - **Stored XSS: two layers, deliberately apart.** `plain-text.ts` REFUSES markup at
+     validation with a message the admin can act on; `sanitize-tour-text.ts` STRIPS it
+     at write time inside `createTour`/`updateTour` with a real HTML parser. The second
+     layer is the guarantee: it holds for any write path that never touches the Zod
+     schema (an import script, a bulk edit, a fixture load), and it matters because
+     `/api/tours` publishes this text as JSON to clients this repo does not own, where
+     React's escaping protects nothing. `dangerouslySetInnerHTML` appears nowhere in
+     `src/` and a repository-wide source scan now keeps it that way.
+   - **CSRF, measured rather than assumed — and the result is a nuance, not a tick.**
+     Measured 2026-09-19 against the standalone production server, with a real session
+     and one header varied at a time:
+
+     | Request | Result |
+     |---|---|
+     | `Origin: https://evil.example.com` | **500** — aborted before the action decoded |
+     | `Origin: null` | **500** — aborted |
+     | `Origin:` *(the server's own)* | 303 — action ran, as it should |
+     | **no `Origin` header at all** | **303 — action RAN.** Next warns and proceeds |
+     | `Origin: evil` **+ `X-Forwarded-Host: evil.example.com`** | **303 — action RAN.** Check defeated |
+
+     So the origin check is real but it has two holes. **Neither is reachable from a
+     browser** — a cross-origin form
+     POST cannot set headers and always carries `Origin`, and a cross-origin `fetch()`
+     with `X-Forwarded-Host` triggers a preflight this app never approves. So the
+     conclusion to carry forward is: **the origin check is defence in depth, not the
+     defence.** What actually stops CSRF here is `SameSite=Lax; HttpOnly` on the session
+     cookie plus `requireAdminSession()` in every action, the latter now asserted
+     exhaustively over the action SOURCE (a new action added without a guard fails a
+     test, which a behavioural test of the actions someone remembered could not do).
+     Do not let a future review record this as "Next's origin check stops CSRF".
+   - **Secret exposure, proven non-vacuous.** The first version of this check read
+     `process.env` inside the Playwright RUNNER, which loads no `.env` — the list came
+     back empty and the loop asserted over zero values while reporting as coverage. It
+     now plants sentinel secrets into the server's environment from
+     `playwright.config.ts`, proves by handshake that the server holds the highest-value
+     one, and scans page HTML, the RSC payload and **the JavaScript chunks a browser
+     downloads** — which is where a Next.js secret actually leaks, inlined at build time
+     by a Client Component or a `NEXT_PUBLIC_` rename. It was verified able to FAIL: a
+     temporary probe rendered on `/admin/login` turned both the HTML and the chunk scan
+     red. That exercise also exposed a bug in the test itself — Playwright's request
+     fixture keeps a cookie jar and Auth.js re-issues the sliding session cookie, so the
+     "anonymous" scans were authenticated and `/admin/login` was silently 307ing to
+     `/admin`; each scan now uses a fresh context and asserts a 200 with redirects off.
+
+   **Still open after the whole admin/CMS build**
+
+   - **Cloudinary credentials are still not provisioned.** Unchanged from item 12 and
+     still the most consequential gap: `.env` holds only `DATABASE_URL`, no upload has
+     EVER been performed against a real account, and every upload assertion in the repo
+     runs against a mocked SDK. Because the publish bar requires a cover image, **no new
+     tour can be published at all until the three `CLOUDINARY_*` variables exist.**
+   - **`AUTH_SECRET` must be set for production.** The app refuses to issue a session
+     without it in production, which is the right failure, but it means a deploy that
+     omits it is a dead admin area rather than an insecure one. The value committed in
+     `playwright.config.ts` is a throwaway for a 127.0.0.1 test server and grants
+     nothing; its visibility is the argument for setting a real one.
+   - **No server-side session revocation.** Sessions are stateless JWTs with no lookup,
+     so there is no "sign out everywhere" and no way to invalidate a stolen token.
+     Worst case is the full `maxAge`: **7 days.** Changing a password does not shorten
+     it. Closing this means a session table or a token version claim checked per
+     request — a real design change, not a patch.
+   - **The login rate limiter is in-memory.** It resets on every restart and is
+     **decorative with more than one replica**, since each process keeps its own
+     counters. bcrypt at cost 12 is the defence that survives both; the limiter is a
+     convenience on top of it.
+   - **No brochure version history UI.** `Brochure.version` increments on each
+     replacement and the older Cloudinary URLs still resolve, but nothing lists them,
+     so there is no preview and no restore. Product-spec §7 asks for this.
+   - **Orphaned Cloudinary assets accumulate.** `overwrite: false` makes every
+     replacement a new asset and nothing is ever deleted, so replaced images and
+     abandoned uploads pile up against the free tier. Reclaiming them needs a sweep over
+     `publicId`s no row references — not written.
+   - **The CSRF nuance above**, recorded as a known, browser-unreachable gap rather than
+     a resolved item, so that a future Next upgrade that closes it (the E2E suite asserts
+     today's behaviour and will fail loudly) gets the note updated instead of leaving a
+     description of a version nobody runs.
+   - **No independent adversarial review of the CMS as a whole has been run.** Every
+     phase of this build was reviewed by the agent that wrote it. The security work above
+     is self-assessed — mutation-checked, and verified against a running server, which is
+     considerably better than assertion-free, but it is not an independent pass.
+     `edge-case-adversary` over the entire admin surface is the outstanding gate.
+
+   **Documentation reconciled in the same pass.** Product-spec §7 (heading and a new
+   §7.1 describing what actually exists), §12 (Data Principle, partially superseded —
+   content is local, only leads go to the CRM) and §13; CLAUDE.md §6 (superseded), §10
+   (narrowed to LEADS only) and §12. Every edit is dated and preserves the original
+   text, because the 2026-09-17 pivot is a deliberate decision with a record
+   (`memory/project_gty_admin_reversal.md`), not drift to be tidied away.

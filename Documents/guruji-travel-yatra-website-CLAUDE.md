@@ -183,6 +183,25 @@ only record a lead leaves — grep `LEAD-SUBMISSION`.
 
 ## 6. Content — reading from the ERP, not duplicating it
 
+> **SUPERSEDED 2026-09-19 — do not build against this section.** It was already
+> overridden for the data layer (BLOCKERS.md §5, "CLAUDE.md §2/§6/§10
+> OVERRIDDEN"); on **2026-09-17 the owner also reversed the rule below that this
+> site must "never provide its own create/edit/delete UI for tours, packages, or
+> brochures"**. That reversal was explicit and confirmed by direct question, and
+> it is permanent. Tour content is now authored in this repo's own admin CMS
+> (`/admin/*`) against this repo's own Postgres database. Record:
+> `memory/project_gty_admin_reversal.md`, BLOCKERS.md items 11–13, product-spec
+> §7.1.
+>
+> Still true from this section: only published content is rendered publicly (the
+> Draft/Active flag became `draft` / `published` / archived, composed into the
+> one `isPubliclyListable()` predicate every public surface routes through), and
+> caching/revalidation still matters.
+>
+> Preserved verbatim below as the original plan — it may be reinstated if the
+> ERP ever exposes a content read API, in which case the admin CMS becomes the
+> thing that has to be reconciled with it.
+
 Destinations, Tour Packages, Group Tours, and Brochures are **managed by the
 Owner/Admin inside the existing ERP** (its Tour Master module, per the ERP's
 own CLAUDE.md section 4.5). This site must:
@@ -258,7 +277,14 @@ A feature is not done until:
 
 ---
 
-## 10. Integration contract with the ERP — confirm before building section 5/6
+## 10. Integration contract with the ERP — LEADS ONLY
+
+> **NARROWED 2026-09-19.** This contract now covers **item 1 (leads) only**.
+> Item 2 (the content read endpoint) is no longer a dependency of this repo:
+> content is authored here, in this repo's admin CMS, against this repo's own
+> database — see §6's note, product-spec §7.1 and BLOCKERS.md items 11–13.
+> Item 2 is kept below, struck through, because the day the ERP does expose a
+> content API this is the contract to reconcile the CMS against.
 
 This site depends on the ERP exposing:
 1. A **lead-creation endpoint** (public-safe, e.g. rate-limited/CAPTCHA- or
@@ -266,9 +292,17 @@ This site depends on the ERP exposing:
    confirm exact endpoint, required/optional fields, and auth mechanism
    (likely an API key scoped to "website lead submission" rather than a user
    JWT, since there is no logged-in user here)
-2. A **public content read endpoint** for Tours/TourDates/Destinations/
+
+   **Status 2026-09-19: STILL OPEN, and it is the last real production
+   blocker.** `src/server/crm-client.ts` is a stub that makes no network call
+   and invents no schema; `CRM_LEADS_ENDPOINT` / `CRM_API_KEY` are reserved in
+   `.env.example` and do nothing. A submitted lead is written to this app's
+   server log and goes no further. See BLOCKERS.md §6 and item 1a.
+
+2. ~~A **public content read endpoint** for Tours/TourDates/Destinations/
    Brochures, filtered to `Active` status only — confirm this exists or is
-   planned, since section 6 depends entirely on it
+   planned, since section 6 depends entirely on it~~ — **no longer required
+   (2026-09-17 pivot).** Content is owned by this repo.
 
 **Do not guess these contracts and build against assumptions.** If the ERP
 team/repo hasn't defined these yet, stop and flag it as a blocking
@@ -296,11 +330,13 @@ directly as work completes.)*
 ## 12. Open questions / things not to assume
 
 If any of the following come up, stop and ask rather than guessing:
-- Exact ERP API contract for lead creation and content read (section 10) —
-  this is the single biggest blocking dependency for this repo
-- Whether the ERP's public content API is ready, or whether this site needs
+- Exact ERP API contract for **lead creation** (section 10, item 1) — this is
+  the single biggest blocking dependency for this repo. *(The content-read half
+  of this question was closed by the 2026-09-17 pivot; see section 10's note.)*
+- ~~Whether the ERP's public content API is ready, or whether this site needs
   to launch with placeholder/manually-seeded content first and switch over
-  later
+  later~~ — **ANSWERED 2026-09-17:** neither. This repo owns content now, in its
+  own database, authored through its own admin CMS (product-spec §7.1).
 - Auth mechanism for this site calling the ERP API (API key vs. signed
   request vs. something else) — do not invent a scheme without confirming
   with however the ERP secures its public-facing endpoints
