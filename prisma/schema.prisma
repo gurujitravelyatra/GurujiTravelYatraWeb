@@ -240,7 +240,18 @@ model Tour {
   /// e.g. "Shimla - Kaza - Chandratal".
   subtitle      String
   /// Opaque string key, not a URL — see `Destination.photoKey`.
+  ///
+  /// STILL THE FALLBACK, not dead weight. `coverImageUrl` below supersedes it
+  /// when a real image has been uploaded; a tour with no upload keeps rendering
+  /// the token-coloured `PhotoPlaceholder` built from this key, which is what
+  /// all 22 seeded tours still do. The two are read in that order by
+  /// `PackageCard`/`PhotoPlaceholder` and nowhere else.
   photoKey      String
+  /// Kept in step with `galleryImages` by the admin write path — see the note on
+  /// `TourGalleryImage`. NOT a second source of truth for the gallery's length:
+  /// the admin repository writes `photosCount = galleryImages.length` in the same
+  /// transaction that replaces the rows, so it is a denormalised count for the
+  /// card's "N Photos" label rather than an independently-editable field.
   photosCount   Int
 
   /// Pre-formatted for display, e.g. "₹42,500". Kept as the display string
@@ -292,6 +303,36 @@ model Tour {
   /// expensive one: an unenforced `status` publishes unfinished content rather
   /// than merely quoting a doubtful price.
   status TourStatus @default(DRAFT)
+
+  /// The tour's cover photo — Phase C, and the FIRST real asset URL in this
+  /// project. Every other image column (`photoKey`, `Destination.photoKey`,
+  /// `Brochure.coverImageKey`) is an opaque display key precisely because no
+  /// real files existed; this one holds an https Cloudinary `secure_url` and is
+  /// rendered as an actual `<img>`.
+  ///
+  /// NULLABLE, and NULL on all 22 existing tours — nobody has uploaded a cover
+  /// for them, and backfilling a plausible CDN path would fabricate an asset.
+  /// The migration adds no default for the same reason.
+  ///
+  /// REQUIRED TO PUBLISH, though, which is the change that makes this column
+  /// something other than an inert field: `publishableTourSchema` refuses a
+  /// publish without it (the user's original spec: "Cover image (single,
+  /// required)"), and `PackageCard` + the detail page render it in place of the
+  /// placeholder. Phase B could not require it because uploads did not exist —
+  /// see BLOCKERS.md item 11 for that reversal.
+  coverImageUrl String?
+
+  /// Cloudinary's `public_id` for `coverImageUrl`, stored beside it because the
+  /// URL is not reliably parseable back into one (folders, versions, format
+  /// suffixes and transformation segments all sit in the same path).
+  ///
+  /// Needed for any future delete/transform call. Nothing deletes assets today —
+  /// replacing a cover uploads a NEW asset and repoints this pair, deliberately
+  /// leaving the old one in Cloudinary so the live URL never breaks mid-swap.
+  /// Two scalar columns rather than a child table because they are one asset
+  /// written in one statement; they cannot drift the way two parallel ARRAYS
+  /// would, which is why the gallery below is a table instead.
+  coverImagePublicId String?
 
   /// Set when a tour is ARCHIVED; NULL for every live tour.
   ///
@@ -388,6 +429,7 @@ model Tour {
   itineraryDays TourItineraryDay[]
   faqs          TourFaq[]
   pricingTiers  TourPricingTier[]
+  galleryImages TourGalleryImage[]
   departures    GroupDeparture[]
 
   @@index([destinationSlug])
@@ -423,6 +465,55 @@ model TourItineraryDay {
 
   /// Days are renumbered contiguously from 1 on every save, so this holds.
   @@unique([tourSlug, dayNumber])
+  @@index([tourSlug])
+}
+
+/// One uploaded gallery photo — Phase C.
+///
+/// ## Why a child table and not `Tour.galleryImageUrls String[]`
+///
+/// An array of URLs was the obvious shape and is what the task sketched, but a
+/// gallery image is not a bare string: it carries a Cloudinary `publicId` (which
+/// the URL cannot be reliably parsed back into) and its intrinsic dimensions,
+/// which `next/image`-style rendering wants so the slot does not reflow.
+///
+/// Storing those as SIBLING ARRAYS — `galleryImageUrls[]` + `galleryPublicIds[]`
+/// — is the shape to avoid: nothing in the database ties index 2 of one to index
+/// 2 of the other, so a partial write leaves a URL pointing at one asset and a
+/// publicId naming another, and the database cannot tell you it happened. That
+/// is `memory/feedback_qg_unenforced-safety-flag.md`'s variant-4 defect (one
+/// real-world entity split across two stores that drift) reproduced inside a
+/// single row.
+///
+/// So this follows the test `Tour.inclusions` and `TourFaq` already state: bare
+/// lines of text are arrays, items with fields of their own are tables. This has
+/// three fields and an order, exactly like `TourFaq`.
+///
+/// `sortOrder` is 0-based and rewritten from array position on every save, the
+/// same discipline `childCreates()` applies to itinerary days and FAQs, so
+/// removing a middle image cannot leave a gap that violates the unique
+/// constraint. Reordering in the admin UI is therefore just reordering the array
+/// and saving.
+model TourGalleryImage {
+  id       String @id @default(cuid())
+  tourSlug String
+  tour     Tour   @relation(fields: [tourSlug], references: [slug], onDelete: Cascade)
+
+  /// Cloudinary `secure_url` — a real https address, unlike `Tour.photoKey`.
+  url      String
+  /// Cloudinary `public_id`. See `Tour.coverImagePublicId` for why it is stored
+  /// rather than derived from the URL.
+  publicId String
+
+  /// Intrinsic pixel dimensions as Cloudinary reported them at upload. Nullable
+  /// because they are whatever the upload response contained — not invented if
+  /// absent.
+  width  Int?
+  height Int?
+
+  sortOrder Int
+
+  @@unique([tourSlug, sortOrder])
   @@index([tourSlug])
 }
 
@@ -632,8 +723,37 @@ model Brochure {
   /// NULL until a real PDF is uploaded. NEVER a synthesised path such as
   /// `/brochures/spiti-valley.pdf` — a link that 404s is worse than an absent
   /// one, and `status` already carries the "not available yet" meaning.
+  ///
+  /// ## Phase C: THIS is where an uploaded brochure lands, and there is no
+  /// `Tour.brochurePdfUrl`
+  ///
+  /// A `Tour.brochurePdfUrl` column was the obvious place to put the admin form's
+  /// brochure upload, and it is the one shape that must not be used here: this
+  /// column already exists, already means "the URL of this tour's brochure PDF",
+  /// and is already the field `GET /api/brochures/[slug]` returns and
+  /// `BrochureModal` consumes. Writing the upload to a NEW column on `Tour` would
+  /// leave the public brochure endpoint answering `pdfUrl: null, status:
+  /// PENDING_UPLOAD` for a tour whose brochure had in fact been uploaded — the
+  /// admin sees a success state, the visitor still cannot download anything, and
+  /// nothing anywhere reports the disagreement.
+  ///
+  /// That is precisely `memory/feedback_qg_unenforced-safety-flag.md`'s variant 4
+  /// (the same real-world entity living in two models whose gates drift apart),
+  /// and the fix there was the same: write to the model the readers already read.
   pdfUrl        String?
+  /// Cloudinary `public_id` for `pdfUrl` — see `Tour.coverImagePublicId`.
+  pdfPublicId   String?
+  /// The admin's own filename at upload time, e.g. `spiti-2026-final.pdf`. Shown
+  /// back in the editor so the admin can confirm the right file went in; a
+  /// Cloudinary URL ends in an opaque id and is no help for that.
+  pdfFileName   String?
   status        BrochureStatus @default(PENDING_UPLOAD)
+  /// Incremented on every REPLACEMENT upload. The previous asset is deliberately
+  /// not destroyed in Cloudinary, so an older version's URL keeps resolving even
+  /// though this row no longer names it. A `BrochureVersion` table that made those
+  /// older URLs browsable/restorable is still not modelled — see the note on
+  /// `tourSlug` above; this counter is the honest half of it, not a claim that
+  /// version history is implemented.
   version       Int            @default(1)
   fileSizeBytes Int?
   downloadCount Int            @default(0)
