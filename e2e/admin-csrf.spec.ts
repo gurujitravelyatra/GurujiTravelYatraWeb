@@ -248,7 +248,46 @@ test.describe('the upload route answers for itself', () => {
     });
 
     expect(response.status()).toBe(403);
-    expect(await response.json()).toMatchObject({ error: expect.stringMatching(/cross-site/i) });
+    // Message reworded by M3 (2026-09-19): the refusal now covers more than
+    // `cross-site`, so it no longer names that one value.
+    expect(await response.json()).toMatchObject({ error: expect.stringMatching(/admin interface on this site/i) });
+  });
+
+  /**
+   * M3 of the 2026-09-19 review, against the real server. The route used to
+   * refuse ONLY `sec-fetch-site: cross-site`, and called `same-site` fine — but
+   * a sibling subdomain is `same-site`, and `SameSite=Lax` sends it the cookie.
+   */
+  for (const [label, headers] of [
+    ['a same-site (sibling subdomain) request', { 'sec-fetch-site': 'same-site' }],
+    ['a sibling subdomain named in Origin', { origin: 'https://staging.127.0.0.1.nip.io' }],
+    ['a same-origin claim contradicted by a foreign Origin', { 'sec-fetch-site': 'same-origin', origin: EVIL_ORIGIN }],
+  ] as const) {
+    test(`refuses ${label} even WITH a valid session`, async ({ request }) => {
+      const response = await request.post('/api/admin/uploads', {
+        headers: { cookie: await sessionCookie(), ...headers },
+        multipart: { kind: 'cover' },
+        maxRedirects: 0,
+        failOnStatusCode: false,
+      });
+
+      expect(response.status()).toBe(403);
+    });
+  }
+
+  test('does NOT refuse a same-origin request with a valid session on origin grounds', async ({ request }) => {
+    // Guard the guard: the three refusals above pass just as well if the route
+    // 403s everything. With a valid session and a same-origin claim the request
+    // must get PAST the origin policy — here it then fails on the missing file
+    // (400) or the unconfigured Cloudinary account (503), never 403.
+    const response = await request.post('/api/admin/uploads', {
+      headers: { cookie: await sessionCookie(), 'sec-fetch-site': 'same-origin' },
+      multipart: { kind: 'cover' },
+      maxRedirects: 0,
+      failOnStatusCode: false,
+    });
+
+    expect([400, 503]).toContain(response.status());
   });
 });
 
