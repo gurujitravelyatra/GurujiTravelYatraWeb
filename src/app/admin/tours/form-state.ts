@@ -23,6 +23,12 @@ export interface TourFormState {
   error: string | null;
   /** Field-level errors keyed by the form path, e.g. `priceFrom`, `faqs.0.question`. */
   fieldErrors: Record<string, string>;
+  /**
+   * M7: true when the save was refused because someone else saved the tour
+   * after this editor was loaded. The form keeps the admin's input and offers a
+   * reload; it must NOT retry automatically — that would be the overwrite.
+   */
+  conflict?: boolean;
 }
 
 export const EMPTY_FORM_STATE: TourFormState = { error: null, fieldErrors: {} };

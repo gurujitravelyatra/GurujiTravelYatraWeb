@@ -176,6 +176,45 @@ test.describe('the draft → publish → archive lifecycle', () => {
     expect((await request.get(`/api/tours/${DRAFT_SLUG}`)).status()).toBe(404);
   });
 
+  /**
+   * M7 of the 2026-09-19 review — two editors, one tour. The second save must be
+   * REFUSED with the first admin's typed input still on screen, not silently
+   * overwrite the first admin's save.
+   */
+  test('a save from a stale editor is refused, and keeps what was typed', async ({ browser }) => {
+    const contextA = await browser.newContext();
+    const contextB = await browser.newContext();
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+
+    try {
+      await signIn(pageA);
+      await signIn(pageB);
+      await pageA.goto(`/admin/tours/${DRAFT_SLUG}/edit`);
+      await pageB.goto(`/admin/tours/${DRAFT_SLUG}/edit`);
+
+      // B saves first.
+      await pageB.getByLabel(/^Short description/).fill('Saved by editor B.');
+      await pageB.getByRole('button', { name: 'Save as Draft' }).click();
+      await expect(pageB).toHaveURL(/saved=draft/);
+
+      // A, still holding the version from before B's save, saves.
+      await pageA.getByLabel(/^Short description/).fill('Typed by editor A.');
+      await pageA.getByRole('button', { name: 'Save as Draft' }).click();
+
+      await expect(pageA.getByText(/someone else saved changes/i)).toBeVisible();
+      await expect(pageA.getByLabel(/^Short description/)).toHaveValue('Typed by editor A.');
+      await expect(pageA).toHaveURL(new RegExp(`/admin/tours/${DRAFT_SLUG}/edit$`));
+
+      // B's save survived.
+      await pageB.reload();
+      await expect(pageB.getByLabel(/^Short description/)).toHaveValue('Saved by editor B.');
+    } finally {
+      await contextA.close();
+      await contextB.close();
+    }
+  });
+
   test('archiving hides it from the public site and the default admin list, but keeps it findable', async ({
     page,
     request,
@@ -219,5 +258,7 @@ test.describe('the draft → publish → archive lifecycle', () => {
     // the default list.
     await expect(page.getByText(/already used by an ARCHIVED tour/i)).toBeVisible();
     await expect(page).toHaveURL(/\/admin\/tours\/new/);
+    // The refused form keeps its input — React 19 used to reset it (M7 fix).
+    await expect(page.getByLabel(/^Tour name/)).toHaveValue('Collision Attempt');
   });
 });

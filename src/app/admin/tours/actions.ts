@@ -106,6 +106,27 @@ function readPayload(formData: FormData): { intent: SubmitIntent; values: unknow
 
 const MALFORMED = 'That submission could not be read. Please reload the page and try again.';
 
+const EDIT_CONFLICT =
+  'Someone else saved changes to this tour after you opened it, so your changes have NOT been saved — ' +
+  'saving now would erase theirs. Everything you typed is still in the form below: copy anything you need, ' +
+  'then reload the page to see their version and re-apply your edits.';
+
+const TOUR_GONE =
+  'That tour no longer exists — it may have been renamed or removed by someone else. ' +
+  'Nothing was saved. Go back to the tours list to find it.';
+
+/**
+ * The editor's version token, as an exact instant. `Date.parse` accepts far
+ * more than the ISO string the form writes, so the shape is checked first — a
+ * token that is not what the form produces is not a version this server issued.
+ */
+function readVersion(formData: FormData): Date | null {
+  const raw = formData.get('expectedUpdatedAt');
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(raw)) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function saveTourAction(
   _previousState: TourFormState,
   formData: FormData
@@ -117,6 +138,19 @@ export async function saveTourAction(
 
   const editingSlug = formData.get('editingSlug');
   const currentSlug = typeof editingSlug === 'string' && editingSlug.length > 0 ? editingSlug : null;
+
+  /**
+   * M7 — the version the editor was loaded at. REQUIRED for an edit: a
+   * submission without one (a hand-crafted POST, or a tab open since before this
+   * shipped) cannot be checked, and saving it unchecked is exactly the silent
+   * overwrite this exists to stop. Refused as malformed, which already tells the
+   * admin to reload.
+   */
+  let expectedUpdatedAt: Date | null = null;
+  if (currentSlug) {
+    expectedUpdatedAt = readVersion(formData);
+    if (!expectedUpdatedAt) return { error: MALFORMED, fieldErrors: {} };
+  }
 
   /**
    * Re-validated server-side with the schema the INTENT demands, never the one
@@ -162,12 +196,28 @@ export async function saveTourAction(
 
   let savedSlug: string;
   try {
-    const result = currentSlug
-      ? await updateTour(currentSlug, values, payload.intent)
-      : await createTour(values, payload.intent);
+    if (currentSlug && expectedUpdatedAt) {
+      const result = await updateTour(currentSlug, values, payload.intent, expectedUpdatedAt);
+      if (!result.configured) return { error: NO_DATABASE, fieldErrors: {} };
 
-    if (!result.configured) return { error: NO_DATABASE, fieldErrors: {} };
-    savedSlug = result.value.slug;
+      /**
+       * Returned as STATE, not a redirect, so the editor stays mounted with
+       * everything the admin typed still in it. Reloading would show the other
+       * person's version and throw this one away — the admin decides that, not
+       * the server.
+       */
+      if (result.value.outcome === 'conflict') {
+        return { error: EDIT_CONFLICT, fieldErrors: {}, conflict: true };
+      }
+      if (result.value.outcome === 'missing') {
+        return { error: TOUR_GONE, fieldErrors: {} };
+      }
+      savedSlug = result.value.slug;
+    } else {
+      const result = await createTour(values, payload.intent);
+      if (!result.configured) return { error: NO_DATABASE, fieldErrors: {} };
+      savedSlug = result.value.slug;
+    }
   } catch (error) {
     unstable_rethrow(error);
     console.error('[admin/tours] save failed', error);

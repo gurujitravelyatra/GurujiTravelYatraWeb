@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -59,6 +59,12 @@ interface TourFormProps {
    * tour is now live.
    */
   withheldFromPublicSite?: boolean;
+  /**
+   * M7: the tour's `updatedAt` (ISO) when this editor was loaded. Posted back
+   * as `expectedUpdatedAt`; the save is refused if anyone has saved since.
+   * Required whenever `editingSlug` is set — the action refuses an edit without it.
+   */
+  versionToken?: string;
 }
 
 const EMPTY_VALUES: TourFormValues = {
@@ -119,6 +125,7 @@ export function TourForm({
   publishBlocked = false,
   uploadsEnabled = false,
   withheldFromPublicSite = false,
+  versionToken,
 }: TourFormProps) {
   const [state, formAction, pending] = useActionState<TourFormState, FormData>(
     saveTourAction,
@@ -144,15 +151,6 @@ export function TourForm({
   const inclusions = useFieldArray({ control, name: 'inclusions' as never });
   const exclusions = useFieldArray({ control, name: 'exclusions' as never });
 
-  /**
-   * The intent is carried in a hidden input rather than in component state,
-   * because `useActionState` submits the form's own FormData — a `useState`
-   * written in the click handler would race the submission it is meant to
-   * describe.
-   */
-  const intentRef = useRef<HTMLInputElement>(null);
-  const payloadRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
 
   /**
    * Server-side field errors are routed into the SAME slots client-side
@@ -210,16 +208,38 @@ export function TourForm({
   const slugChanged = Boolean(editingSlug) && currentSlug !== editingSlug;
 
   /**
-   * Serialises the validated values into the hidden payload field and submits.
+   * Builds the submission and dispatches it to the action directly.
    * `handleSubmit` runs the resolver first, so a draft-invalid form never
    * reaches the server; a publish-invalid one does, and comes back with field
    * errors from the authoritative schema.
+   *
+   * ## Why NOT `<form action={formAction}>` + `requestSubmit()` (2026-09-19, M7)
+   *
+   * That is what this used to do, and it had a defect nobody had seen: React 19
+   * AUTOMATICALLY RESETS a form submitted through its `action` prop once the
+   * action settles. Every input here is registered with React Hook Form, i.e.
+   * uncontrolled — so on EVERY server-returned error (a slug collision, a
+   * publish refusal, and now a concurrent-edit conflict) the DOM snapped back
+   * to empty while RHF's internal state still held the typed values. The admin
+   * watched their work vanish, and the next save would have sent it anyway.
+   * Found by `TourForm-conflict.test.tsx`, which types, submits, and reads the
+   * DOM back.
+   *
+   * Dispatching a hand-built `FormData` inside a transition keeps
+   * `useActionState` (pending state, returned errors, server-side `redirect()`)
+   * and skips the reset, which only applies to `<form action>` submissions. It
+   * also removes the hidden-input dance the old version needed to get the intent
+   * into the form's own FormData without racing it.
    */
+  const [, startTransition] = useTransition();
   const submitWith = (intent: SubmitIntent) =>
     handleSubmit((values) => {
-      if (intentRef.current) intentRef.current.value = intent;
-      if (payloadRef.current) payloadRef.current.value = JSON.stringify(values);
-      formRef.current?.requestSubmit();
+      const formData = new FormData();
+      formData.set('intent', intent);
+      formData.set('payload', JSON.stringify(values));
+      if (editingSlug) formData.set('editingSlug', editingSlug);
+      if (editingSlug && versionToken) formData.set('expectedUpdatedAt', versionToken);
+      startTransition(() => formAction(formData));
     });
 
   const fieldError = (path: string): string | undefined => {
@@ -234,10 +254,10 @@ export function TourForm({
   };
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-8">
-      <input type="hidden" name="intent" ref={intentRef} defaultValue="draft" />
-      <input type="hidden" name="payload" ref={payloadRef} defaultValue="" />
-      {editingSlug && <input type="hidden" name="editingSlug" value={editingSlug} />}
+    // No `action` prop, deliberately — see `submitWith`. Both buttons are
+    // `type="button"`, and `onSubmit` is a guard so an implicit submission can
+    // never fall through to a native GET of the whole form.
+    <form onSubmit={(event) => event.preventDefault()} className="flex flex-col gap-8">
 
       {publishBlocked && (
         <p
@@ -255,6 +275,19 @@ export function TourForm({
           className="rounded-12 border border-gty-primary bg-gty-red-50 px-4 py-3 text-13-5 text-gty-primary"
         >
           {state.error}
+          {state.conflict && editingSlug && (
+            <>
+              {' '}
+              {/*
+                A plain link, not a button that re-submits: the only safe next
+                step is to LOOK at the other version. Reloading discards this
+                form's input, which is why the message above says to copy first.
+              */}
+              <a href={`/admin/tours/${editingSlug}/edit`} className="font-bold underline">
+                Reload to see their version
+              </a>
+            </>
+          )}
         </p>
       )}
 

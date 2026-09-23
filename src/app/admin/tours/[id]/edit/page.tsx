@@ -198,6 +198,7 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         publishBlocked={query.publishBlocked === '1'}
         uploadsEnabled={isCloudinaryConfigured()}
         withheldFromPublicSite={withheld === 'PRICE_UNCONFIRMED'}
+        versionToken={updatedAt.toISOString()}
       />
     </main>
   );

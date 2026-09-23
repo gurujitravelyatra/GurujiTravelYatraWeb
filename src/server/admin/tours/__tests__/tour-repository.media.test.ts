@@ -84,8 +84,11 @@ function values(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFormVa
   };
 }
 
+/** The version the editor was loaded at (M7). Any fixed instant — the claim is mocked. */
+const LOADED_AT = new Date('2026-09-19T10:00:00.000Z');
+
 interface MockTx {
-  tour: { create: jest.Mock; update: jest.Mock; findFirst: jest.Mock; findUnique: jest.Mock };
+  tour: { create: jest.Mock; update: jest.Mock; updateMany: jest.Mock; findFirst: jest.Mock; findUnique: jest.Mock };
   brochure: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock };
   tourItineraryDay: { deleteMany: jest.Mock };
   tourFaq: { deleteMany: jest.Mock };
@@ -101,6 +104,8 @@ function setUpPrisma({ existingBrochurePublicId }: { existingBrochurePublicId?: 
     tour: {
       create: jest.fn().mockResolvedValue({ slug: 'spiti-valley-circuit' }),
       update: jest.fn().mockResolvedValue({ slug: 'spiti-valley-circuit' }),
+      // M7: the version claim. One row = the editor's version was current.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       findFirst: jest.fn().mockResolvedValue({ catalogueOrder: 21 }),
       findUnique: jest.fn(),
     },
@@ -133,7 +138,7 @@ beforeEach(() => {
 describe('replacing a cover image', () => {
   it('writes the NEW url and publicId in a single update', async () => {
     setUpPrisma();
-    await updateTour('spiti-valley-circuit', values({ coverImage: NEW_COVER }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ coverImage: NEW_COVER }), 'publish', LOADED_AT);
 
     const [[call]] = tx.tour.update.mock.calls;
     expect(call.data.coverImageUrl).toBe(NEW_COVER.url);
@@ -150,7 +155,7 @@ describe('replacing a cover image', () => {
 
   it('never issues a statement that mentions the OLD asset', async () => {
     setUpPrisma();
-    await updateTour('spiti-valley-circuit', values({ coverImage: NEW_COVER }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ coverImage: NEW_COVER }), 'publish', LOADED_AT);
 
     // The old asset is not deleted, not invalidated, not referenced. Its URL keeps
     // resolving, which is exactly why a replacement cannot break a live page.
@@ -165,7 +170,7 @@ describe('replacing a cover image', () => {
 
   it('clears both columns together when the cover is removed', async () => {
     setUpPrisma();
-    await updateTour('spiti-valley-circuit', values({ coverImage: undefined }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ coverImage: undefined }), 'draft', LOADED_AT);
 
     const [[call]] = tx.tour.update.mock.calls;
     // Not one null and one stale id — that pair would be a row nothing can read
@@ -178,7 +183,7 @@ describe('replacing a cover image', () => {
 describe('replacing a brochure PDF', () => {
   it('repoints pdfUrl to the new asset and counts it as a new version', async () => {
     setUpPrisma({ existingBrochurePublicId: OLD_BROCHURE.publicId });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish', LOADED_AT);
 
     expect(tx.brochure.update).toHaveBeenCalledTimes(1);
     const [[call]] = tx.brochure.update.mock.calls;
@@ -194,7 +199,7 @@ describe('replacing a brochure PDF', () => {
 
   it('leaves the old asset untouched — no destroy, no overwrite, no reference', async () => {
     setUpPrisma({ existingBrochurePublicId: OLD_BROCHURE.publicId });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish', LOADED_AT);
 
     const everyStatement = JSON.stringify(tx.brochure.update.mock.calls);
     expect(everyStatement).not.toContain(OLD_BROCHURE.publicId);
@@ -205,7 +210,7 @@ describe('replacing a brochure PDF', () => {
     // A save that edited the price must not inflate the brochure's version, or
     // the number stops meaning "how many times this document was replaced".
     setUpPrisma({ existingBrochurePublicId: OLD_BROCHURE.publicId });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: OLD_BROCHURE }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: OLD_BROCHURE }), 'publish', LOADED_AT);
 
     expect(tx.brochure.update).not.toHaveBeenCalled();
     expect(tx.brochure.create).not.toHaveBeenCalled();
@@ -215,7 +220,7 @@ describe('replacing a brochure PDF', () => {
     // Every seeded tour has a Brochure row with a NULL pdfUrl. The first real
     // upload is version 1, not version 2.
     setUpPrisma({ existingBrochurePublicId: null });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: NEW_BROCHURE }), 'publish', LOADED_AT);
 
     const [[call]] = tx.brochure.update.mock.calls;
     expect(call.data.pdfUrl).toBe(NEW_BROCHURE.url);
@@ -224,7 +229,7 @@ describe('replacing a brochure PDF', () => {
 
   it('returns the row to PENDING_UPLOAD when the brochure is removed, keeping the record', async () => {
     setUpPrisma({ existingBrochurePublicId: OLD_BROCHURE.publicId });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: undefined }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: undefined }), 'draft', LOADED_AT);
 
     const [[call]] = tx.brochure.update.mock.calls;
     expect(call.data.pdfUrl).toBeNull();
@@ -236,7 +241,7 @@ describe('replacing a brochure PDF', () => {
 
   it('touches nothing when there is no brochure row and nothing was uploaded', async () => {
     setUpPrisma({ existingBrochurePublicId: undefined });
-    await updateTour('spiti-valley-circuit', values({ brochureFile: undefined }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ brochureFile: undefined }), 'draft', LOADED_AT);
 
     expect(tx.brochure.update).not.toHaveBeenCalled();
     expect(tx.brochure.create).not.toHaveBeenCalled();
@@ -267,7 +272,7 @@ describe('replacing a brochure PDF', () => {
     setUpPrisma({ existingBrochurePublicId: OLD_BROCHURE.publicId });
     tx.tour.update.mockResolvedValue({ slug: 'spiti-valley-circuit-2026' });
 
-    await updateTour('spiti-valley-circuit', values({ slug: 'spiti-valley-circuit-2026', brochureFile: NEW_BROCHURE }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ slug: 'spiti-valley-circuit-2026', brochureFile: NEW_BROCHURE }), 'draft', LOADED_AT);
 
     expect(tx.brochure.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { tourSlug: 'spiti-valley-circuit-2026' } })
@@ -284,7 +289,7 @@ describe('the gallery', () => {
       { url: `${NEW_COVER.url}#c`, publicId: 'c' },
     ];
 
-    await updateTour('spiti-valley-circuit', values({ galleryImages: gallery }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ galleryImages: gallery }), 'draft', LOADED_AT);
 
     // Deleted before created — the unique constraint on (tourSlug, sortOrder)
     // makes that ordering load-bearing.
@@ -316,7 +321,7 @@ describe('the gallery', () => {
       { url: `${NEW_COVER.url}#b`, publicId: 'b' },
     ];
 
-    await updateTour('spiti-valley-circuit', values({ galleryImages: gallery }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ galleryImages: gallery }), 'draft', LOADED_AT);
 
     const [[call]] = tx.tour.update.mock.calls;
     expect(call.data).not.toHaveProperty('photosCount');
@@ -324,7 +329,7 @@ describe('the gallery', () => {
 
   it('does not write photosCount on update even when the gallery is emptied', async () => {
     setUpPrisma();
-    await updateTour('spiti-valley-circuit', values({ galleryImages: [] }), 'draft');
+    await updateTour('spiti-valley-circuit', values({ galleryImages: [] }), 'draft', LOADED_AT);
 
     const [[call]] = tx.tour.update.mock.calls;
     expect(call.data).not.toHaveProperty('photosCount');
@@ -430,8 +435,61 @@ describe('no database configured', () => {
   it('reports unconfigured rather than throwing', async () => {
     mockGetOptionalPrismaClient.mockReturnValue(null);
 
-    expect((await updateTour('x', values(), 'draft')).configured).toBe(false);
+    expect((await updateTour('x', values(), 'draft', LOADED_AT)).configured).toBe(false);
     expect((await createTour(values(), 'draft')).configured).toBe(false);
     expect((await getAdminTourBySlug('x')).configured).toBe(false);
+  });
+});
+
+/**
+ * M7 of the 2026-09-19 review — the version claim, against a mocked client.
+ * The live suite proves the Postgres locking behaviour; this pins the ORDER:
+ * the claim is the first write, and a failed claim writes nothing else.
+ */
+describe('an edit from a stale version writes nothing', () => {
+  it('claims the row on (slug, updatedAt) before any other write', async () => {
+    await updateTour('spiti-valley-circuit', values(), 'draft', LOADED_AT);
+
+    expect(tx.tour.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: 'spiti-valley-circuit', updatedAt: LOADED_AT } })
+    );
+    const claimOrder = tx.tour.updateMany.mock.invocationCallOrder[0];
+    expect(claimOrder).toBeLessThan(tx.tourItineraryDay.deleteMany.mock.invocationCallOrder[0]);
+    expect(claimOrder).toBeLessThan(tx.tour.update.mock.invocationCallOrder[0]);
+  });
+
+  it('returns a conflict and deletes/updates nothing when someone saved since', async () => {
+    tx.tour.updateMany.mockResolvedValue({ count: 0 });
+    tx.tour.findUnique.mockResolvedValue({ slug: 'spiti-valley-circuit' });
+
+    const result = await updateTour('spiti-valley-circuit', values(), 'publish', LOADED_AT);
+
+    expect(result).toEqual({ configured: true, value: { outcome: 'conflict' } });
+    for (const mock of [
+      tx.tourItineraryDay.deleteMany,
+      tx.tourFaq.deleteMany,
+      tx.tourPricingTier.deleteMany,
+      tx.tourGalleryImage.deleteMany,
+      tx.tour.update,
+      tx.brochure.update,
+      tx.brochure.create,
+    ]) {
+      expect(mock).not.toHaveBeenCalled();
+    }
+  });
+
+  it('returns missing, not a thrown P2025, when the tour is gone', async () => {
+    tx.tour.updateMany.mockResolvedValue({ count: 0 });
+    tx.tour.findUnique.mockResolvedValue(null);
+
+    const result = await updateTour('spiti-valley-circuit', values(), 'draft', LOADED_AT);
+
+    expect(result).toEqual({ configured: true, value: { outcome: 'missing' } });
+    expect(tx.tour.update).not.toHaveBeenCalled();
+  });
+
+  it('reports the saved slug on success', async () => {
+    const result = await updateTour('spiti-valley-circuit', values(), 'draft', LOADED_AT);
+    expect(result).toEqual({ configured: true, value: { outcome: 'saved', slug: 'spiti-valley-circuit' } });
   });
 });

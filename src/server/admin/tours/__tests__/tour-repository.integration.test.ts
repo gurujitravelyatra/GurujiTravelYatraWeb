@@ -124,6 +124,28 @@ async function connectWithRetry(attempts = 6): Promise<void> {
   throw lastError;
 }
 
+/**
+ * An edit made by an admin whose editor is UP TO DATE: reads the row's current
+ * `updatedAt` and passes it as the version, exactly as the edit page does. Every
+ * pre-M7 test here is about what an edit WRITES, not about concurrency, so they
+ * all go through this. The concurrency tests call `updateTour` directly with a
+ * version they control.
+ */
+async function updateAtCurrentVersion(
+  slug: string,
+  values: ParsedTourFormValues,
+  intent: 'draft' | 'publish'
+): Promise<Awaited<ReturnType<typeof updateTour>>> {
+  const prisma = getOptionalPrismaClient();
+  if (!prisma) throw new Error('RUN_DB_TESTS=1 but DATABASE_URL is not set');
+  const { updatedAt } = await prisma.tour.findUniqueOrThrow({ where: { slug }, select: { updatedAt: true } });
+  const result = await updateTour(slug, values, intent, updatedAt);
+  if (result.configured && result.value.outcome !== 'saved') {
+    throw new Error(`expected a clean save of ${slug}, got ${result.value.outcome}`);
+  }
+  return result;
+}
+
 async function cleanup(): Promise<void> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return;
@@ -241,7 +263,7 @@ describeDb('tour CMS against the live database', () => {
       // The delete-then-create path. Appending would silently resurrect a
       // removed itinerary day, and duplicate dayNumbers would violate the
       // unique constraint — this asserts against real SQL that neither happens.
-      await updateTour(DRAFT_SLUG, baseValues({ itineraryDays: [{ title: 'Only day', description: 'Solo.' }] }), 'publish');
+      await updateAtCurrentVersion(DRAFT_SLUG, baseValues({ itineraryDays: [{ title: 'Only day', description: 'Solo.' }] }), 'publish');
 
       const loaded = await getAdminTourBySlug(DRAFT_SLUG);
       if (!loaded.configured || loaded.value === null) throw new Error('missing');
@@ -249,7 +271,7 @@ describeDb('tour CMS against the live database', () => {
     });
 
     it('switching to pricing tiers is the presence of rows, with no flag to drift', async () => {
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         baseValues({
           itineraryDays: [{ title: 'Only day', description: 'Solo.' }],
@@ -274,7 +296,7 @@ describeDb('tour CMS against the live database', () => {
     });
 
     it('removing every tier returns the tour to its single price', async () => {
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         baseValues({ itineraryDays: [{ title: 'Only day', description: 'Solo.' }], pricingTiers: [] }),
         'publish'
@@ -287,7 +309,7 @@ describeDb('tour CMS against the live database', () => {
     });
 
     it('renaming the slug cascades to children and frees nothing behind it', async () => {
-      await updateTour(DRAFT_SLUG, baseValues({ slug: RENAMED_SLUG }), 'publish');
+      await updateAtCurrentVersion(DRAFT_SLUG, baseValues({ slug: RENAMED_SLUG }), 'publish');
 
       const prisma = getOptionalPrismaClient();
       expect(await prisma!.tour.count({ where: { slug: DRAFT_SLUG } })).toBe(0);
@@ -295,7 +317,7 @@ describeDb('tour CMS against the live database', () => {
       // ON UPDATE CASCADE — the children followed rather than being orphaned.
       expect(await prisma!.tourItineraryDay.count({ where: { tourSlug: RENAMED_SLUG } })).toBe(2);
 
-      await updateTour(RENAMED_SLUG, baseValues({ slug: DRAFT_SLUG }), 'publish');
+      await updateAtCurrentVersion(RENAMED_SLUG, baseValues({ slug: DRAFT_SLUG }), 'publish');
     });
 
     /**
@@ -318,7 +340,7 @@ describeDb('tour CMS against the live database', () => {
       const beforeForm = before.value.form;
 
       try {
-        await updateTour(
+        await updateAtCurrentVersion(
           target.slug,
           { ...beforeForm, fullDescription: 'EDITED BY INTEGRATION TEST' },
           'publish'
@@ -349,7 +371,7 @@ describeDb('tour CMS against the live database', () => {
         expect(publicTours.map((tour) => tour.slug)).toContain(target.slug);
       } finally {
         // Restore, whatever happened above.
-        await updateTour(target.slug, beforeForm, 'publish');
+        await updateAtCurrentVersion(target.slug, beforeForm, 'publish');
         const restored = await prisma!.tour.findUnique({ where: { slug: target.slug } });
         expect(restored!.fullDescription).toBe(target.fullDescription);
       }
@@ -443,7 +465,7 @@ describeDb('tour CMS against the live database', () => {
     const NEW_COVER = { url: `${CDN}/cover_new222.jpg`, publicId: 'gty/tours/zz-cms-test/cover_new222' };
 
     it('round-trips a cover, a gallery and a brochure through real SQL', async () => {
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         {
           ...baseValues(),
@@ -484,7 +506,7 @@ describeDb('tour CMS against the live database', () => {
     it('keeps the gallery in the admin’s order, with contiguous sortOrder', async () => {
       const prisma = getOptionalPrismaClient();
 
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         {
           ...baseValues(),
@@ -516,7 +538,7 @@ describeDb('tour CMS against the live database', () => {
     it('removing a middle image renumbers the rest rather than leaving a gap', async () => {
       const prisma = getOptionalPrismaClient();
 
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         {
           ...baseValues(),
@@ -543,12 +565,12 @@ describeDb('tour CMS against the live database', () => {
     it('repoints a published tour’s cover to a new asset without disturbing anything else', async () => {
       const prisma = getOptionalPrismaClient();
 
-      await updateTour(DRAFT_SLUG, { ...baseValues(), coverImage: OLD_COVER }, 'publish');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), coverImage: OLD_COVER }, 'publish');
       const before = await prisma!.tour.findUnique({ where: { slug: DRAFT_SLUG } });
       expect(before!.coverImageUrl).toBe(OLD_COVER.url);
       expect(before!.status).toBe('PUBLISHED');
 
-      await updateTour(DRAFT_SLUG, { ...baseValues(), coverImage: NEW_COVER }, 'publish');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), coverImage: NEW_COVER }, 'publish');
 
       const after = await prisma!.tour.findUnique({ where: { slug: DRAFT_SLUG } });
       expect(after!.coverImageUrl).toBe(NEW_COVER.url);
@@ -569,21 +591,21 @@ describeDb('tour CMS against the live database', () => {
       };
       const second = { ...first, url: `${RAW}/brochure_v2.pdf`, publicId: 'gty/tours/zz-cms-test/brochure_v2', fileName: 'v2.pdf' };
 
-      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: first }, 'draft');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), brochureFile: first }, 'draft');
       const v1 = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
       expect(v1!.status).toBe('PUBLISHED');
       expect(v1!.version).toBe(1);
 
       // A save that does not touch the brochure must not inflate the version.
-      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: first, priceFrom: '₹12,345' }, 'draft');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), brochureFile: first, priceFrom: '₹12,345' }, 'draft');
       expect((await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } }))!.version).toBe(1);
 
-      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: second }, 'draft');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), brochureFile: second }, 'draft');
       const v2 = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
       expect(v2!.version).toBe(2);
       expect(v2!.pdfUrl).toBe(second.url);
 
-      await updateTour(DRAFT_SLUG, { ...baseValues(), brochureFile: undefined }, 'draft');
+      await updateAtCurrentVersion(DRAFT_SLUG, { ...baseValues(), brochureFile: undefined }, 'draft');
       const cleared = await prisma!.brochure.findUnique({ where: { tourSlug: DRAFT_SLUG } });
       // The RECORD survives with its metadata; only the file is detached. Nothing
       // hard-deletes a brochure (product-spec §7).
@@ -596,7 +618,7 @@ describeDb('tour CMS against the live database', () => {
     it('delivers an uploaded cover and gallery to the PUBLIC adapter, not just the admin one', async () => {
       const prisma = getOptionalPrismaClient();
 
-      await updateTour(
+      await updateAtCurrentVersion(
         DRAFT_SLUG,
         {
           ...baseValues(),
@@ -625,6 +647,78 @@ describeDb('tour CMS against the live database', () => {
       expect(published?.galleryImageUrls).toEqual([`${CDN}/g1.jpg`, `${CDN}/g2.jpg`]);
       // Derived from the gallery, so it cannot contradict the strip beneath it.
       expect(published?.photosCount).toBe(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  /**
+   * M7 of the 2026-09-19 review — two admins, one tour. Real SQL, because the
+   * property that matters (the claim's row lock makes a concurrent save
+   * re-evaluate its WHERE and lose) is Postgres behaviour a mock cannot show.
+   */
+  describe('concurrent edits are refused, not silently overwritten', () => {
+    const SLUG = `${TEST_PREFIX}concurrency`;
+    const prisma = () => getOptionalPrismaClient()!;
+    const versionOf = async () =>
+      (await prisma().tour.findUniqueOrThrow({ where: { slug: SLUG }, select: { updatedAt: true } })).updatedAt;
+
+    beforeEach(async () => {
+      await prisma().tour.deleteMany({ where: { slug: SLUG } });
+      await createTour(baseValues({ slug: SLUG, name: 'Original' }), 'draft');
+    });
+
+    it('refuses a save made from a STALE version, and writes nothing at all', async () => {
+      const loadedAt = await versionOf();
+
+      // Admin B saves first.
+      const b = await updateTour(SLUG, baseValues({ slug: SLUG, name: 'Saved by B' }), 'draft', loadedAt);
+      expect(b.configured && b.value.outcome).toBe('saved');
+
+      // Admin A, still holding the version from before B's save, now saves —
+      // with a different itinerary, which the old code would have replaced B's with.
+      const a = await updateTour(
+        SLUG,
+        baseValues({ slug: SLUG, name: 'Saved by A', itineraryDays: [{ title: 'A only', description: 'A.' }] }),
+        'publish',
+        loadedAt
+      );
+      expect(a.configured && a.value.outcome).toBe('conflict');
+
+      const after = await getAdminTourBySlug(SLUG);
+      if (!after.configured || !after.value) throw new Error('tour vanished');
+      expect(after.value.form.name).toBe('Saved by B');
+      expect(after.value.form.itineraryDays.map((d) => d.title)).toEqual(['Day one', 'Day two']);
+      expect(after.value.status).toBe('DRAFT');
+    });
+
+    it('lets exactly ONE of two simultaneous saves from the same version through', async () => {
+      const loadedAt = await versionOf();
+
+      const [first, second] = await Promise.all([
+        updateTour(SLUG, baseValues({ slug: SLUG, name: 'Racer One' }), 'draft', loadedAt),
+        updateTour(SLUG, baseValues({ slug: SLUG, name: 'Racer Two' }), 'draft', loadedAt),
+      ]);
+
+      const outcomes = [first, second].map((r) => (r.configured ? r.value.outcome : 'unconfigured')).sort();
+      expect(outcomes).toEqual(['conflict', 'saved']);
+
+      const winner = first.configured && first.value.outcome === 'saved' ? 'Racer One' : 'Racer Two';
+      const after = await getAdminTourBySlug(SLUG);
+      expect(after.configured && after.value?.form.name).toBe(winner);
+    });
+
+    it('accepts the next save once the editor has the fresh version', async () => {
+      await updateAtCurrentVersion(SLUG, baseValues({ slug: SLUG, name: 'First' }), 'draft');
+      const second = await updateTour(SLUG, baseValues({ slug: SLUG, name: 'Second' }), 'draft', await versionOf());
+      expect(second.configured && second.value.outcome).toBe('saved');
+    });
+
+    it('reports a tour that no longer exists as missing, rather than throwing', async () => {
+      const loadedAt = await versionOf();
+      await prisma().tour.delete({ where: { slug: SLUG } });
+
+      const result = await updateTour(SLUG, baseValues({ slug: SLUG }), 'draft', loadedAt);
+      expect(result.configured && result.value.outcome).toBe('missing');
     });
   });
 });

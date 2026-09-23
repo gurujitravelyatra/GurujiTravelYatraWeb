@@ -113,8 +113,11 @@ function values(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFormVa
   };
 }
 
+/** The version the editor was loaded at (M7). Any fixed instant — the claim is mocked. */
+const LOADED_AT = new Date('2026-09-19T10:00:00.000Z');
+
 interface MockTx {
-  tour: { create: jest.Mock; update: jest.Mock; findFirst: jest.Mock; findUnique: jest.Mock };
+  tour: { create: jest.Mock; update: jest.Mock; updateMany: jest.Mock; findFirst: jest.Mock; findUnique: jest.Mock };
   brochure: { findUnique: jest.Mock; update: jest.Mock; create: jest.Mock };
   tourItineraryDay: { deleteMany: jest.Mock };
   tourFaq: { deleteMany: jest.Mock };
@@ -129,6 +132,8 @@ function setUpPrisma() {
     tour: {
       create: jest.fn().mockResolvedValue({ slug: 'spiti-valley-circuit' }),
       update: jest.fn().mockResolvedValue({ slug: 'spiti-valley-circuit' }),
+      // M7: the version claim. One row = the editor's version was current.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       findFirst: jest.fn().mockResolvedValue({ catalogueOrder: 21 }),
       findUnique: jest.fn(),
     },
@@ -314,8 +319,7 @@ describe('the repository STRIPS markup, even when the schema was bypassed', () =
         itineraryDays: [{ title: payload, description: payload }],
         faqs: [{ question: payload, answer: payload }],
       }),
-      'publish'
-    );
+      'publish', LOADED_AT);
 
     expect(tx.tour.update).toHaveBeenCalledTimes(1);
     expectNoMarkupStored(tx.tour.update.mock.calls[0][0]);

@@ -692,19 +692,66 @@ export async function createTour(
   return { configured: true, value: created };
 }
 
-/** See `createTour` for why the parameter is `rawValues` and is shadowed at once. */
+/**
+ * What an edit-save came to. A conflict and a vanished tour are ordinary
+ * outcomes the admin must be told about, not exceptions — they are returned, so
+ * the action cannot forget to handle them the way it could forget a `catch`.
+ */
+export type UpdateTourOutcome =
+  | { outcome: 'saved'; slug: string }
+  /** Someone else saved this tour after the editor was loaded. Nothing was written. */
+  | { outcome: 'conflict' }
+  /** The tour no longer exists under `currentSlug` (renamed or never existed). Nothing was written. */
+  | { outcome: 'missing' };
+
+/**
+ * See `createTour` for why the parameter is `rawValues` and is shadowed at once.
+ *
+ * ## `expectedUpdatedAt` — optimistic concurrency, M7 of the 2026-09-19 review
+ *
+ * The save below REPLACES every child collection and overwrites every column
+ * from the form. Two admins with the same tour open used to mean the second
+ * save silently erased the first — itinerary, FAQs, gallery and all — with both
+ * shown "Saved". The editor now carries the `updatedAt` it was loaded with, and
+ * the FIRST statement of the transaction claims the row only if it is still
+ * that version:
+ *
+ *   UPDATE "Tour" SET "updatedAt" = now() WHERE slug = $1 AND "updatedAt" = $2
+ *
+ * One row → nobody else has saved; the row is now locked by this transaction
+ * until commit, so a concurrent save's claim BLOCKS, then re-evaluates its
+ * WHERE against the committed row (Postgres READ COMMITTED), sees the new
+ * `updatedAt`, and claims zero rows. Zero rows → conflict (or a missing tour),
+ * returned before a single child row is deleted. A check-then-write with a
+ * separate SELECT would have a window between the two; this has none.
+ *
+ * Required, not optional: an optional version would make "no check" the
+ * default, and the call site that forgot it would be the one that loses work.
+ * `tsc` found every caller.
+ */
 export async function updateTour(
   currentSlug: string,
   rawValues: ParsedTourFormValues,
-  intent: SubmitIntent
-): Promise<Configured<{ slug: string }>> {
+  intent: SubmitIntent,
+  expectedUpdatedAt: Date
+): Promise<Configured<UpdateTourOutcome>> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return unconfigured();
 
   const values = sanitizeTourFormValues(rawValues);
   const children = childCreates(values);
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx): Promise<UpdateTourOutcome> => {
+    const claim = await tx.tour.updateMany({
+      where: { slug: currentSlug, updatedAt: expectedUpdatedAt },
+      data: { updatedAt: new Date() },
+    });
+
+    if (claim.count === 0) {
+      const stillThere = await tx.tour.findUnique({ where: { slug: currentSlug }, select: { slug: true } });
+      return stillThere ? { outcome: 'conflict' } : { outcome: 'missing' };
+    }
+
     /**
      * Child collections are REPLACED, not merged: delete-all then create-from-
      * the-form. The form submits the complete intended list (that is what a
@@ -764,7 +811,7 @@ export async function updateTour(
      */
     await syncBrochure(tx, tour.slug, values);
 
-    return tour;
+    return { outcome: 'saved', slug: tour.slug };
   }, SAVE_TRANSACTION_OPTIONS);
 
   return { configured: true, value: updated };
