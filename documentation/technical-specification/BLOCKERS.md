@@ -859,7 +859,8 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      `requireAdminSession()` deliberately — the latter REDIRECTS, and a 307 to an HTML
      login form arriving at a `fetch()` surfaces as a parse error rather than "your
      session expired". CSRF is covered by the session cookie's `SameSite=Lax` plus a
-     `Sec-Fetch-Site` check.
+     `Sec-Fetch-Site` check. *(2026-09-19: that check refused only `cross-site` and
+     let `same-site` through — review finding M3, fixed; see item 14.)*
 
 13. **Tour CMS — Phase D, security hardening and doc sync (2026-09-19). CLOSING ENTRY
    for the admin/CMS build (items 11 and 12).** Phase D added no features. It closed the
@@ -950,6 +951,8 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      is self-assessed — mutation-checked, and verified against a running server, which is
      considerably better than assertion-free, but it is not an independent pass.
      `edge-case-adversary` over the entire admin surface is the outstanding gate.
+     *(2026-09-19: that pass has now been run — see item 14 for its findings and what
+     was done about each. A re-review of THOSE fixes is the new outstanding gate.)*
 
    **Documentation reconciled in the same pass.** Product-spec §7 (heading and a new
    §7.1 describing what actually exists), §12 (Data Principle, partially superseded —
@@ -957,3 +960,68 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
    (narrowed to LEADS only) and §12. Every edit is dated and preserves the original
    text, because the 2026-09-17 pivot is a deliberate decision with a record
    (`memory/project_gty_admin_reversal.md`), not drift to be tidied away.
+
+14. **Independent adversarial review of the admin CMS — findings and dispositions
+   (2026-09-19).** The first review of Phases A–D not performed by the agent that built
+   them. Fixed in `31f854c`..`1fe748a`. Every fix below was mutation-checked (the guard
+   removed or weakened, the test observed going red, the change restored) — the counts
+   are in each commit message.
+
+   **Record-keeping caveat, stated plainly:** the review's own text was not committed to
+   the repo. The finding IDs below are the ones the fix commits cite. IDs M4, M8, L3 and
+   L4 appear in no committed record, so they are not listed individually rather than
+   guessed at; the user's four decisions (below) cover what was accepted or deferred, and
+   which ID each of those carried is not asserted here.
+
+   **Fixed**
+
+   | ID | Finding | Fix | Commit |
+   |---|---|---|---|
+   | C1 | Login rate-limiter map keyed on attacker-chosen strings, never evicted; the READ path allocated | Keys normalised + length-capped; read path no longer writes; 20,000-record ceiling with tiered eviction (spent → unlocked → active lockouts last, by soonest expiry) so eviction cannot become a lockout-reset oracle | `31f854c` |
+   | H1 | Admin said "Published" / "now visible on the public site" and linked "View on site" for `pricingUnverified` tours the public site withholds | `publicWithholdReason()` is THE gate; admin derives every claim from it. Badge + banner; no link to a 404 | `71acf70` |
+   | H2 | Dashboard still said uploads were "the next phase" / "disabled" | Copy derived from `isCloudinaryConfigured()` | `71acf70` |
+   | M1 | Entity-encoded markup (`&lt;script&gt;`) passed both XSS layers and reached `/api/tours` | Detector decodes (bounded) before testing; sanitizer iterates to a fixed point | `b8a42d0` |
+   | L5 | Gallery URLs interpolated into `href` unchecked; the render test's media half was vacuous | `isSafeMediaUrl` allowlist at render | `b8a42d0` |
+   | M2 | Upload size guard skipped for an unparseable `Content-Length`, and a missing one read as 0 | Digits-only header required (411/400/413) AND the body stream is capped as it is read | `bb15d82` |
+   | M3 | Upload origin check refused only `cross-site`; `same-site` (a sibling subdomain, which `SameSite=Lax` also trusts) was allowed | `same-origin` or absent only; a present `Origin` must name this host. Verified live in `admin-csrf.spec.ts` | `bb15d82`, `1fe748a` |
+   | L1 | `tourSlug` reached the Cloudinary folder builder with only a `length > 0` check | Validated against `SLUG_PATTERN`, which now carries a 100-char cap inside the pattern itself | `bb15d82` |
+   | M6 | Prices free text (rendered verbatim, mis-parsed by `getPriceRange`); `savingsLabel` hand-typed beside the prices it claimed to be the difference of | Canonical `₹42,500` enforced; "was" must exceed "from"; savings DERIVED; tolerant reader for stored rows. All 22 live rows were already canonical and consistent — none rewritten | `fd9e5b6` |
+   | M5 | `schema.prisma` and item 12 described a save-time `photosCount` derivation that had been reverted | Both corrected (read-time derivation) | `d1c0158` |
+   | M7 | Concurrent edits: last write silently wins, erasing the other admin's itinerary/gallery | Version token (`updatedAt`) claimed atomically as the transaction's first statement; conflict returned as state with the admin's input kept. Proven live with two truly parallel saves | `3f2a671` |
+   | — | **Found while testing M7, pre-existing:** React 19 auto-resets a `<form action>` after the action settles, so EVERY server-returned error (slug collision, publish refusal) blanked the tour form on screen while RHF still held the values | Form dispatches via `startTransition(formAction)` instead | `3f2a671` |
+   | L2 | List publish/archive toggles threw P2025 or silently no-op'd for a vanished tour | `updateMany` + `{ found }`; actions redirect to a visible notice | `7197416` |
+   | M9 | The unguarded-mutation scan only read files NAMED `actions.ts` and never looked at `/api/admin/**` | Scans by `'use server'` directive and every admin `route.ts`; literal floors. Old test shown green with a planted ungated action and an ungated upload route | `7a2d4f0` |
+   | M10 | No security response headers at all | nosniff, Referrer-Policy, XFO DENY + `frame-ancestors 'none'` sitewide; `private, no-store` on admin paths. Verified on real responses incl. the proxy's `/admin` redirect | `a6ab051` |
+
+   **Accepted or deferred by the user (2026-09-19) — deliberately NOT changed**
+
+   1. **`pricingUnverified` has no admin control to clear it.** H1 was fixed with the badge
+      and banner only; clearing the flag means someone confirmed a price against the
+      source, which a button cannot evidence. It stays developer-managed.
+   2. **The 15-minute hard login lockout is kept.** It accepts a known cost: anyone who
+      knows the admin's email can keep that account locked out by failing a login every
+      15 minutes (a renewable lockout DoS). The C1 fix bounded the limiter's memory and
+      made eviction unable to RESET a lockout; it did not change the policy.
+   3. **Edits to a published tour go live immediately.** No staged/draft-of-published
+      editing. M7 stops two admins overwriting each other; it does not add review.
+   4. **The group-departure (batch) editor is deferred** to a separate pass.
+      `GroupDeparture` behaviour was not touched in this round.
+
+   **Follow-ups recorded by this round, not done**
+
+   - **Script-src Content-Security-Policy.** Only `frame-ancestors` is set. A real script
+     policy needs per-request nonces through `src/proxy.ts` and every page.
+   - **HSTS.** Belongs to the deployment once the production domain and its TLS
+     termination are confirmed; sticky in browsers, so not set from a build that also
+     serves plain HTTP for the E2E suite.
+   - **Chunked uploads are refused (411).** Browsers always send `Content-Length` for a
+     `FormData` body; an intermediary that re-chunks would break uploads. Not observed,
+     not testable here. If uploads ever fail with "did not declare its size", relax the
+     411 — the stream cap still enforces the real limit.
+   - **The M7 and slug-collision signed-in E2E cases are written but have never run** —
+     this environment has no `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`. M7 is proven by the
+     live repository suite and a real-React render instead.
+   - **Cloudinary is still unprovisioned** (item 12) — every upload assertion, including
+     this round's, runs against a mocked SDK.
+   - **These fixes have not been independently reviewed.** Same caveat item 13 made about
+     Phases A–D, one level down.
