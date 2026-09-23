@@ -111,6 +111,15 @@ const EDIT_CONFLICT =
   'saving now would erase theirs. Everything you typed is still in the form below: copy anything you need, ' +
   'then reload the page to see their version and re-apply your edits.';
 
+/**
+ * L2 of the 2026-09-19 review. The list's publish/archive buttons used to
+ * `return` silently for a missing slug and throw P2025 for a tour removed or
+ * renamed since the list loaded. Both now land back on the list with a notice
+ * it renders (`/admin/tours/page.tsx`), because these actions return `void` —
+ * a redirect with a flag is the only channel a plain `<form action>` has.
+ */
+const TOUR_MISSING_NOTICE_URL = '/admin/tours?notice=tour-missing';
+
 const TOUR_GONE =
   'That tour no longer exists — it may have been renamed or removed by someone else. ' +
   'Nothing was saved. Go back to the tours list to find it.';
@@ -252,11 +261,12 @@ export async function setTourPublishedAction(formData: FormData): Promise<void> 
 
   const slug = String(formData.get('slug') ?? '');
   const publish = String(formData.get('publish') ?? '') === 'true';
-  if (!slug) return;
+  if (!slug) redirect(TOUR_MISSING_NOTICE_URL);
 
   if (publish) {
     const existing = await getAdminTourBySlug(slug);
-    if (!existing.configured || existing.value === null) return;
+    if (!existing.configured) return;
+    if (existing.value === null) redirect(TOUR_MISSING_NOTICE_URL);
 
     // Validated over the STORED form values, which is the honest question here:
     // "is what is saved publishable", not "was some form valid".
@@ -274,6 +284,9 @@ export async function setTourPublishedAction(formData: FormData): Promise<void> 
 
   const result = await setTourStatus(slug, publish ? 'PUBLISHED' : 'DRAFT');
   if (!result.configured) return;
+  // Un-publishing a tour that vanished since the list loaded — nothing to do,
+  // but the admin pressed a button and must be told why nothing happened.
+  if (!result.value.found) redirect(TOUR_MISSING_NOTICE_URL);
 
   revalidateTourSurfaces(slug);
 }
@@ -287,10 +300,11 @@ export async function setTourArchivedAction(formData: FormData): Promise<void> {
 
   const slug = String(formData.get('slug') ?? '');
   const archived = String(formData.get('archived') ?? '') === 'true';
-  if (!slug) return;
+  if (!slug) redirect(TOUR_MISSING_NOTICE_URL);
 
   const result = await setTourArchived(slug, archived);
   if (!result.configured) return;
+  if (!result.value.found) redirect(TOUR_MISSING_NOTICE_URL);
 
   revalidateTourSurfaces(slug);
 }

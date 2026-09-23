@@ -99,6 +99,21 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
         </Link>
       </header>
 
+      {/*
+        L2: set by the publish/archive actions when the tour the admin clicked
+        no longer exists (renamed or removed since this list loaded). Those
+        buttons used to do nothing, or throw — a click with no visible result.
+      */}
+      {firstValue(params.notice) === 'tour-missing' && (
+        <p
+          role="alert"
+          className="mb-6 rounded-12 border border-gty-primary bg-gty-red-50 px-4 py-3 text-13-5 text-gty-primary"
+        >
+          That tour no longer exists — it may have been renamed or removed by someone else, so nothing was
+          changed. The list below is current.
+        </p>
+      )}
+
       {!tours.configured ? (
         <section className="rounded-22 border border-gty-border bg-gty-white p-8" role="status">
           <h2 className="mb-3 text-18 font-extrabold text-gty-ink">No content database configured</h2>

@@ -3,7 +3,8 @@
  */
 
 /**
- * `saveTourAction` — the M7 (concurrent edit) and missing-tour paths.
+ * The tour server actions — `saveTourAction`'s M7 (concurrent edit) and
+ * missing-tour paths, and the list toggles' L2 missing-tour path.
  *
  * The repository's half is proven against real Postgres in
  * `tour-repository.integration.test.ts`; this pins what the ACTION does with
@@ -20,6 +21,9 @@ const mockRedirect = jest.fn((url: string) => {
   throw Object.assign(new Error('NEXT_REDIRECT'), { digest: `NEXT_REDIRECT;${url}` });
 });
 const mockRevalidatePath = jest.fn();
+const mockSetTourStatus = jest.fn();
+const mockSetTourArchived = jest.fn();
+const mockGetAdminTourBySlug = jest.fn();
 
 jest.mock('@/server/auth/session', () => ({
   requireAdminSession: () => mockRequireAdminSession(),
@@ -29,9 +33,9 @@ jest.mock('@/server/admin/tours/tour-repository', () => ({
   updateTour: (...args: unknown[]) => mockUpdateTour(...args),
   createTour: (...args: unknown[]) => mockCreateTour(...args),
   findSlugConflict: (...args: unknown[]) => mockFindSlugConflict(...args),
-  getAdminTourBySlug: jest.fn(),
-  setTourArchived: jest.fn(),
-  setTourStatus: jest.fn(),
+  getAdminTourBySlug: (...args: unknown[]) => mockGetAdminTourBySlug(...args),
+  setTourArchived: (...args: unknown[]) => mockSetTourArchived(...args),
+  setTourStatus: (...args: unknown[]) => mockSetTourStatus(...args),
 }));
 
 jest.mock('next/cache', () => ({ revalidatePath: (path: string) => mockRevalidatePath(path) }));
@@ -44,7 +48,7 @@ jest.mock('next/navigation', () => ({
   },
 }));
 
-import { saveTourAction } from '../actions';
+import { saveTourAction, setTourArchivedAction, setTourPublishedAction } from '../actions';
 import { EMPTY_FORM_STATE } from '../form-state';
 
 const LOADED_AT = '2026-09-19T10:00:00.000Z';
@@ -149,5 +153,63 @@ describe('a save of a tour that no longer exists', () => {
     expect(state.error).toMatch(/no longer exists/i);
     expect(state.conflict).toBeUndefined();
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * L2 of the 2026-09-19 review — the list's publish/archive toggles on a tour
+ * that is gone. They used to `return` silently (empty slug) or surface Prisma's
+ * P2025 as an error page (a slug removed/renamed since the list loaded).
+ */
+describe('publish/archive toggles on a tour that no longer exists', () => {
+  const NOTICE = '/admin/tours?notice=tour-missing';
+
+  function toggle(fields: Record<string, string>): FormData {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(fields)) formData.append(key, value);
+    return formData;
+  }
+
+  it.each([
+    ['publish', () => setTourPublishedAction(toggle({ slug: '', publish: 'true' }))],
+    ['archive', () => setTourArchivedAction(toggle({ slug: '', archived: 'true' }))],
+  ])('%s with an EMPTY slug redirects to the notice instead of returning silently', async (_label, run) => {
+    await expect(run()).rejects.toThrow('NEXT_REDIRECT');
+    expect(mockRedirect).toHaveBeenCalledWith(NOTICE);
+    expect(mockSetTourStatus).not.toHaveBeenCalled();
+    expect(mockSetTourArchived).not.toHaveBeenCalled();
+  });
+
+  it('publishing a missing tour redirects to the notice', async () => {
+    mockGetAdminTourBySlug.mockResolvedValue({ configured: true, value: null });
+
+    await expect(setTourPublishedAction(toggle({ slug: 'gone', publish: 'true' }))).rejects.toThrow('NEXT_REDIRECT');
+    expect(mockRedirect).toHaveBeenCalledWith(NOTICE);
+    expect(mockSetTourStatus).not.toHaveBeenCalled();
+  });
+
+  it('UN-publishing a missing tour redirects to the notice', async () => {
+    mockSetTourStatus.mockResolvedValue({ configured: true, value: { found: false } });
+
+    await expect(setTourPublishedAction(toggle({ slug: 'gone', publish: 'false' }))).rejects.toThrow('NEXT_REDIRECT');
+    expect(mockRedirect).toHaveBeenCalledWith(NOTICE);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('archiving a missing tour redirects to the notice', async () => {
+    mockSetTourArchived.mockResolvedValue({ configured: true, value: { found: false } });
+
+    await expect(setTourArchivedAction(toggle({ slug: 'gone', archived: 'true' }))).rejects.toThrow('NEXT_REDIRECT');
+    expect(mockRedirect).toHaveBeenCalledWith(NOTICE);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('an existing tour still toggles normally, with no notice', async () => {
+    mockSetTourArchived.mockResolvedValue({ configured: true, value: { found: true } });
+
+    await setTourArchivedAction(toggle({ slug: 'spiti-valley-circuit', archived: 'true' }));
+
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/tours');
   });
 });

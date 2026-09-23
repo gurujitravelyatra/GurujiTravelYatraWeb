@@ -827,12 +827,19 @@ export async function updateTour(
  * A tour that cannot meet the bar is refused with the reason, rather than going
  * live incomplete.
  */
-export async function setTourStatus(slug: string, status: TourStatus): Promise<Configured<void>> {
+export async function setTourStatus(slug: string, status: TourStatus): Promise<Configured<{ found: boolean }>> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return unconfigured();
 
-  await prisma.tour.update({ where: { slug }, data: { status } });
-  return { configured: true, value: undefined };
+  /**
+   * `updateMany`, not `update` (L2 of the 2026-09-19 review): `update` on a slug
+   * that no longer exists — renamed or removed in another tab — throws Prisma's
+   * P2025, which surfaced to the admin as a generic error page. A missing row is
+   * an ordinary outcome of a list that was loaded a while ago, so it is
+   * RETURNED and the action tells the admin what happened.
+   */
+  const { count } = await prisma.tour.updateMany({ where: { slug }, data: { status } });
+  return { configured: true, value: { found: count > 0 } };
 }
 
 /**
@@ -843,15 +850,17 @@ export async function setTourStatus(slug: string, status: TourStatus): Promise<C
  * it was pulled from rather than silently publishing a tour that was a draft
  * when it was archived.
  */
-export async function setTourArchived(slug: string, archived: boolean): Promise<Configured<void>> {
+export async function setTourArchived(slug: string, archived: boolean): Promise<Configured<{ found: boolean }>> {
   const prisma = getOptionalPrismaClient();
   if (!prisma) return unconfigured();
 
-  await prisma.tour.update({
+  // `updateMany` for the reason `setTourStatus` gives — a missing slug is
+  // reported, not thrown as P2025.
+  const { count } = await prisma.tour.updateMany({
     where: { slug },
     data: { archivedAt: archived ? new Date() : null },
   });
-  return { configured: true, value: undefined };
+  return { configured: true, value: { found: count > 0 } };
 }
 
 /** Exported for tests that inject a mock client. */

@@ -713,6 +713,15 @@ describeDb('tour CMS against the live database', () => {
       expect(second.configured && second.value.outcome).toBe('saved');
     });
 
+    it('L2: the list toggles report a missing tour instead of throwing P2025', async () => {
+      const gone = `${TEST_PREFIX}never-existed`;
+
+      await expect(setTourStatus(gone, 'PUBLISHED')).resolves.toEqual({ configured: true, value: { found: false } });
+      await expect(setTourArchived(gone, true)).resolves.toEqual({ configured: true, value: { found: false } });
+      // And a real one still reports found.
+      await expect(setTourArchived(SLUG, true)).resolves.toEqual({ configured: true, value: { found: true } });
+    });
+
     it('reports a tour that no longer exists as missing, rather than throwing', async () => {
       const loadedAt = await versionOf();
       await prisma().tour.delete({ where: { slug: SLUG } });

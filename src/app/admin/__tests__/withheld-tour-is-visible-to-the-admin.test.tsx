@@ -332,3 +332,25 @@ describe('the admin list and the public catalogue cannot disagree about what is 
     }
   });
 });
+
+/**
+ * L2 of the 2026-09-19 review — lives here because this file already renders
+ * the real list page. The publish/archive actions redirect to
+ * `?notice=tour-missing` when the tour vanished; the list must SAY so, or the
+ * click still has no visible result.
+ */
+describe('the tour list explains a toggle on a tour that no longer exists', () => {
+  it('renders the notice when the actions flag it', async () => {
+    mockListAdminTours.mockResolvedValue({ configured: true, value: [BASE_ROW] });
+    const element = await AdminToursPage({ searchParams: Promise.resolve({ notice: 'tour-missing' }) });
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain('That tour no longer exists');
+    expect(html).toMatch(/role="alert"/);
+  });
+
+  it('renders no notice on an ordinary visit', async () => {
+    const html = await renderToursPage([BASE_ROW]);
+    expect(html).not.toContain('That tour no longer exists');
+  });
+});
