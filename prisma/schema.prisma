@@ -247,11 +247,14 @@ model Tour {
   /// all 22 seeded tours still do. The two are read in that order by
   /// `PackageCard`/`PhotoPlaceholder` and nowhere else.
   photoKey      String
-  /// Kept in step with `galleryImages` by the admin write path — see the note on
-  /// `TourGalleryImage`. NOT a second source of truth for the gallery's length:
-  /// the admin repository writes `photosCount = galleryImages.length` in the same
-  /// transaction that replaces the rows, so it is a denormalised count for the
-  /// card's "N Photos" label rather than an independently-editable field.
+  /// The design export's INHERITED figure, and only a fallback. The "N Photos"
+  /// badge is derived at READ time by `PrismaContentAdapter` (`toPackage`):
+  /// `galleryImages.length` when the tour has uploaded photos, this column when
+  /// it has none. The admin write path does NOT keep this in step with the
+  /// gallery — `createTour` writes 0 and `updateTour`/`toColumnData`
+  /// deliberately never write it. (Corrected 2026-09-19, M5: this note used to
+  /// describe a save-time derivation that was reverted in Phase C after it
+  /// silently changed a seeded tour's count, 11 → 0, on an unrelated edit.)
   photosCount   Int
 
   /// Pre-formatted for display, e.g. "₹42,500". Kept as the display string

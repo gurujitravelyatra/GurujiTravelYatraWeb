@@ -832,12 +832,17 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      `fetch()` still cannot report bytes-sent. The bar measures browser → our server
      only; at 100% the label changes to "Sending to Cloudinary…" rather than sitting full,
      because the server-to-Cloudinary leg is still running.
-   - **`photosCount` is now DERIVED from the gallery on every admin save.** It previously
-     carried the design export's figure, which described photography that does not exist
-     ("24 Photos" backed by nothing). Consequence worth knowing: the first time an admin
-     saves one of the 22 seeded tours, its inherited count drops to the real number. That
-     is a correction, not a regression, but it is a visible change to a field the admin
-     did not touch.
+   - **The "N Photos" badge is DERIVED AT READ TIME, not on save.** *(Corrected
+     2026-09-19, review finding M5 — this bullet originally described a save-time
+     derivation that did not survive Phase C.)* `PrismaContentAdapter` reports
+     `galleryImages.length` for a tour with uploaded photos and falls back to the stored
+     `photosCount` (the design export's inherited figure) for one with none. The column is
+     written only on CREATE (as 0) and never on update — `toColumnData` omits it on
+     purpose. The save-time version was built first and the live integration suite
+     rejected it: `photosCount` is not a form field, so editing a seeded tour's
+     *description* changed its photo count (11 → 0). The inherited figures for the 22
+     seeded tours still describe photography that does not exist; correcting them is a
+     content decision for the business, not a side effect of an unrelated save.
    - **Uploaded images are rendered publicly, via `PhotoPlaceholder`'s new `imageUrl`
      prop.** The branch lives in the one component every card, hero and rail already
      routes through, so every surface inherited it with no call-site edit — the same
