@@ -43,6 +43,13 @@ const LOADED: TourFormValues = {
 
 const VERSION = '2026-09-19T10:00:00.000Z';
 
+/**
+ * The resolver + transition round trip on a ~40-field form takes well over
+ * Testing Library's 1s default under full-suite load (measured: it timed out at
+ * 4 workers). The budget is for slowness, not for flakiness in the behaviour.
+ */
+const ASYNC = { timeout: 10_000 };
+
 function renderEditor() {
   return render(
     <TourForm
@@ -69,7 +76,7 @@ it('posts the version the editor was loaded at', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Save as Draft' }));
 
-  await waitFor(() => expect(mockSaveTourAction).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(mockSaveTourAction).toHaveBeenCalledTimes(1), ASYNC);
   const formData = mockSaveTourAction.mock.calls[0][1];
   expect(formData.get('expectedUpdatedAt')).toBe(VERSION);
   expect(formData.get('editingSlug')).toBe('spiti-valley-circuit');
@@ -81,14 +88,19 @@ it('keeps everything the admin typed on screen after a conflict, and offers a re
 
   const name = screen.getByLabelText(/^Tour name/);
   const description = screen.getByLabelText(/^Short description/);
+  // `paste` rather than `type`: one input event instead of one per character
+  // across a ~40-field RHF form, which kept this test near the 30s timeout under
+  // full-suite load. The reset being tested is indifferent to how the text got there.
   await user.clear(name);
-  await user.type(name, 'My unsaved title');
+  await user.click(name);
+  await user.paste('My unsaved title');
   await user.clear(description);
-  await user.type(description, 'My unsaved description.');
+  await user.click(description);
+  await user.paste('My unsaved description.');
 
   await user.click(screen.getByRole('button', { name: 'Save as Draft' }));
 
-  const alert = await screen.findByText(/someone else saved changes/i);
+  const alert = await screen.findByText(/someone else saved changes/i, {}, ASYNC);
   expect(alert).toBeInTheDocument();
 
   // THE assertion: the DOM still shows the admin's text, not the loaded values.
@@ -110,6 +122,6 @@ it('shows no reload link for an ordinary (non-conflict) error', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Save as Draft' }));
 
-  await screen.findByText(/saving failed/i);
+  await screen.findByText(/saving failed/i, {}, ASYNC);
   expect(screen.queryByRole('link', { name: /reload to see their version/i })).toBeNull();
 });
