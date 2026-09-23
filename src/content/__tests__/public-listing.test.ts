@@ -202,4 +202,20 @@ describe('getPriceRange', () => {
   it('returns undefined rather than NaN bounds for an empty set', () => {
     expect(getPriceRange([])).toBeUndefined();
   });
+
+  it('is not moved by a stored price that carries other text (2026-09-19 review, M6)', () => {
+    // Stored rows predating the strict form rule are not rewritten, so the
+    // reader must survive them. The old digit-strip read "₹42,500 per 2 pax"
+    // as 4,25,002 and made it the catalogue maximum.
+    const base = toursRenderedOnCataloguePage[0];
+    const polluted = [
+      { ...base, priceFrom: '₹20,000' },
+      { ...base, priceFrom: '₹42,500 per 2 pax' },
+      { ...base, priceFrom: 'On request' },
+      { ...base, priceFrom: '₹30000' }, // ungrouped but unambiguous — still read
+      { ...base, priceFrom: '₹ 1,20,000' }, // Indian grouping + stray space — still read
+    ];
+
+    expect(getPriceRange(polluted)).toEqual({ min: 20000, max: 120000, label: '₹20,000 — ₹1,20,000' });
+  });
 });

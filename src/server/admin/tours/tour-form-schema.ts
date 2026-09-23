@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { deriveSavingsLabel, parseRupeeAmount, RUPEE_FORMAT_MESSAGE } from '@/lib/rupees';
+
 import { containsMarkup, MARKUP_REJECTED_MESSAGE } from './plain-text';
 
 /**
@@ -106,6 +108,12 @@ function plainText<T extends z.ZodString>(rule: T) {
 const optionalText = plainText(z.string().trim())
   .optional()
   .transform((value) => (value === '' ? undefined : value));
+
+/** An optional price in the canonical `₹42,500` form — M6. Empty means "not set". */
+const rupeeAmount = optionalText.refine(
+  (value) => value === undefined || parseRupeeAmount(value) !== undefined,
+  RUPEE_FORMAT_MESSAGE
+);
 
 /**
  * One itinerary day. `dayNumber` is NOT collected from the form — the server
@@ -220,7 +228,7 @@ export const pricingTierSchema = z.object({
  * unique slug (so it has a stable address). Everything else is optional until
  * `publishableTourSchema` below.
  */
-export const tourFormSchema = z.object({
+const tourFormObject = z.object({
   name: plainText(z.string().trim().min(2, 'Enter the tour name.')),
   slug: z
     .string()
@@ -240,8 +248,19 @@ export const tourFormSchema = z.object({
   /** Regular tours only — the form hides it when `Group Tour` is tagged. */
   bestTimeToVisit: optionalText,
 
-  priceFrom: optionalText,
-  priceWas: optionalText,
+  /**
+   * M6 — both prices must be in the canonical written form (`₹42,500`), because
+   * they are rendered verbatim AND read as numbers by `getPriceRange()`. See
+   * `src/lib/rupees.ts`.
+   */
+  priceFrom: rupeeAmount,
+  priceWas: rupeeAmount,
+  /**
+   * ACCEPTED BUT IGNORED on input, and DERIVED on output — see the transform at
+   * the end of this schema. Kept in the input shape (rather than removed) so a
+   * stale browser tab or an old test payload that still sends it parses, and so
+   * markup in it is still refused like every other text field.
+   */
   savingsLabel: optionalText,
   seatsLabel: optionalText,
   isHot: z.boolean().default(false),
@@ -266,6 +285,56 @@ export const tourFormSchema = z.object({
   galleryImages: z.array(galleryImageSchema).default([]),
   brochureFile: brochureFileSchema.optional(),
 });
+
+/**
+ * The draft-level schema: the object above, plus the two price rules that span
+ * fields (M6).
+ *
+ * 1. A "was" price needs a current price beside it, and must be HIGHER than it.
+ *    `priceWas` renders as a strikethrough next to `priceFrom`; a "was" price at
+ *    or below today's is a claimed discount that is not one.
+ * 2. `savingsLabel` is DERIVED from the two prices, and whatever arrived in the
+ *    field is discarded. It used to be typed by hand, so "was ₹47,700, now
+ *    ₹42,500, save ₹8,000" was one keystroke away and nothing checked the
+ *    arithmetic. It is derived from the two FORM fields the admin just
+ *    submitted — not from anything the form does not show — so this is not the
+ *    save-time side effect `photosCount` taught us to avoid: an unrelated edit
+ *    cannot change it, only an edit to the prices it is computed from. Every
+ *    seeded tour's stored savings already equals was − from (checked when this
+ *    was written), so re-saving one changes nothing.
+ */
+export const tourFormSchema = tourFormObject
+  .superRefine((values, ctx) => {
+    if (!values.priceWas) return;
+
+    const from = values.priceFrom ? parseRupeeAmount(values.priceFrom) : undefined;
+    const was = parseRupeeAmount(values.priceWas);
+    // A non-canonical value already has its own format error; do not stack a
+    // second, confusing one on top.
+    if (was === undefined) return;
+    if (values.priceFrom && from === undefined) return;
+
+    if (from === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['priceWas'],
+        message: 'A “was” price needs a current price beside it. Fill in the price, or clear this field.',
+      });
+      return;
+    }
+
+    if (was <= from) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['priceWas'],
+        message: 'The “was” price must be higher than the current price — otherwise there is no saving to show.',
+      });
+    }
+  })
+  .transform((values): typeof values => ({
+    ...values,
+    savingsLabel: deriveSavingsLabel(values.priceFrom, values.priceWas),
+  }));
 
 export type TourFormValues = z.input<typeof tourFormSchema>;
 export type ParsedTourFormValues = z.output<typeof tourFormSchema>;
@@ -326,7 +395,8 @@ export type ParsedTourFormValues = z.output<typeof tourFormSchema>;
  *
  * **No `priceWas`/`savingsLabel` requirement**, and note these two are the
  * fabricated-discount risk `pricingUnverified` exists for — requiring them would
- * pressure an admin into inventing a "was" price to get a tour live.
+ * pressure an admin into inventing a "was" price to get a tour live. (As of M6
+ * `savingsLabel` cannot be typed at all — it is derived from the two prices.)
  */
 export const publishableTourSchema = tourFormSchema.superRefine((values, ctx) => {
   if (!values.shortDescription) {

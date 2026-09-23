@@ -1,3 +1,5 @@
+import { formatRupees, readStoredRupeeAmount } from '@/lib/rupees';
+
 import type { Package, PackageRail } from './types';
 import { allTours, packageRails } from './fixtures/packages.fixture';
 import { popularPackages } from './fixtures/popular.fixture';
@@ -197,12 +199,6 @@ export function getDestinationOptions(tours: Package[]): DestinationOption[] {
   return Array.from(bySlug.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Parsed `₹42,500` → `42500`. Returns `undefined` for anything that is not a plain ₹ amount. */
-function parseRupees(price: string): number | undefined {
-  const digits = price.replace(/[^\d]/g, '');
-  return digits.length > 0 ? Number(digits) : undefined;
-}
-
 export interface PriceRange {
   min: number;
   max: number;
@@ -216,15 +212,25 @@ export interface PriceRange {
  * matched no actual bound in the data (the true range is ₹12,800 — ₹78,500) and
  * silently excluded the cheapest and the most expensive journeys on the site.
  * Computing it means it can never drift from the catalogue again.
+ *
+ * ## Robust to what is already stored (M6, 2026-09-19)
+ *
+ * This used to strip every non-digit and read the rest, so a stored
+ * `₹42,500 per 2 pax` became ₹4,25,002 and silently became the catalogue's
+ * maximum. The admin form now refuses anything but `₹42,500`, but rows written
+ * before that rule are NOT rewritten — so this reads with
+ * `readStoredRupeeAmount()`, which tolerates spacing and grouping variants and
+ * returns nothing, rather than a made-up number, for a value that carries any
+ * other text. Such a tour still lists; it simply does not move the bounds.
  */
 export function getPriceRange(tours: Package[]): PriceRange | undefined {
   const amounts = tours
-    .map((tour) => parseRupees(tour.priceFrom))
+    .map((tour) => readStoredRupeeAmount(tour.priceFrom))
     .filter((amount): amount is number => amount !== undefined);
 
   if (amounts.length === 0) return undefined;
 
   const min = Math.min(...amounts);
   const max = Math.max(...amounts);
-  return { min, max, label: `₹${min.toLocaleString('en-IN')} — ₹${max.toLocaleString('en-IN')}` };
+  return { min, max, label: `${formatRupees(min)} — ${formatRupees(max)}` };
 }

@@ -16,6 +16,7 @@ import {
   type SubmitIntent,
   type TourFormValues,
 } from '@/server/admin/tours/tour-form-schema';
+import { deriveSavingsLabel } from '@/lib/rupees';
 import { saveTourAction } from '@/app/admin/tours/actions';
 import { EMPTY_FORM_STATE, type TourFormState } from '@/app/admin/tours/form-state';
 
@@ -200,6 +201,10 @@ export function TourForm({
    */
   const tierRows = useWatch({ control, name: 'pricingTiers' }) ?? [];
   const usesTiers = tierRows.length > 0;
+
+  const priceFromValue = useWatch({ control, name: 'priceFrom' });
+  const priceWasValue = useWatch({ control, name: 'priceWas' });
+  const derivedSavings = deriveSavingsLabel(priceFromValue?.trim(), priceWasValue?.trim());
 
   const currentSlug = useWatch({ control, name: 'slug' });
   const slugChanged = Boolean(editingSlug) && currentSlug !== editingSlug;
@@ -446,14 +451,22 @@ export function TourForm({
             <Input {...register('priceWas')} placeholder="₹47,700" />
           </FormField>
 
-          <FormField
-            id="tour-savings"
-            label="Savings label (optional)"
-            hint="Renders as “Save ₹…”. Leave empty unless the saving is real."
-            error={fieldError('savingsLabel')}
-          >
-            <Input {...register('savingsLabel')} placeholder="5,200" />
-          </FormField>
+          {/*
+           * M6: the saving is DERIVED from the two prices above and cannot be
+           * typed — a hand-typed figure could disagree with the prices printed
+           * beside it. The server discards any submitted value and recomputes
+           * it, so this display is a preview, not the source.
+           */}
+          <p className="text-13-5 text-gty-muted" data-testid="tour-savings-preview" aria-live="polite">
+            {derivedSavings ? (
+              <>
+                Visitors will see a <strong className="font-bold text-gty-ink">“Save ₹{derivedSavings}”</strong>{' '}
+                badge, worked out from the two prices above.
+              </>
+            ) : (
+              <>No “Save ₹…” badge will be shown — that needs a “was” price higher than the current price.</>
+            )}
+          </p>
         </fieldset>
 
         <div className="flex flex-col gap-4 border-t border-gty-border-4 pt-5">

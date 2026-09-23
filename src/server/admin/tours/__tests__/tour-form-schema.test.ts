@@ -239,6 +239,82 @@ describe('the publish bar', () => {
   });
 });
 
+describe('the slug length cap lives inside SLUG_PATTERN itself', () => {
+  it('any consumer of the bare pattern gets the cap, not just this schema', () => {
+    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH))).toBe(true);
+    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH + 1))).toBe(false);
+    expect(SLUG_PATTERN.test('a'.repeat(5000))).toBe(false);
+    // Shape still enforced — the lookahead did not replace the pattern.
+    expect(SLUG_PATTERN.test('spiti-valley-circuit')).toBe(true);
+    expect(SLUG_PATTERN.test('spiti--valley')).toBe(false);
+    expect(SLUG_PATTERN.test('')).toBe(false);
+  });
+
+  it('the schema refuses an over-long slug with a length message', () => {
+    const result = tourFormSchema.safeParse({ ...MINIMAL_DRAFT, slug: 'a'.repeat(MAX_SLUG_LENGTH + 1) });
+    expect(result.success).toBe(false);
+    expect(!result.success && result.error.issues[0].message).toMatch(/at most 100/);
+  });
+});
+
+/**
+ * M6 of the 2026-09-19 review. Prices were free text: anything typed rendered
+ * verbatim on a public card, and the savings pill was typed by hand beside two
+ * prices it was never checked against.
+ */
+describe('prices are canonical rupee amounts, and the saving is derived', () => {
+  const errorsFor = (values: TourFormValues) => {
+    const result = tourFormSchema.safeParse(values);
+    return result.success ? {} : Object.fromEntries(result.error.issues.map((i) => [i.path.join('.'), i.message]));
+  };
+
+  it.each(['42500', '₹42500', 'Rs 42,500', '₹42,500 pp', 'On request', '₹120,000'])(
+    'refuses priceFrom %s, on the field',
+    (priceFrom) => {
+      expect(errorsFor({ ...MINIMAL_DRAFT, priceFrom })).toHaveProperty('priceFrom');
+    }
+  );
+
+  it('refuses a non-canonical priceWas, on the field', () => {
+    expect(errorsFor({ ...MINIMAL_DRAFT, priceFrom: '₹42,500', priceWas: '47700' })).toHaveProperty('priceWas');
+  });
+
+  it('accepts Indian grouping, and treats an empty price as "not set"', () => {
+    expect(tourFormSchema.safeParse({ ...MINIMAL_DRAFT, priceFrom: '₹1,20,000' }).success).toBe(true);
+    expect(tourFormSchema.parse({ ...MINIMAL_DRAFT, priceFrom: '  ' }).priceFrom).toBeUndefined();
+  });
+
+  it('refuses a "was" price that is not above the current price', () => {
+    expect(errorsFor({ ...MINIMAL_DRAFT, priceFrom: '₹42,500', priceWas: '₹42,500' })).toHaveProperty('priceWas');
+    expect(errorsFor({ ...MINIMAL_DRAFT, priceFrom: '₹42,500', priceWas: '₹40,000' })).toHaveProperty('priceWas');
+  });
+
+  it('refuses a "was" price with no current price to compare it to', () => {
+    expect(errorsFor({ ...MINIMAL_DRAFT, priceWas: '₹47,700' })).toHaveProperty('priceWas');
+  });
+
+  it('DERIVES savingsLabel and discards whatever was submitted', () => {
+    const parsed = tourFormSchema.parse({
+      ...MINIMAL_DRAFT,
+      priceFrom: '₹42,500',
+      priceWas: '₹47,700',
+      savingsLabel: '8,000', // a fabricated saving — must not survive
+    });
+    expect(parsed.savingsLabel).toBe('5,200');
+  });
+
+  it('stores NO saving when there is no was price, even if one was typed', () => {
+    const parsed = tourFormSchema.parse({ ...MINIMAL_DRAFT, priceFrom: '₹42,500', savingsLabel: '5,200' });
+    expect(parsed.savingsLabel).toBeUndefined();
+  });
+
+  it('the publish schema derives it too — it is built on the draft schema', () => {
+    const result = publishableTourSchema.safeParse({ ...PUBLISHABLE, priceWas: '₹47,700', savingsLabel: '1' });
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.savingsLabel).toBe('5,200');
+  });
+});
+
 describe('parseTourForm routes each intent to the right schema', () => {
   it('uses the draft schema for "draft" and the publish schema for "publish"', () => {
     expect(parseTourForm('draft', MINIMAL_DRAFT).success).toBe(true);
@@ -293,23 +369,5 @@ describe('the two categorisation axes stay in sync with the database enums', () 
     expect(CATEGORY_VALUES).not.toContain('Domestic');
     expect(CATEGORY_VALUES).not.toContain('Custom-eligible');
     expect(AUDIENCE_TAG_VALUES).not.toContain('Spiritual');
-  });
-});
-
-describe('the slug length cap lives inside SLUG_PATTERN itself', () => {
-  it('any consumer of the bare pattern gets the cap, not just this schema', () => {
-    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH))).toBe(true);
-    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH + 1))).toBe(false);
-    expect(SLUG_PATTERN.test('a'.repeat(5000))).toBe(false);
-    // Shape still enforced — the lookahead did not replace the pattern.
-    expect(SLUG_PATTERN.test('spiti-valley-circuit')).toBe(true);
-    expect(SLUG_PATTERN.test('spiti--valley')).toBe(false);
-    expect(SLUG_PATTERN.test('')).toBe(false);
-  });
-
-  it('the schema refuses an over-long slug with a length message', () => {
-    const result = tourFormSchema.safeParse({ ...MINIMAL_DRAFT, slug: 'a'.repeat(MAX_SLUG_LENGTH + 1) });
-    expect(result.success).toBe(false);
-    expect(!result.success && result.error.issues[0].message).toMatch(/at most 100/);
   });
 });
