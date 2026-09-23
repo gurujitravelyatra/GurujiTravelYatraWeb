@@ -5,7 +5,9 @@ import {
   AUDIENCE_TAG_VALUES,
   CATEGORY_VALUES,
   isSubmitIntent,
+  MAX_SLUG_LENGTH,
   parseTourForm,
+  SLUG_PATTERN,
   publishableTourSchema,
   tourFormSchema,
   type TourFormValues,
@@ -291,5 +293,23 @@ describe('the two categorisation axes stay in sync with the database enums', () 
     expect(CATEGORY_VALUES).not.toContain('Domestic');
     expect(CATEGORY_VALUES).not.toContain('Custom-eligible');
     expect(AUDIENCE_TAG_VALUES).not.toContain('Spiritual');
+  });
+});
+
+describe('the slug length cap lives inside SLUG_PATTERN itself', () => {
+  it('any consumer of the bare pattern gets the cap, not just this schema', () => {
+    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH))).toBe(true);
+    expect(SLUG_PATTERN.test('a'.repeat(MAX_SLUG_LENGTH + 1))).toBe(false);
+    expect(SLUG_PATTERN.test('a'.repeat(5000))).toBe(false);
+    // Shape still enforced — the lookahead did not replace the pattern.
+    expect(SLUG_PATTERN.test('spiti-valley-circuit')).toBe(true);
+    expect(SLUG_PATTERN.test('spiti--valley')).toBe(false);
+    expect(SLUG_PATTERN.test('')).toBe(false);
+  });
+
+  it('the schema refuses an over-long slug with a length message', () => {
+    const result = tourFormSchema.safeParse({ ...MINIMAL_DRAFT, slug: 'a'.repeat(MAX_SLUG_LENGTH + 1) });
+    expect(result.success).toBe(false);
+    expect(!result.success && result.error.issues[0].message).toMatch(/at most 100/);
   });
 });

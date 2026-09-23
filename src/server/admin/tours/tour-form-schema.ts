@@ -56,7 +56,33 @@ export type AudienceTagValue = (typeof AUDIENCE_TAG_VALUES)[number];
  * is a PUBLIC URL, and quietly rewriting what the admin typed is how someone
  * ships a link that does not match the one they copied out of the form.
  */
-export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/**
+ * A ceiling on slug length, added 2026-09-19.
+ *
+ * The pattern used to constrain the SHAPE and say nothing about the size, so
+ * `'a'.repeat(5000)` satisfied it — found by the upload route's own L1 test,
+ * which expected an oversized slug to be refused and watched it sail through.
+ *
+ * Two things cared. A slug is the public URL, and browsers and proxies have
+ * their own (undocumented, varying) limits well below this — so a 5 kB slug is
+ * a tour nobody can reach. And it reaches `folderFor()` in the upload path,
+ * where it becomes a Cloudinary folder name; the pattern stops it being a path
+ * traversal and did not stop it being enormous.
+ *
+ * 100 is roughly three times the longest real slug in the catalogue
+ * (`leh-ladakh-group-trip-from-delhi`, 32 characters), so it constrains nothing
+ * anyone would legitimately type.
+ */
+export const MAX_SLUG_LENGTH = 100;
+
+/**
+ * The cap lives INSIDE the pattern (the lookahead), not only beside it as a
+ * separate `.max()`. A consumer that imports `SLUG_PATTERN` and forgets
+ * `MAX_SLUG_LENGTH` — which is exactly what the upload route did the first time
+ * — therefore still gets the length rule. One constant, both halves of the rule.
+ * The schema below keeps its own `.max()` purely for the better error message.
+ */
+export const SLUG_PATTERN = new RegExp(`^(?=.{1,${MAX_SLUG_LENGTH}}$)[a-z0-9]+(?:-[a-z0-9]+)*$`);
 
 /**
  * PLAIN TEXT — the stored-XSS rule, Phase D.
@@ -200,6 +226,7 @@ export const tourFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'Enter a slug.')
+    .max(MAX_SLUG_LENGTH, `A slug may be at most ${MAX_SLUG_LENGTH} characters.`)
     .regex(SLUG_PATTERN, 'Use lowercase letters, numbers and single hyphens, e.g. spiti-valley-circuit.'),
   destinationSlug: z.string().trim().min(1, 'Choose a destination.'),
   category: z.enum(CATEGORY_VALUES),
