@@ -126,6 +126,24 @@ the composition root treats it as falsy.
 Confirm any `/tour-packages` failure in isolation, or on the fixture path, before
 treating it as a regression. Observed across five separate runs now.
 
+## Tooling traps found 2026-09-23 (review fix round)
+- **Git Bash heredocs collapse `\\` to `\`**, even quoted (`<<'EOF'`). A JS or
+  JSON file written that way silently loses escapes (`'\\0'` became a literal
+  NUL; `\\d` broke a JSON regex). Write such files with the Write tool.
+- **`String.replace(x, str)` interprets `` $` `` / `$'` / `$&` in `str`.** A
+  source block containing `` }$`) `` got mangled; use `replace(x, () => str)`.
+- **No admin E2E credentials exist** (`E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`),
+  so the signed-in Playwright tier (11 tests) always skips here. Creating an
+  admin account in the LIVE DB to unblock it was deliberately not done.
+- **Full `npm test` is CPU-load-sensitive on this machine.** `TripBuilder`'s
+  userEvent-heavy tests hit the 30s timeout under full-suite load (different
+  tests each run) and pass in isolation. Run `npm test -- --maxWorkers=2` for a
+  clean gate; confirm any timeout in isolation before treating it as a
+  regression.
+- `node --env-file=.env` runs an ad-hoc Prisma script (there is no `dotenv`).
+  `RUN_DB_TESTS=1 node --env-file=.env node_modules/jest/bin/jest.js
+  tour-repository.integration` runs the live suite.
+
 ## Lint scope
 `eslint.config.mjs` must keep ignoring `Documents/**` (vendored Claude
 Design export) and `.claude/**` (agent tooling + ~6 checked-in worktrees

@@ -61,6 +61,15 @@ tour CRUD and uploads are later phases.
    `src/app/admin/tours/form-state.ts`). Same family as the others here: the
    build is the first thing that enforces it, so green typecheck and green
    tests say nothing.
+8. **React 19 auto-RESETS a `<form action={fn}>` once the action settles** —
+   whatever the action returned. With React Hook Form (uncontrolled inputs)
+   that blanked the whole tour editor on screen after EVERY server-returned
+   error (slug collision, publish refusal) while RHF still held the values.
+   Found 2026-09-23 by a real-React render test while fixing M7. Fix
+   (`3f2a671`): no `action` prop; build a `FormData` and call
+   `startTransition(() => formAction(fd))` — keeps `useActionState` and
+   server `redirect()`, skips the reset. Any new RHF form posting to a server
+   action must do the same. Test it by typing, submitting, and reading the DOM.
 
 ## Landmines for later phases
 

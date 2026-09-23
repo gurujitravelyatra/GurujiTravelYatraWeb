@@ -11,12 +11,25 @@ against the OLD invariant keeps compiling, keeps passing tests, and starts
 lying. The second- and third-order effects are never swept, so each review
 round finds the previous round's ripples.
 
-Occurrences: 5 (four found in a single pre-merge review round in Sept 11 —
+Occurrences: 7 (four found in a single pre-merge review round in Sept 11 —
 counted as instances, not as separate pipelines — plus the admin-reversal
-sweep on 2026-09-17)
-Last seen: 2026-09-17
+sweep on 2026-09-17, plus two in the 2026-09-19 review round)
+Last seen: 2026-09-23
 Affected agents: frontend, func-to-tech-spec, pipeline-executor
 Pipeline: SPEC (GTY website)
+**Past the escalation threshold (5)** — recommend a standing rule in
+`_base-impl.md`: "after any fix, grep the OLD claim across code, comments,
+docs, E2E and memory before committing" (not done by the executor: config change).
+
+Occurrences 6-7 (2026-09-19 review round):
+- **M5 (review):** `schema.prisma` and BLOCKERS item 12 still described a
+  save-time `photosCount` derivation that Phase C had REVERTED to read-time.
+  The revert fixed the code and its comment; the two docs a reader goes to first
+  were never swept.
+- **Fix round, self-caught by the full E2E run:** the M3 upload-origin fix
+  reworded the 403 message; `admin-csrf.spec.ts` still matched `/cross-site/`,
+  and BLOCKERS item 12 still called the old one-value check "covered". Status
+  codes were unchanged, so only the prose assertion and the prose doc lied.
 
 Occurrence 5 — the ARCHITECTURE-RULE variant, and the most dangerous one so
 far. Reversing the "zero admin/login/CMS" rule (Phase A auth) invalidated

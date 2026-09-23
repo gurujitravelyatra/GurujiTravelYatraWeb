@@ -143,8 +143,28 @@ build --webpack` clean, Jest **68 suites / 880 tests** pass (+22 skipped opt-in
 DB tests), Playwright **128 passed / 10 skipped** against the live database —
 **no flakes this run**. Still no git remote, so no PR.
 
+- `31f854c`..`4b937ae`: **independent adversarial review of the admin CMS (2026-09-19)
+  — fix round, finished 2026-09-23.** Full record in **BLOCKERS.md item 14**. Fixed:
+  C1 limiter bound, H1/H2 admin claims derived from the public gate, M1/L5 XSS, M2/M3/L1
+  upload size/origin/slug, M5 photosCount docs, M6 canonical rupee prices + DERIVED
+  savings (`src/lib/rupees.ts`), M7 optimistic concurrency (`updatedAt` version claimed as
+  the save transaction's first statement), M9 guard scan by directive + admin routes, M10
+  security headers, L2 missing-tour toggles. Plus a PRE-EXISTING defect found while
+  testing M7: React 19 reset the tour form on every server error (see
+  `project_gty_admin_auth.md` #8). `SLUG_PATTERN` now embeds a 100-char cap.
+  - **User decisions (not changed):** no way to clear `pricingUnverified`; 15-min lockout
+    kept (renewable-DoS cost stated); live-immediate edits; departures editor deferred.
+  - Review IDs M4/M8/L3/L4 were never committed anywhere — not reconstructed.
+
+Gate status at `4b937ae`: `tsc` clean, `eslint` clean, `npx next build --webpack` clean
+(2nd attempt — Railway flake on the 1st; 19 SSG paths, Proxy present), Playwright **137
+passed / 11 skipped / 0 failed** (skips = signed-in tier, no admin creds), live
+`RUN_DB_TESTS=1` **27/27**, 0 leftover `zz-` rows, 22 tours intact. Jest (`--maxWorkers=2`)
+**74 suites / 1068 passed / 27 skipped / 0 failed**; at default workers `TripBuilder`
+(untouched) times out under CPU load and passes in isolation — see the environment memory.
+
 ## Still open before merge
-1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either. **As of 2026-09-19 this extends to the WHOLE admin CMS (Phases A–D, `cfc68e4`..`554c60e`): every phase was reviewed by the agent that wrote it. The Phase D security work is mutation-checked and verified against a running server, which is real evidence, but it is still self-assessed. An independent adversary pass over the admin surface is the outstanding gate.**
+1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either. **As of 2026-09-19 this extends to the WHOLE admin CMS (Phases A–D, `cfc68e4`..`554c60e`): every phase was reviewed by the agent that wrote it. The Phase D security work is mutation-checked and verified against a running server, which is real evidence, but it is still self-assessed. An independent adversary pass over the admin surface is the outstanding gate.** **[UPDATED 2026-09-23] That pass ran (2026-09-19) and its findings are fixed — BLOCKERS item 14. The outstanding gate is now an independent re-review of THOSE fixes (`bb15d82`..`4b937ae`), plus the deferred departures-editor pass.**
 1b. ~~**`/group-tours` publishes the ₹28,900 the catalogue withholds**~~ — **CLOSED `af92be2`** (user chose the asterisk-mark option). Folded into open item 4: the underlying price is still unconfirmed.
 2. **Legal copy is placeholder** — written by the build, not reviewed by counsel. It must go to GTY's lawyer before launch, and the banner + `robots: index=false` stay until it does.
 3. **Four Support links still 404 by Decision G**: `/legal/faqs`, `/legal/travel-tips`, `/legal/cancellation-policy`, `/legal/refund-policy`. Deliberate — invented cancellation terms would be worse than a 404. Pinned by `e2e/legal.spec.ts`.
