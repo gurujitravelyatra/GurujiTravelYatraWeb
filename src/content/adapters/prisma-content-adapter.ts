@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Brochure, BrochurePort, ContentPort } from '../ports';
 import type { Destination, GroupDeparture, Package, PackageRail, TourStatus } from '../types';
 import { FixtureContentAdapter } from './fixture-content-adapter';
-import { isPubliclyListable } from '../public-listing';
+import { isPubliclyListable, toPublicDeparture } from '../public-listing';
 import { deriveIsSoldOut } from '../sold-out';
 import { toDomainCategory } from './prisma-category';
 
@@ -60,6 +60,24 @@ const PUBLICLY_LISTABLE_WHERE = {
   archivedAt: null,
   pricingUnverified: false,
 } as const;
+
+/**
+ * The SQL half of the DEPARTURE gate — an optimisation, never the gate.
+ *
+ * A departure is listable when it is linked to no tour, or when its tour is
+ * published and not archived. Built FROM `PUBLICLY_LISTABLE_WHERE` minus
+ * `pricingUnverified`, rather than restating `status`/`archivedAt`, so the two
+ * clauses cannot drift. `pricingUnverified` is left out on purpose: a departure
+ * of a price-unconfirmed tour is marked, not withheld (BLOCKERS.md item 9).
+ */
+const TOUR_PUBLISHED_AND_LIVE_WHERE = {
+  status: PUBLICLY_LISTABLE_WHERE.status,
+  archivedAt: PUBLICLY_LISTABLE_WHERE.archivedAt,
+} as const;
+
+const DEPARTURE_PARENT_VISIBLE_WHERE = {
+  OR: [{ tourSlug: null }, { tour: TOUR_PUBLISHED_AND_LIVE_WHERE }],
+};
 
 /**
  * What every tour query joins — Phase C added the gallery to it.
@@ -144,19 +162,58 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
   }
 
   /**
-   * NOT routed through `isPubliclyListable` — deliberately, matching
-   * `FixtureContentAdapter`. That gate withholds records whose unconfirmed price
-   * would be wrapped in a "was ₹X / Save ₹Y" badge; a departure card renders no
-   * such badge, and its dates and seat counts are real regardless. The
-   * unconfirmed price is surfaced with the `priceUnverified` marker instead
-   * (BLOCKERS.md item 9 — a user-made product decision, not an agent's).
+   * Gated through the PARENT TOUR, by `toPublicDeparture()` — the departure half
+   * of the public gate in `public-listing.ts`.
+   *
+   * ## What this used to be, and why it changed (2026-09-25)
+   *
+   * This query read every row with no reference to the tour it belongs to. It
+   * was written on 2026-09-14, before `Tour.status`/`archivedAt` existed, and
+   * nothing revisited it when they arrived — so archiving or un-publishing a tour
+   * removed it from every public surface except its departures, which stayed
+   * listed with real dates, seats and a price. `feedback_qg_unenforced-safety-
+   * flag.md` variant 4, reproduced by a later schema change.
+   *
+   * ## The where clause is an optimisation; the predicate is the gate
+   *
+   * Same contract as `PUBLICLY_LISTABLE_WHERE` for tours: the SQL keeps withheld
+   * rows off the wire, and every row that comes back is STILL run through
+   * `toPublicDeparture` with the parent's real columns. If the two disagree the
+   * predicate wins, and `prisma-content-adapter.test.ts` proves it with a mock
+   * that ignores the where clause.
+   *
+   * ## What is deliberately still NOT withheld
+   *
+   *  - A departure with `tourSlug` NULL — the link is genuinely partial (see
+   *    `departure-tour-link.ts`) and an unlinked departure answers to no tour.
+   *  - A departure of a `pricingUnverified` tour. It is MARKED instead
+   *    (`priceUnverified` forced true), per the user's BLOCKERS.md item 9
+   *    decision — see `departureWithholdReason` for the full reasoning.
    */
   async getGroupDepartures(): Promise<GroupDeparture[]> {
     const rows = await this.prisma.groupDeparture.findMany({
-      include: { destination: true },
+      where: DEPARTURE_PARENT_VISIBLE_WHERE,
+      include: {
+        destination: true,
+        tour: { select: { status: true, archivedAt: true, pricingUnverified: true } },
+      },
       orderBy: { sortOrder: 'asc' },
     });
-    return rows.map(toGroupDeparture);
+
+    return rows.flatMap((row) => {
+      /**
+       * A `tourSlug` with no tour behind it cannot happen while the foreign key
+       * exists (`onDelete: SetNull`). If it ever does — a relaxed constraint, a
+       * hand-edited row — the departure claims a parent we cannot check, so it
+       * is withheld: the closed direction. NOT treated as `null`, which would
+       * list it as an unlinked departure.
+       */
+      if (row.tourSlug !== null && !row.tour) return [];
+
+      const parent = row.tour ? { ...row.tour, status: toTourStatus(row.tour.status) } : null;
+      const visible = toPublicDeparture(toGroupDeparture(row), parent);
+      return visible ? [visible] : [];
+    });
   }
 
   // ---------------------------------------------------------------------------

@@ -3,12 +3,16 @@
 import { useMemo, useState } from 'react';
 
 import type { GroupDeparture } from '@/content/types';
+import { departureMonthKey } from '@/lib/departure-dates';
 import { cn } from '@/lib/utils';
 import { GroupDepartureCard, GROUP_DURATION_NOTE_ID, GROUP_PRICE_NOTE_ID } from './GroupDepartureCard';
 
 export interface GroupDeparturesListProps {
   departures: GroupDeparture[];
-  /** Derived month keys (e.g. `['May','Jun','Oct','Nov']`) — `departureMonths` from the fixture. */
+  /**
+   * Month chip keys, e.g. `['May 2026', 'Jun 2026']` — `departureMonthKeys()` over
+   * the departures being rendered. Each key is also the chip's visible label.
+   */
   months: string[];
 }
 
@@ -37,7 +41,9 @@ export function GroupDeparturesList({ departures, months }: GroupDeparturesListP
   const [selectedMonth, setSelectedMonth] = useState<MonthFilter>('All');
 
   const filtered = useMemo(
-    () => (selectedMonth === 'All' ? departures : departures.filter((departure) => departure.month === selectedMonth)),
+    () => (selectedMonth === 'All'
+        ? departures
+        : departures.filter((departure) => departureMonthKey(departure) === selectedMonth)),
     [departures, selectedMonth]
   );
 
@@ -55,7 +61,10 @@ export function GroupDeparturesList({ departures, months }: GroupDeparturesListP
             {months.map((month) => (
               <MonthChip
                 key={month}
-                label={`${month} 2026`}
+                // The key carries its own year (`departureMonthKey`). This used to
+                // append a hard-coded " 2026", which would have mislabelled the
+                // first batch an admin added for any other year.
+                label={month}
                 isActive={selectedMonth === month}
                 onClick={() => setSelectedMonth(month)}
               />

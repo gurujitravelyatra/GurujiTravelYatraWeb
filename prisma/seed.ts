@@ -33,6 +33,7 @@ import { popularPackages } from '../src/content/fixtures/popular.fixture';
 import { groupDepartures } from '../src/content/fixtures/group-departures.fixture';
 import { internationalDestinations } from '../src/content/fixtures/international.fixture';
 import { CATEGORY_TO_PRISMA } from '../src/content/adapters/prisma-category';
+import { resolveDepartureTourSlug } from '../src/content/departure-tour-link';
 import { slugify } from '../src/content/slug';
 
 const prisma = new PrismaClient();
@@ -74,54 +75,11 @@ function assertSafetyFlagsAgree(): void {
   }
 }
 
-/**
- * Links a departure to its catalogue tour for the new `GroupDeparture.tourSlug`
- * column, or returns NULL when it cannot be certain.
- *
- * ## Why matching is needed at all
- *
- * The two fixtures were transcribed from different parts of the design export
- * and name the same tour differently: a departure carries a route suffix the
- * catalogue does not ("Do Dham Yatra — Kedarnath & Badrinath" vs "Do Dham
- * Yatra"). There is no shared identifier, so the link has to be derived.
- *
- * ## Why NOT the price match used by `assertSafetyFlagsAgree` above
- *
- * That function matches on `priceFrom`, which is right for what it checks — it
- * is asking "is this the same unconfirmed FIGURE" — and wrong for identity. Two
- * unrelated tours may legitimately cost ₹28,900, and a price match would then
- * attach one tour's real dates and seat counts to the other. An identity link
- * needs an identity signal.
- *
- * ## The rule, and its deliberate refusal to guess
- *
- * A tour matches when its name is a PREFIX of the departure's name (or equal),
- * compared slug-wise so punctuation and spacing cannot break it. The longest
- * such match wins, so "Do Dham Yatra" beats a hypothetical "Do Dham". If ZERO
- * tours match, or if two match with the SAME length (a genuine ambiguity), this
- * returns null and the column stays NULL.
- *
- * NULL is a supported, honest state here — the column is nullable precisely for
- * this — and it costs nothing visible: `/group-tours` lists departures through
- * `getGroupDepartures()`, which is not tour-scoped and never was. The only thing
- * a NULL withholds is the admin form's per-tour batch list, which is the correct
- * outcome for a departure we cannot confidently attribute.
- */
-function resolveDepartureTourSlug(departureName: string): string | null {
-  const departureSlug = slugify(departureName);
-
-  const candidates = allTours
-    .filter((tour) => departureSlug === tour.slug || departureSlug.startsWith(`${tour.slug}-`))
-    .sort((a, b) => b.slug.length - a.slug.length);
-
-  const best = candidates[0];
-  if (!best) return null;
-
-  // Two equally-specific matches is an ambiguity, not a tie to break arbitrarily.
-  if (candidates[1] && candidates[1].slug.length === best.slug.length) return null;
-
-  return best.slug;
-}
+// The departure → tour link rule now lives in `src/content/departure-tour-link.ts`
+// (moved 2026-09-25) so the fixture path can apply the departure visibility gate
+// through the SAME link this seed writes. See that module for the rule and why it
+// refuses to guess. NULL remains a supported, honest state: an unlinked departure
+// answers to no tour's visibility.
 
 /**
  * Destinations are DERIVED from the records that reference them, not authored
@@ -276,7 +234,7 @@ async function main() {
         // NEW in Phase B — the per-tour link the admin form manages batch dates
         // through. NULL where the departure cannot be confidently attributed to
         // a catalogue tour; see `resolveDepartureTourSlug`.
-        tourSlug: resolveDepartureTourSlug(departure.name),
+        tourSlug: resolveDepartureTourSlug(departure.name, allTours),
         category: CATEGORY_TO_PRISMA[departure.category],
         photoKey: departure.photoUrl,
         dateRangeLabel: departure.dateRangeLabel,

@@ -60,6 +60,11 @@ export interface ContentPort {
    * record carries a departure date or a seat count. Routing it through the
    * `?category=` mechanism would render the right tours with all the
    * urgency data — the entire point of the page — missing.
+   *
+   * CONTRACT (2026-09-25): returns only PUBLICLY LISTABLE departures — every
+   * implementation must end in `toPublicDeparture()` from `public-listing.ts`,
+   * which withholds a departure whose linked tour is a draft or archived and
+   * marks one whose tour's price is unconfirmed.
    */
   getGroupDepartures(): Promise<GroupDeparture[]>;
 

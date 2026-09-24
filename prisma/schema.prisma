@@ -642,8 +642,21 @@ model GroupDeparture {
   /// exactly and leaves the rest NULL; inventing a link for the others would
   /// attach real seat counts and dates to the wrong tour.
   ///
-  /// A NULL here does NOT hide the departure: `/group-tours` lists departures
-  /// through `getGroupDepartures()`, which is not tour-scoped and never was.
+  /// A NULL here does NOT hide the departure — an unlinked departure answers to no
+  /// tour's visibility and is listed as-is.
+  ///
+  /// A NON-NULL link DOES gate it (2026-09-25): `getGroupDepartures()` ends in
+  /// `toPublicDeparture()` (`src/content/public-listing.ts`), which withholds the
+  /// departure while its tour is a DRAFT or ARCHIVED. Before that, archiving a
+  /// tour left its departures listed and bookable on `/group-tours` and
+  /// `GET /api/group-tours`. A `pricingUnverified` tour's departure is NOT
+  /// withheld — it is marked `priceUnverified` at read time (BLOCKERS.md item 9).
+  ///
+  /// Written by the seed (derived, `src/content/departure-tour-link.ts`) and by
+  /// the admin tour form, which creates batches already linked to their tour.
+  /// The live database predates this column's seeding — all 4 rows were NULL
+  /// until migration `20260925090000_link_seeded_departures_to_tours` wrote the
+  /// two links the rule derives. Without it the gate covered no real row.
   tourSlug String?
   tour     Tour?   @relation(fields: [tourSlug], references: [slug], onDelete: SetNull)
 

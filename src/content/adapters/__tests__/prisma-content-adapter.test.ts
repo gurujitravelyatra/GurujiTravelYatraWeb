@@ -65,6 +65,10 @@ function departureRow(overrides: Partial<Record<string, unknown>> = {}) {
     priceUnverified: true,
     sortOrder: 0,
     destination: { name: 'Kedarnath' },
+    // UNLINKED by default, so the pre-2026-09-25 tests below keep meaning what
+    // they meant. The departure-gate tests link it explicitly.
+    tourSlug: null,
+    tour: null,
     ...overrides,
   };
 }
@@ -434,6 +438,120 @@ describe('PrismaContentAdapter — group departures', () => {
 
     expect(departures[0].isSoldOut).toBe(true);
     expect(departures[1].isSoldOut).toBe(false);
+  });
+});
+
+/**
+ * THE DEPARTURE VISIBILITY GATE (2026-09-25).
+ *
+ * Every row below is returned by a mock that IGNORES the where clause — the
+ * same technique the tour gate tests above use. So each assertion is about the
+ * PREDICATE (`toPublicDeparture`), not the SQL: a departure of a hidden tour
+ * that slips past the query must still be withheld.
+ *
+ * Proven able to fail (measured 2026-09-25, each mutation reverted after):
+ *  - `toPublicDeparture` call replaced by a pass-through → 5 red (draft,
+ *    archived, archived-draft, draft-with-doubtful-price, price inheritance);
+ *  - the dangling-link guard deleted → 1 red (the dangling test);
+ *  - `departureWithholdReason` made to exempt EVERY reason → 4 red.
+ */
+describe('PrismaContentAdapter — a departure of a hidden tour is withheld', () => {
+  const PUBLISHED_TOUR = { status: 'PUBLISHED', archivedAt: null, pricingUnverified: false };
+
+  function linked(slug: string, tour: Record<string, unknown> | null, overrides: Record<string, unknown> = {}) {
+    return departureRow({
+      slug,
+      name: slug,
+      tourSlug: 'spiti-valley-circuit',
+      tour,
+      priceUnverified: false,
+      durationUnverified: false,
+      ...overrides,
+    });
+  }
+
+  it('lists a departure whose tour is published and live', async () => {
+    const { client } = mockPrisma({ groupDeparture: [linked('live', PUBLISHED_TOUR)] });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('withholds a departure whose tour is a DRAFT, even when the query returns it', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [linked('of-a-draft', { ...PUBLISHED_TOUR, status: 'DRAFT' }), linked('live', PUBLISHED_TOUR)],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    // Floor: the call returned SOMETHING, so an empty result cannot pass this.
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('withholds a departure whose tour is ARCHIVED, even when the query returns it', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [
+        linked('of-an-archived-tour', { ...PUBLISHED_TOUR, archivedAt: new Date('2026-09-20T00:00:00Z') }),
+        linked('live', PUBLISHED_TOUR),
+      ],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('withholds a departure of an archived DRAFT', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [linked('x', { status: 'DRAFT', archivedAt: new Date(), pricingUnverified: false }), linked('live', PUBLISHED_TOUR)],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('does NOT over-withhold: an UNLINKED departure (tourSlug NULL) stays listed', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [departureRow({ slug: 'unlinked', tourSlug: null, tour: null })],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['unlinked']);
+  });
+
+  it('withholds a departure whose link names a tour that is not there (closed direction)', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [linked('dangling', null), linked('live', PUBLISHED_TOUR)],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('does NOT withhold a departure of a price-unconfirmed tour — it MARKS it (BLOCKERS item 9)', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [linked('doubtful-price', { ...PUBLISHED_TOUR, pricingUnverified: true }, { priceUnverified: false })],
+    });
+    const [departure] = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departure.slug).toBe('doubtful-price');
+    // The departure's own column said false; the parent's doubt is carried across at read time.
+    expect(departure.priceUnverified).toBe(true);
+  });
+
+  it('a price-unconfirmed DRAFT tour still withholds its departure — draft wins over marking', async () => {
+    const { client } = mockPrisma({
+      groupDeparture: [linked('x', { status: 'DRAFT', archivedAt: null, pricingUnverified: true }), linked('live', PUBLISHED_TOUR)],
+    });
+    const departures = await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(departures.map((d) => d.slug)).toEqual(['live']);
+  });
+
+  it('throws on a parent status the domain union does not contain, rather than defaulting', async () => {
+    const { client } = mockPrisma({ groupDeparture: [linked('x', { ...PUBLISHED_TOUR, status: 'SCHEDULED' })] });
+    await expect(new PrismaContentAdapter(client).getGroupDepartures()).rejects.toThrow(/Unknown TourStatus/);
+  });
+
+  it('still asks the database to filter by the parent tour — the where clause backs up the predicate', async () => {
+    const { client, calls } = mockPrisma({ groupDeparture: [] });
+    await new PrismaContentAdapter(client).getGroupDepartures();
+    expect(calls.groupDeparture).toMatchObject({
+      where: { OR: [{ tourSlug: null }, { tour: { status: 'PUBLISHED', archivedAt: null } }] },
+      include: { tour: { select: { status: true, archivedAt: true, pricingUnverified: true } } },
+    });
+    // The price flag must NOT be in the SQL — that would withhold what item 9 says to mark.
+    expect(JSON.stringify(calls.groupDeparture)).not.toContain('"pricingUnverified":false');
   });
 });
 

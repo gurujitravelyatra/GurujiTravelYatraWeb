@@ -137,7 +137,13 @@ function toGroupDeparture(item: GroupFixtureItem): GroupDeparture {
 
 export const groupDepartures: GroupDeparture[] = GROUPS_FIXTURE.map(toGroupDeparture);
 
-/**
+/*
+ * [MOVED 2026-09-25] The month chip list is no longer derived here. It is
+ * derived from the departures /group-tours actually renders, by
+ * `departureMonthKeys()` in `src/lib/departure-dates.ts`, because on the
+ * database path this fixture is not the source and the public gate may withhold
+ * rows. The reasoning below still applies and is kept for its history.
+ *
  * Month filter options for the departures chip row (export line ~1135:
  * `['All','May','Jun','Oct','Nov','Dec']`).
  *
@@ -151,9 +157,3 @@ export const groupDepartures: GroupDeparture[] = GROUPS_FIXTURE.map(toGroupDepar
  * (May, Oct, Jun, Nov) — the chip row reads as a departure calendar, so
  * listing June after October would look like a bug to a visitor.
  */
-const MONTH_ORDER = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-export const departureMonths: string[] = groupDepartures
-  .map((departure) => departure.month)
-  .filter((month, index, all) => all.indexOf(month) === index)
-  .sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));

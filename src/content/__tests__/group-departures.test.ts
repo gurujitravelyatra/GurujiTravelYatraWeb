@@ -1,4 +1,8 @@
-import { departureMonths, groupDepartures } from '../fixtures/group-departures.fixture';
+import { departureMonthKey, departureMonthKeys } from '@/lib/departure-dates';
+
+import { groupDepartures } from '../fixtures/group-departures.fixture';
+
+const departureMonths = departureMonthKeys(groupDepartures);
 import { allTours } from '../fixtures/packages.fixture';
 
 /**
@@ -109,14 +113,14 @@ describe('groupDepartures fixture', () => {
   });
 });
 
-describe('departureMonths derivation', () => {
-  it('is sorted in calendar order: May, Jun, Oct, Nov', () => {
-    expect(departureMonths).toEqual(['May', 'Jun', 'Oct', 'Nov']);
+describe('month chip derivation (departureMonthKeys over the fixture)', () => {
+  it('is sorted in calendar order, each key carrying its own year', () => {
+    expect(departureMonths).toEqual(['May 2026', 'Jun 2026', 'Oct 2026', 'Nov 2026']);
   });
 
   it('contains no month that has zero departures', () => {
     for (const month of departureMonths) {
-      const count = groupDepartures.filter((departure) => departure.month === month).length;
+      const count = groupDepartures.filter((departure) => departureMonthKey(departure) === month).length;
       expect(count).toBeGreaterThan(0);
     }
   });
@@ -129,11 +133,11 @@ describe('departureMonths derivation', () => {
    * hardcoded list.
    */
   it('does NOT contain Dec — the export listed it but no departure ships in December', () => {
-    expect(departureMonths).not.toContain('Dec');
+    expect(departureMonths.some((key) => key.startsWith('Dec'))).toBe(false);
   });
 
   it('contains exactly the distinct months present in groupDepartures, no more and no less', () => {
     const actualMonths = new Set(groupDepartures.map((departure) => departure.month));
-    expect(new Set(departureMonths)).toEqual(actualMonths);
+    expect(new Set(departureMonths.map((key) => key.split(' ')[0]))).toEqual(actualMonths);
   });
 });

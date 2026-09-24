@@ -8,9 +8,17 @@ export const dynamic = 'force-dynamic';
 /**
  * `GET /api/group-tours` — fixed departures for `/group-tours`.
  *
- * ## These are MARKED, not withheld — and the response carries the marks
+ * ## A departure of a HIDDEN tour is withheld (2026-09-25)
  *
- * Unlike `/api/tours`, this listing is NOT routed through `isPubliclyListable`,
+ * `contentAdapter.getGroupDepartures()` ends in `toPublicDeparture()`, which
+ * withholds a departure whose linked tour is a draft or archived — so archiving
+ * a tour withdraws its batches from this endpoint too, rather than leaving real
+ * dates and seats bookable for a trip the business pulled. Unlinked departures
+ * (`tourSlug` NULL) answer to no tour and stay listed.
+ *
+ * ## Price doubt is MARKED, not withheld — and the response carries the marks
+ *
+ * Unlike `/api/tours`, a departure is NOT withheld for an unconfirmed price,
  * and that asymmetry is a deliberate product decision rather than an oversight:
  * BLOCKERS.md item 9 records the user choosing "marker + footnote, not
  * withholding" for departures. The reasoning was proportionality — the

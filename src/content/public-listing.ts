@@ -1,6 +1,8 @@
 import { formatRupees, readStoredRupeeAmount } from '@/lib/rupees';
 
-import type { Package, PackageRail } from './types';
+import type { GroupDeparture, Package, PackageRail } from './types';
+import { resolveDepartureTourSlug } from './departure-tour-link';
+import { groupDepartures } from './fixtures/group-departures.fixture';
 import { allTours, packageRails } from './fixtures/packages.fixture';
 import { popularPackages } from './fixtures/popular.fixture';
 
@@ -148,8 +150,109 @@ export const WITHHOLD_REASON_TEXT: Record<PublicWithholdReason, string> = {
     'page returns “not found”.',
 };
 
+// -----------------------------------------------------------------------------
+// DEPARTURES — the same gate, reached through the parent tour
+// -----------------------------------------------------------------------------
+
+/**
+ * The parent tour a departure is gated by, or `null` when the departure is not
+ * linked to any tour (`GroupDeparture.tourSlug` is NULL — a genuinely partial
+ * link, see `departure-tour-link.ts`).
+ */
+export type DepartureParent = PublicListingFacts | null;
+
+/**
+ * Why the public site withholds this DEPARTURE, or `null` when it does not.
+ *
+ * ## The defect this closes (2026-09-25, the departures pass)
+ *
+ * A `GroupDeparture` linked to a tour was listed on `/group-tours` and by
+ * `GET /api/group-tours` with no reference to that tour at all. The listing
+ * query was written before `status`/`archivedAt` existed, so archiving or
+ * un-publishing a tour withdrew the tour everywhere EXCEPT its departures — real
+ * dates, real seat counts and a price, with an "Enquire" button, for a trip the
+ * business had pulled. That is `memory/feedback_qg_unenforced-safety-flag.md`
+ * variant 4 reproduced by a later schema change: the gate was written against
+ * `Package`, and a sibling type holding the same real-world entity was not
+ * covered.
+ *
+ * ## Composed from `publicWithholdReason`, not re-implemented beside it
+ *
+ * This calls THE gate on the parent tour. A second predicate that re-stated
+ * "published and not archived" would be two copies of a security rule, and the
+ * copy nobody tests is the one that drifts.
+ *
+ * ## One reason is deliberately NOT inherited: `PRICE_UNCONFIRMED`
+ *
+ * A departure of a tour whose price is unconfirmed stays listed, and is MARKED
+ * instead (see `toPublicDeparture`). That is not this function's call to make —
+ * it is the user's product decision of BLOCKERS.md item 9: "Do Dham Yatra" is
+ * exactly this case, the user chose the asterisk-and-footnote treatment over
+ * withholding for its departure card (no fabricated "was ₹X / Save ₹Y" badge is
+ * at stake on a departure, and withholding would empty a quarter of the page).
+ * Hiding it here would silently reverse that decision.
+ *
+ * ## Default-closed against a FUTURE reason
+ *
+ * The exemption names `PRICE_UNCONFIRMED` explicitly and passes every OTHER
+ * reason through. So a fourth reason added to `publicWithholdReason` later is
+ * inherited by departures automatically — the safe direction. Writing it as
+ * "withhold on DRAFT or ARCHIVED" would have silently exempted the new one.
+ */
+export function departureWithholdReason(parent: DepartureParent): PublicWithholdReason | null {
+  if (parent === null) return null;
+  const reason = publicWithholdReason(parent);
+  if (reason === 'PRICE_UNCONFIRMED') return null;
+  return reason;
+}
+
+/**
+ * A departure as the public may see it — or `undefined` when it is withheld.
+ *
+ * THE function every public departure read ends in, on both adapters.
+ *
+ * Besides withholding, it carries the parent tour's price doubt onto the
+ * departure: a departure of a `pricingUnverified` tour is returned with
+ * `priceUnverified: true` whatever its own column says. The seed asserts the two
+ * flags agree for the fixture data (BLOCKERS.md item 9), but a departure created
+ * through the admin form has no such check, and "the tour's price is
+ * unconfirmed, but this batch of it quotes a price with no marker" is the
+ * cross-model drift that item exists for. Deriving it at READ time means no write
+ * path can get it wrong — the photosCount lesson applied in the safe direction:
+ * nothing is written, so no unrelated edit can clear it.
+ */
+export function toPublicDeparture<D extends { priceUnverified?: boolean }>(
+  departure: D,
+  parent: DepartureParent
+): D | undefined {
+  if (departureWithholdReason(parent) !== null) return undefined;
+  if (parent?.pricingUnverified === true && departure.priceUnverified !== true) {
+    return { ...departure, priceUnverified: true };
+  }
+  return departure;
+}
+
 /** Every tour the site may show publicly, each exactly once. */
 export const publiclyListedTours: Package[] = allTours.filter(isPubliclyListable);
+
+/**
+ * The fixture path's departures, through the SAME gate the database path uses.
+ *
+ * The fixtures carry no `tourSlug`, so the link is derived with
+ * `resolveDepartureTourSlug` — the one rule `prisma/seed.ts` writes into the
+ * column, so both adapters attach each departure to the same tour (or to none).
+ * Every fixture tour is PUBLISHED and unarchived, so today this withholds
+ * nothing and only carries price doubt across; it exists so that "a departure of
+ * a hidden tour is hidden" holds on both adapters rather than only on the one
+ * that happens to have a column, and so a fixture tour set to DRAFT would take
+ * its departure with it.
+ */
+export const publiclyListedDepartures: GroupDeparture[] = groupDepartures.flatMap((departure) => {
+  const tourSlug = resolveDepartureTourSlug(departure.name, allTours);
+  const parent = tourSlug === null ? null : (allTours.find((tour) => tour.slug === tourSlug) ?? null);
+  const visible = toPublicDeparture(departure, parent);
+  return visible ? [visible] : [];
+});
 
 /** Home's "Popular Destinations" selection, minus anything not publicly listable. */
 export const publiclyListedPopular: Package[] = popularPackages.filter(isPubliclyListable);

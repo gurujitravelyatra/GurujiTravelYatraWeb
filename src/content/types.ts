@@ -222,7 +222,11 @@ export interface GroupDeparture {
   destinationName: string;
   category: DestinationCategory;
   photoUrl: string;
-  /** e.g. "12 — 18 May 2026" — verbatim from the export. */
+  /**
+   * e.g. "12 — 18 May 2026". Verbatim from the export for seeded rows; for
+   * batches written by the admin form it is FORMATTED from real start/end dates
+   * by `src/lib/departure-dates.ts`, in the same shape.
+   */
   dateRangeLabel: string;
   /** Month key the export's own chip filter groups by, e.g. "May". */
   month: string;
@@ -234,7 +238,10 @@ export interface GroupDeparture {
   tourManagerLabel: string;
   /** e.g. "₹28,900" — pre-formatted, per-person twin-sharing. */
   priceFrom: string;
-  /** e.g. "14 seats left" | "Sold out". */
+  /**
+   * e.g. "14 seats left" | "Sold out". The admin form writes it from a seat
+   * COUNT via `src/lib/seats.ts`, in the same shape.
+   */
   seatsLabel: string;
   /** True when `seatsLabel` reads "Sold out" — derived once, not re-parsed per component. */
   isSoldOut: boolean;
@@ -259,7 +266,7 @@ export interface GroupDeparture {
    * Why a second flag rather than reading `Package.pricingUnverified`: a
    * departure is not a `Package` (see the note above this interface — the two
    * models overlap by subject, not by contract), so the `public-listing.ts`
-   * gate, which is written against `Package`, never saw these records. The
+   * gate, which was written against `Package`, never saw these records. The
    * result was that "Do Dham Yatra" was suppressed on Home and
    * `/tour-packages` while `/group-tours` published the very same ₹28,900 as
    * its card's most prominent figure (BLOCKERS.md item 9).
@@ -269,8 +276,13 @@ export interface GroupDeparture {
    * "was ₹X / Save ₹Y" discount badge was at stake; `GroupDepartureCard`
    * renders no such badge, so this is a standalone unconfirmed figure and gets
    * the marker + footnote treatment `StatMetric.isPlaceholder` and
-   * `durationUnverified` already use. Clearing the flag (with a confirmed
-   * price) removes the marker automatically — nothing else needs editing.
+   * `durationUnverified` already use.
+   *
+   * [UPDATED 2026-09-25] The public gate now DOES see departures
+   * (`toPublicDeparture` in `public-listing.ts`), and it forces this flag TRUE on
+   * any departure whose linked tour is `pricingUnverified`, at read time. So
+   * clearing this column alone no longer removes the marker while the tour's own
+   * flag stands — both must be cleared, which is the invariant item 9 wanted.
    */
   priceUnverified?: boolean;
 }

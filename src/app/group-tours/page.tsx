@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { contentAdapter } from '@/content/content-adapter';
-import { departureMonths } from '@/content/fixtures/group-departures.fixture';
+import { departureMonthKeys } from '@/lib/departure-dates';
 
 import { SiteShell } from '@/components/layout/SiteShell';
 import { GroupToursHero } from '@/components/group-tours/GroupToursHero';
@@ -26,11 +26,13 @@ export const metadata: Metadata = {
 };
 
 /**
- * `departureMonths` is read directly from the fixture module rather than
- * through `ContentPort` — it is a derived filter-chip list (like
- * `getCategoryChips` for `/tour-packages`), not a content record, and
- * `GroupDeparture` fixtures are its only possible source. `ContentPort`
- * exposes `getGroupDepartures()` for the records themselves.
+ * The month chips are DERIVED from the departures this page actually renders —
+ * i.e. the ones the public gate let through (`toPublicDeparture`).
+ *
+ * *(Changed 2026-09-25. They used to be read from the fixture module, which was
+ * correct only while the fixture was the sole source. With the database path, an
+ * admin-created batch in a new month got no chip, and a month whose only batch
+ * was withheld — its tour archived — kept a chip that emptied the page.)*
  */
 export default async function GroupToursPage() {
   const departures = await contentAdapter.getGroupDepartures();
@@ -38,7 +40,7 @@ export default async function GroupToursPage() {
   return (
     <SiteShell activePath="/group-tours" pageLabel="Group Tours">
       <GroupToursHero />
-      <GroupDeparturesList departures={departures} months={departureMonths} />
+      <GroupDeparturesList departures={departures} months={departureMonthKeys(departures)} />
     </SiteShell>
   );
 }

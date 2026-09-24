@@ -1,12 +1,16 @@
 import type { ContentPort } from '../ports';
 import { aboutMilestones } from '../fixtures/about.fixture';
-import { groupDepartures } from '../fixtures/group-departures.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
 import { tripPlaceOptions } from '../fixtures/places.fixture';
 import { featuredVideos } from '../fixtures/videos.fixture';
 import { statMetrics } from '../fixtures/stats.fixture';
 import { testimonials } from '../fixtures/testimonials.fixture';
-import { publiclyListedPopular, publiclyListedRails, publiclyListedTours } from '../public-listing';
+import {
+  publiclyListedDepartures,
+  publiclyListedPopular,
+  publiclyListedRails,
+  publiclyListedTours,
+} from '../public-listing';
 
 /**
  * Active `ContentPort` implementation this sprint (tech spec §3/§6.1).
@@ -52,16 +56,18 @@ export class FixtureContentAdapter implements ContentPort {
   }
 
   /**
-   * NOT routed through `public-listing.ts`. That gate withholds records
-   * flagged `pricingUnverified` because they would otherwise render a
-   * "was ₹X / Save ₹Y" savings badge the data cannot support. A departure
-   * renders a single price and no savings badge, and its date/seat count are
-   * real regardless — so the contested-duration records are surfaced with a
-   * visible marker (`durationUnverified`) instead of being withheld, which
-   * would drop half the page's departures.
+   * Routed through the departure half of the public gate
+   * (`publiclyListedDepartures` → `toPublicDeparture`), which withholds a
+   * departure whose TOUR is a draft or archived.
+   *
+   * *(Corrected 2026-09-25. This used to return the raw fixture and say it was
+   * "NOT routed through `public-listing.ts`". The part of that which still holds:
+   * a departure of a `pricingUnverified` tour is NOT withheld — it is marked,
+   * per the user's BLOCKERS.md item 9 decision — and contested durations are
+   * marked with `durationUnverified` rather than withheld.)*
    */
   getGroupDepartures() {
-    return Promise.resolve(groupDepartures);
+    return Promise.resolve(publiclyListedDepartures);
   }
 
   getTripPlaceOptions() {

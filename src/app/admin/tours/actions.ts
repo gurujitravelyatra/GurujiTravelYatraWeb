@@ -65,6 +65,16 @@ function revalidateTourSurfaces(slug: string): void {
   revalidatePath('/');
   revalidatePath('/tour-packages');
   revalidatePath(`/tour-packages/${slug}`);
+  /**
+   * `/group-tours` — added 2026-09-25. A tour's departures are gated by the
+   * tour's own status (`toPublicDeparture`), so publishing, un-publishing or
+   * archiving a tour changes that page, and so does editing its batches. The
+   * page is statically prerendered (it has no dynamic segment and reads no
+   * request data), so without this an archived tour's departures would keep
+   * being served from the cached page — the gate would hold in
+   * `GET /api/group-tours` (force-dynamic) and silently not on the page.
+   */
+  revalidatePath('/group-tours');
   revalidatePath('/admin/tours');
 }
 

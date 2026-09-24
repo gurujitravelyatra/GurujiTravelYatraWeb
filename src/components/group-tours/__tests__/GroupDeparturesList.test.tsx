@@ -2,7 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { GroupDeparturesList } from '../GroupDeparturesList';
-import { departureMonths, groupDepartures } from '@/content/fixtures/group-departures.fixture';
+import { groupDepartures } from '@/content/fixtures/group-departures.fixture';
+import { departureMonthKeys } from '@/lib/departure-dates';
+
+const departureMonths = departureMonthKeys(groupDepartures);
 
 jest.mock('@/components/modals/modal-context', () => ({
   useModal: () => ({ modal: null, openEnquiry: jest.fn(), openBrochure: jest.fn(), close: jest.fn() }),
@@ -18,7 +21,7 @@ describe('GroupDeparturesList', () => {
     const group = screen.getByRole('group', { name: 'Filter by departure month' });
 
     for (const month of departureMonths) {
-      const chip = within(group).getByRole('button', { name: `${month} 2026` });
+      const chip = within(group).getByRole('button', { name: month });
       expect(chip).toHaveAttribute('aria-pressed', 'false');
     }
     expect(within(group).getByRole('button', { name: 'All Departures' })).toHaveAttribute('aria-pressed', 'true');
