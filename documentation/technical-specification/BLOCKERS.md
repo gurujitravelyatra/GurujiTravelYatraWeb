@@ -1006,6 +1006,8 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
       editing. M7 stops two admins overwriting each other; it does not add review.
    4. **The group-departure (batch) editor is deferred** to a separate pass.
       `GroupDeparture` behaviour was not touched in this round.
+      *(2026-09-25: that pass is done — see item 15, which also closes the
+      departure-visibility finding the orchestrator tracked as "M8".)*
 
    **Follow-ups recorded by this round, not done**
 
@@ -1025,3 +1027,128 @@ design-token layer, self-hosted fonts, the logo asset, the Docker files.
      this round's, runs against a mocked SDK.
    - **These fixes have not been independently reviewed.** Same caveat item 13 made about
      Phases A–D, one level down.
+
+15. **Departures pass — the departure visibility gate + the batch editor (2026-09-25).**
+   Closes item 14's deferred decision 4 and the review finding the orchestrator tracked as
+   "M8" (that ID is not in any committed record — see item 14's caveat — so it is described
+   here by content, not by ID). User's decision, confirmed before the pass: *"Build
+   departure editing into the tour form now, and hide a departure when its tour isn't
+   public."* Commits `7d03459` (gate), `0782c56` (editor), this entry (docs).
+
+   **The defect.** `getGroupDepartures()` read every `GroupDeparture` with no reference to
+   its tour. It was written 2026-09-14, before `Tour.status`/`archivedAt` existed, and
+   nothing revisited it. Archiving or un-publishing a tour withdrew it everywhere EXCEPT
+   its dated batches, which stayed listed — with real dates, seats, a price and a Reserve
+   button — on `/group-tours` and `GET /api/group-tours`.
+
+   **The gate (`src/content/public-listing.ts`).** `departureWithholdReason(parent)` and
+   `toPublicDeparture(departure, parent)` are COMPOSED from `publicWithholdReason()`, not a
+   parallel predicate, and both adapters end in them. The SQL `where` on the Prisma path is
+   an optimisation; the predicate is the gate (a mock that ignores the `where` proves it).
+   A link naming a tour that is not there is withheld (closed direction).
+
+   **Judgement calls, each stated so it can be reversed deliberately:**
+
+   - **A `pricingUnverified` tour's departure is NOT withheld — it is MARKED.** The task
+     suggested erring toward hiding; that was overruled by an earlier, explicit user
+     decision: item 9 chose "asterisk + footnote, not withholding" for exactly this case
+     (Do Dham Yatra's departure). Hiding it here would have silently reversed a product
+     call. Instead the tour's price doubt is carried onto every batch AT READ TIME
+     (`priceUnverified` forced true), so no write path — including a batch typed into the
+     new editor — can list a doubtful tour's price unmarked. Every OTHER withhold reason is
+     inherited, and the exemption is written so a FUTURE reason is inherited by default.
+   - **Unlinked departures (`tourSlug` NULL) stay listed**, as-is. "Chardham Special" and
+     "Kashi · Ayodhya · Prayagraj" have no catalogue twin; they answer to no tour. They are
+     also NOT editable in the admin (the editor lives on a tour) — they remain
+     seed/developer-managed until someone links them.
+   - **The live database had NO links.** All 4 seeded rows had `tourSlug` NULL — seeded
+     before Phase B added the column, never re-seeded — so on production the gate would have
+     covered nothing while every mocked test passed. Found only by the live suite (a
+     mutation that dropped linked rows from the query left every seeded row listed). Fixed by
+     data migration `20260925090000_link_seeded_departures_to_tours` (the two links the
+     shared rule derives; guarded; no visible change), and pinned by a live test asserting
+     the links exist.
+   - **`/group-tours` is statically prerendered**, so admin publish/archive/save actions now
+     `revalidatePath('/group-tours')` — without it the gate held in the API and not on the
+     cached page.
+   - **Month chips** are derived from the departures actually rendered (a month whose only
+     batch was withheld loses its chip) and carry the year from each label (the chip row
+     hard-coded `" 2026"`).
+   - The previous pass's untracked draft `src/content/departure-tour-link.ts` was reviewed,
+     kept and wired in: it is now the ONE link rule, used by the seed and the fixture path.
+
+   **The editor (`/admin/tours/new`, `/admin/tours/[id]/edit`).** A "Batch departures"
+   section in the tour form, not a separate page.
+
+   - **Shown when** the tour is tagged Group Tour **or already has batches** — hiding a
+     seeded tour's live batches because nobody ticked a tag would leave them public and
+     uneditable.
+   - **Date shape: two real dates, not a free-text label.** The stored `dateRangeLabel`
+     ("12 — 18 May 2026") and `month` are FORMATTED from them (`src/lib/departure-dates.ts`),
+     as the seat label is from a count (`src/lib/seats.ts`; 0 = exactly "Sold out"). No
+     column was added or changed: the strict inverse parsers re-read all 4 seeded labels to
+     the identical string (tested), so an unrelated save rewrites nothing. A label in any
+     other shape loads EMPTY and the form asks for it rather than guessing.
+   - **Saved in the same transaction, after the M7 `updatedAt` claim** — a conflict writes no
+     batch. **Synced by identity, not delete-and-recreate** (the one child collection that
+     differs): the safety flags, `sortOrder`, `photoKey` and `scriptAccent` are not form
+     fields, and re-creating the rows would reset them on every unrelated save — e.g. clear
+     Spiti's `durationUnverified`. A batch slug the tour does not own is refused and the
+     whole save rolls back. Removing a batch deletes the row (nothing references departures;
+     leads are log-only and carry the date label as text).
+   - Reused, not reinvented: `plainText()` refusal + `sanitize-tour-text.ts` strip on every
+     batch text field; `rupees.ts` canonical price; the admin's existing pill vocabulary for
+     "pending confirmation" (read-only — flags stay developer-managed, as item 14 decided for
+     `pricingUnverified`). The section's "listed on /group-tours?" note is derived on the
+     server from the gate itself. List view shows "N batches" via `_count`.
+   - **`GroupDeparture.name` is no longer unique** (migration
+     `20260925100000_departure_name_not_unique`): two batches of one tour share a title.
+   - **Not added:** a publish rule requiring a Group Tour to have a batch (not asked for, and
+     it would block publishing a tour whose next batch is unscheduled); batch reordering
+     (`sortOrder` is the global `/group-tours` order, which a per-tour form does not own); an
+     archive state for batches.
+
+   **Evidence.** Every absence test was mutation-checked (gate bypassed → 5 adapter + 7/7
+   page/API tests red; `departureWithholdReason` exempting every reason → 10 red; SQL `OR`
+   narrowed → 4 of 6 live tests red; batch ownership check removed → 2 red; a flag written on
+   update → 2 red; batch sanitization removed → 1 red). Measured on the running standalone
+   build against the live DB: a planted tour's batch listed by `GET /api/group-tours` while
+   published, absent when archived and when a draft, 0 leftover rows. Jest (`--maxWorkers=2`)
+   80 suites / 1170 passed / 41 skipped (the opt-in live suites — all 41 pass under
+   `RUN_DB_TESTS=1`); Playwright 136 passed / 11 skipped / 1 failed — the known item-8
+   `/tour-packages` breadcrumb latency flake (5.0s vs a 5s budget), 3/3 green in isolation;
+   `tsc`, `eslint`, `next build --webpack` clean (19 SSG paths, Proxy present).
+
+   **⚠ INCIDENT during this pass — the live database was wiped and re-seeded.** Generating
+   the second migration, the executor ran `prisma migrate diff --from-migrations …` with the
+   LIVE `DATABASE_URL` as `--shadow-database-url`. Prisma resets a shadow database before
+   replaying migrations into it; the command then failed on an unrelated precondition
+   (`P3015`), which hid that the reset had already happened. Every row and the
+   `_prisma_migrations` table were gone (schema rebuilt, data empty). Recovered the same hour:
+   migrations 1–5 marked applied with `migrate resolve` after a READ-ONLY introspection diff
+   confirmed the schema matched them, migration 6 deployed, `npm run db:seed` re-run —
+   22 tours (all PUBLISHED, 3 price-withheld), 19 destinations, 4 rails / 20 entries,
+   22 brochures, 4 departures (2 linked), and all 41 live tests green afterwards.
+   **What the seed could NOT restore:**
+   - **Every `AdminUser` row. Nobody can sign in to `/admin` until the owner re-runs
+     `ADMIN_SEED_EMAIL=… ADMIN_SEED_PASSWORD=… npm run db:seed:admin`.** (Existing session
+     cookies are stateless JWTs and stay valid until expiry — item 13's no-revocation caveat.)
+   - Anything edited by hand through the admin UI since the last seed, and the tours'
+     original `createdAt`/`updatedAt`. No publish was possible (no Cloudinary), but drafts or
+     edits could have existed. **If Railway has a backup/point-in-time restore for this
+     database, check it** — it would recover both.
+   The environment memory now forbids `--shadow-database-url`, `--from-migrations`,
+   `migrate dev` and `migrate reset` against this project's only database.
+
+   **Still open after this pass**
+   - The admin accounts (above) — an owner action.
+   - **Two seeded batches are in the PAST and still listed as "upcoming"**: Do Dham Yatra
+     (12 — 18 May 2026) and Chardham Special (02 — 13 Jun 2026) — today is 2026-09-25. Not
+     changed: auto-hiding past batches is a product decision (and would hide 2 of 4 cards).
+     The editor deliberately does NOT refuse past dates, or saving any tour with a past
+     batch would fail.
+   - The two unlinked seeded departures have no admin UI.
+   - The signed-in E2E tier still cannot run (no admin E2E credentials); the editor is
+     covered by a real-React render test and the live repository suite instead.
+   - **Not independently reviewed.** Item 14's fixes and this pass are both self-assessed;
+     a combined `edge-case-adversary` pass is the outstanding gate.

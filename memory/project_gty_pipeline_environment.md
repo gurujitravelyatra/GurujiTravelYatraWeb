@@ -6,6 +6,32 @@ type: project
 
 Repo: GTY public website (`GTY Website(1)`), branch `feat/gty-site-setup`.
 
+## ⚠ THERE IS ONLY ONE DATABASE — NEVER USE IT AS A SHADOW DATABASE (incident 2026-09-25)
+
+`DATABASE_URL` is the LIVE Railway Postgres. There is no local or scratch
+database. **`prisma migrate diff --from-migrations …` and `prisma migrate dev`
+need a SHADOW database, and Prisma RESETS the shadow before replaying
+migrations into it.** On 2026-09-25 the departures pass ran
+`migrate diff --from-migrations prisma/migrations --to-schema-datamodel … --shadow-database-url <the live URL>`.
+It printed only `P3015` (a missing migration file), which looked harmless. In fact it had
+already wiped every row AND the `_prisma_migrations` table, then rebuilt the schema. The
+symptom afterwards was `migrate deploy` → `P3005 database schema is not empty`.
+
+Recovered by: `migrate resolve --applied` for each migration the schema already matched
+(checked with the READ-ONLY `migrate diff --from-schema-datasource prisma/schema.prisma
+--to-schema-datamodel prisma/schema.prisma --script`), `migrate deploy`, `npm run db:seed`.
+**Lost for good: every `AdminUser` row** (re-create with `npm run db:seed:admin` + the
+owner's credentials) and anything hand-edited through the admin UI since the last seed.
+
+Rules: hand-write migration SQL (as every hand-written statement here already is); use
+`--from-schema-datasource` (introspection, read-only) or `--from-url` for diffs, never
+`--shadow-database-url` / `--from-migrations` / `migrate dev` / `migrate reset`. If a
+scratch DB is ever needed, the user must provision a SEPARATE one.
+
+**Why:** a single "harmless" tooling error cost the whole content DB and the admin accounts.
+**How to apply:** before any `prisma migrate` command other than `deploy`/`resolve`/`status`,
+stop and check it cannot touch `DATABASE_URL` destructively.
+
 ## CREATE-PR cannot run in this project
 - `git remote -v` is empty — there is no origin.
 - `gh` is not on PATH.

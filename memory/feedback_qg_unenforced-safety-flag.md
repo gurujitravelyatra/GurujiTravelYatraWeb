@@ -6,10 +6,25 @@ type: feedback
 
 Pattern: asked not to guess at unconfirmed data, agents do the right first half — add a field like `pricingUnverified`, a `TODO(confirm)` comment, a doc block explaining the risk — and then never write the consumer that acts on it. The flag reads as a fix in review and in the diff, but at runtime the unsafe record renders exactly like a confirmed one. Documentation is mistaken for enforcement.
 
-Occurrences: 5
-Last seen: 2026-09-19 (fixed `71acf70`)
+Occurrences: 6
+Last seen: 2026-09-25 (fixed `7d03459`)
 Affected agents: frontend, backend, func-to-tech-spec
 Pipeline: SPEC (GTY website)
+
+**Occurrence 6 (review finding tracked as "M8", fixed 2026-09-25) — variant 4
+re-created by a LATER SCHEMA CHANGE, then hidden a second time by DATA.**
+`getGroupDepartures()` was written before `Tour.status`/`archivedAt` existed and
+was never revisited, so archiving a tour left its batches bookable. The code fix
+was the playbook (compose `departureWithholdReason` from `publicWithholdReason`,
+default-closed for future reasons). The new lesson: **the gate keyed on
+`GroupDeparture.tourSlug`, and on the live DB that column was NULL on every row**
+(seeded before the column existed, never backfilled) — a correct gate covering
+zero real rows, green in every mocked test. Caught only because a live test's
+mutation run (drop linked rows from the SQL) still listed every seeded row.
+Tell-tale: **when a gate keys on a relation, assert the relation is POPULATED on
+real data**, not just that the predicate works. Also: a prerendered page needs
+`revalidatePath` wherever the gate's inputs change, or the gate holds in the API
+and not on the page.
 
 **Occurrence 5 (review finding H1) — the flag was ENFORCED, but invisible to the
 one person whose job is to notice.** `isPubliclyListable()` withheld the 3

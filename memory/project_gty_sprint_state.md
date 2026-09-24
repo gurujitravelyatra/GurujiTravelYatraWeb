@@ -153,7 +153,7 @@ DB tests), Playwright **128 passed / 10 skipped** against the live database —
   testing M7: React 19 reset the tour form on every server error (see
   `project_gty_admin_auth.md` #8). `SLUG_PATTERN` now embeds a 100-char cap.
   - **User decisions (not changed):** no way to clear `pricingUnverified`; 15-min lockout
-    kept (renewable-DoS cost stated); live-immediate edits; departures editor deferred.
+    kept (renewable-DoS cost stated); live-immediate edits; departures editor deferred (done 2026-09-25, item 15).
   - Review IDs M4/M8/L3/L4 were never committed anywhere — not reconstructed.
 
 Gate status at `4b937ae`: `tsc` clean, `eslint` clean, `npx next build --webpack` clean
@@ -163,8 +163,29 @@ passed / 11 skipped / 0 failed** (skips = signed-in tier, no admin creds), live
 **74 suites / 1068 passed / 27 skipped / 0 failed**; at default workers `TripBuilder`
 (untouched) times out under CPU load and passes in isolation — see the environment memory.
 
+- `7d03459`, `0782c56` (+ docs commit): **departures pass (2026-09-25) — BLOCKERS item 15.**
+  User decision: build batch editing into the tour form AND hide a departure when its
+  tour isn't public. Gate: `departureWithholdReason`/`toPublicDeparture` composed from
+  `publicWithholdReason`, both adapters; price-doubt tours' batches MARKED not withheld
+  (item 9 decision kept); unlinked departures listed. Live DB had `tourSlug` NULL on all
+  rows → data migration `20260925090000`. `/group-tours` is prerendered → admin actions
+  revalidate it. Editor: dates + seat COUNT (labels derived, no schema change), synced by
+  identity inside the M7-guarded transaction (flags survive unrelated saves); migration
+  `20260925100000` drops `GroupDeparture.name` unique.
+  - **⚠ INCIDENT: live DB wiped by a shadow-DB reset, re-seeded same hour.** Content
+    restored from fixtures; **AdminUser rows LOST** — see environment memory.
+
+Gate status at `0782c56`: `tsc` clean, `eslint` clean, `next build --webpack` clean (1st
+try; 19 SSG, Proxy present), Jest (`--maxWorkers=2`) **80 suites / 1170 passed / 41
+skipped / 0 failed**, live `RUN_DB_TESTS=1` **41/41**, 0 leftover `zz-` rows, Playwright
+**136 passed / 11 skipped / 1 failed** (known breadcrumb latency flake, 3/3 in isolation).
+
 ## Still open before merge
-1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either. **As of 2026-09-19 this extends to the WHOLE admin CMS (Phases A–D, `cfc68e4`..`554c60e`): every phase was reviewed by the agent that wrote it. The Phase D security work is mutation-checked and verified against a running server, which is real evidence, but it is still self-assessed. An independent adversary pass over the admin surface is the outstanding gate.** **[UPDATED 2026-09-23] That pass ran (2026-09-19) and its findings are fixed — BLOCKERS item 14. The outstanding gate is now an independent re-review of THOSE fixes (`bb15d82`..`4b937ae`), plus the deferred departures-editor pass.**
+
+0. **Owner must re-create the admin account**: `ADMIN_SEED_EMAIL=… ADMIN_SEED_PASSWORD=…
+   npm run db:seed:admin` — the 2026-09-25 wipe removed every `AdminUser`. Also ask
+   whether Railway has a backup (would recover any hand-made admin edits).
+1. **Independent verification of the third fix round** on `6c38291..21067e1` — a fresh `edge-case-adversary` owns this; the implementer must not self-review. (Rounds 1 and 2 are verified and closed.) The three new nav-route pages (`853b29e`..`0cc96e2`) have NOT had an adversary pass either. **As of 2026-09-19 this extends to the WHOLE admin CMS (Phases A–D, `cfc68e4`..`554c60e`): every phase was reviewed by the agent that wrote it. The Phase D security work is mutation-checked and verified against a running server, which is real evidence, but it is still self-assessed. An independent adversary pass over the admin surface is the outstanding gate.** **[UPDATED 2026-09-23] That pass ran (2026-09-19) and its findings are fixed — BLOCKERS item 14. The outstanding gate is now an independent re-review of THOSE fixes (`bb15d82`..`4b937ae`), plus the deferred departures-editor pass.** **[UPDATED 2026-09-25] The departures pass is done (`7d03459`..`0782c56`); the gate is now ONE combined independent review of items 14 + 15.**
 1b. ~~**`/group-tours` publishes the ₹28,900 the catalogue withholds**~~ — **CLOSED `af92be2`** (user chose the asterisk-mark option). Folded into open item 4: the underlying price is still unconfirmed.
 2. **Legal copy is placeholder** — written by the build, not reviewed by counsel. It must go to GTY's lawyer before launch, and the banner + `robots: index=false` stay until it does.
 3. **Four Support links still 404 by Decision G**: `/legal/faqs`, `/legal/travel-tips`, `/legal/cancellation-policy`, `/legal/refund-policy`. Deliberate — invented cancellation terms would be worse than a 404. Pinned by `e2e/legal.spec.ts`.
