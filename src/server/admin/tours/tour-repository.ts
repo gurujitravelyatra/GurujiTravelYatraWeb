@@ -1,13 +1,16 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 
 import { getOptionalPrismaClient } from '@/server/db/prisma';
 import { CATEGORY_TO_PRISMA, toDomainCategory } from '@/content/adapters/prisma-category';
 import { AUDIENCE_TAG_TO_PRISMA, toDomainAudienceTag } from '@/content/adapters/prisma-audience-tag';
 import type { DestinationCategory, TourStatus } from '@/content/types';
+import { departureMonthOf, formatDepartureDateRange, parseDepartureDateRange } from '@/lib/departure-dates';
+import { formatSeatsLabel, parseSeatsInput, readSeatsLabel } from '@/lib/seats';
 
 import { sanitizeTourFormValues } from './sanitize-tour-text';
-import type { ParsedTourFormValues, SubmitIntent } from './tour-form-schema';
+import type { DepartureBatchValue, ParsedTourFormValues, SubmitIntent } from './tour-form-schema';
 
 /**
  * Admin-side tour reads and writes — Phase B of the admin CMS.
@@ -83,6 +86,11 @@ export interface AdminTourListItem {
   priceFrom: string | null;
   /** Number of `TourPricingTier` rows — 0 means "single price". */
   pricingTierCount: number;
+  /**
+   * Number of linked `GroupDeparture` rows (batches). A `_count` on the same
+   * query, so it costs no extra round trip.
+   */
+  departureCount: number;
   pricingUnverified: boolean;
   /**
    * The two REAL lifecycle columns, carried alongside the flattened
@@ -124,6 +132,20 @@ export interface AdminTourDetail {
    */
   pricingUnverified: boolean;
   updatedAt: Date;
+  /**
+   * The SAFETY FLAGS of each existing batch, keyed by batch slug — NOT form
+   * fields, for the same reason `pricingUnverified` is not: the admin cannot
+   * clear them, so they sit beside `form` where no `{ ...detail }` can carry
+   * them into a write. The editor READS them to show which figures the public
+   * card marks with an asterisk.
+   *
+   * `priceUnverified` is the EFFECTIVE value — the batch's own column OR the
+   * tour's `pricingUnverified` — because that is what `toPublicDeparture()`
+   * shows a visitor. Reporting the column alone would let the admin believe a
+   * price is shown unmarked when the public card marks it (the H1 lesson: a
+   * surface that REPORTS state must read the gate, not a flattening of it).
+   */
+  departureMarkers: Record<string, { durationUnverified: boolean; priceUnverified: boolean }>;
 }
 
 export interface DestinationOption {
@@ -199,7 +221,7 @@ export async function listAdminTours(filter: ListToursFilter = {}): Promise<Conf
     },
     include: {
       destination: { select: { name: true } },
-      _count: { select: { pricingTiers: true } },
+      _count: { select: { pricingTiers: true, departures: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -219,6 +241,7 @@ export async function listAdminTours(filter: ListToursFilter = {}): Promise<Conf
       // both would imply a base price the tiered tour does not sell at.
       priceFrom: row._count.pricingTiers > 0 ? null : row.priceFrom,
       pricingTierCount: row._count.pricingTiers,
+      departureCount: row._count.departures,
       pricingUnverified: row.pricingUnverified,
       status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       archivedAt: row.archivedAt,
@@ -269,6 +292,7 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
       brochure: {
         select: { pdfUrl: true, pdfPublicId: true, pdfFileName: true, fileSizeBytes: true },
       },
+      departures: { orderBy: { sortOrder: 'asc' } },
     },
   });
 
@@ -339,13 +363,64 @@ export async function getAdminTourBySlug(slug: string): Promise<Configured<Admin
                 sizeBytes: row.brochure.fileSizeBytes ?? 0,
               }
             : undefined,
+
+        departures: row.departures.map(toDepartureFormValue),
       },
       lifecycle: toLifecycle(row),
       status: row.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
       archivedAt: row.archivedAt,
       pricingUnverified: row.pricingUnverified,
       updatedAt: row.updatedAt,
+      departureMarkers: Object.fromEntries(
+        row.departures.map((departure) => [
+          departure.slug,
+          {
+            durationUnverified: departure.durationUnverified,
+            priceUnverified: departure.priceUnverified || row.pricingUnverified,
+          },
+        ])
+      ),
     },
+  };
+}
+
+/**
+ * A stored batch → the form's shape.
+ *
+ * The date inputs and seat count are READ BACK from the stored display text by
+ * the strict inverses of the formatters that write it. Every seeded label parses
+ * and re-formats to the identical string (`departure-dates.test.ts`,
+ * `seats.test.ts`), so loading and saving a tour without touching its batches
+ * rewrites nothing.
+ *
+ * A label in any OTHER shape comes back as `''`: the form then asks for the
+ * date or count, rather than this code guessing what free text meant and the
+ * next save writing that guess back as a confirmed departure. The cost is that
+ * such a tour cannot be saved until the batch is corrected — deliberate, and
+ * today hypothetical (no stored row is in another shape).
+ */
+function toDepartureFormValue(departure: {
+  slug: string;
+  name: string;
+  dateRangeLabel: string;
+  seatsLabel: string;
+  priceFrom: string;
+  durationLabel: string;
+  boardingPoints: string;
+  tourManagerLabel: string;
+}): DepartureBatchValue {
+  const range = parseDepartureDateRange(departure.dateRangeLabel);
+  const seats = readSeatsLabel(departure.seatsLabel);
+  return {
+    slug: departure.slug,
+    name: departure.name,
+    startDate: range?.start ?? '',
+    endDate: range?.end ?? '',
+    seatsAvailable: seats === undefined ? '' : String(seats),
+    priceFrom: departure.priceFrom,
+    durationLabel: departure.durationLabel,
+    boardingPoints: departure.boardingPoints,
+    tourManagerLabel: departure.tourManagerLabel,
   };
 }
 
@@ -600,6 +675,135 @@ async function syncBrochure(
 }
 
 /**
+ * A batch's FORM-OWNED columns, derived from what the admin entered.
+ *
+ * The date label and `month` chip key come from the two dates; the seat label
+ * from the count. Exactly these columns and no others are written on UPDATE —
+ * see `syncDepartures` for the list of what is deliberately left alone.
+ */
+function departureColumns(batch: DepartureBatchValue) {
+  const seats = parseSeatsInput(batch.seatsAvailable);
+  // Unreachable after the schema — but a label that would say "undefined seats
+  // left" on a public card is not something to write on a type assertion.
+  if (seats === undefined) throw new Error(`Invalid seat count reached the repository: "${batch.seatsAvailable}"`);
+  return {
+    name: batch.name,
+    dateRangeLabel: formatDepartureDateRange(batch.startDate, batch.endDate),
+    month: departureMonthOf(batch.startDate),
+    durationLabel: batch.durationLabel,
+    boardingPoints: batch.boardingPoints,
+    tourManagerLabel: batch.tourManagerLabel,
+    priceFrom: batch.priceFrom,
+    seatsLabel: formatSeatsLabel(seats),
+  };
+}
+
+/**
+ * A submitted batch claims an identity that is not one of THIS tour's batches.
+ * The form never produces one (it only echoes slugs it loaded, and a concurrent
+ * edit that removed one is stopped earlier by the version check), so this is a
+ * hand-built POST: it would otherwise let an edit of tour A rewrite a departure
+ * of tour B, or adopt an unlinked one. Thrown inside the transaction, so the
+ * whole save rolls back.
+ */
+export class ForeignDepartureError extends Error {
+  constructor(slug: string) {
+    super(`Departure "${slug}" does not belong to this tour`);
+    this.name = 'ForeignDepartureError';
+  }
+}
+
+/**
+ * Writes the tour's batch departures — inside the SAME transaction as the rest
+ * of the save, after the M7 version claim, so a concurrent edit is refused
+ * before any batch is touched and a failure leaves every batch as it was.
+ *
+ * ## By IDENTITY, not delete-and-recreate — the one child collection that differs
+ *
+ * Itinerary days, FAQs, tiers and gallery images are replaced wholesale on
+ * every save, because every column they have is a form field. A departure is not
+ * like that: `durationUnverified` and `priceUnverified` are SAFETY FLAGS the form
+ * does not carry (and must not — the admin cannot clear them), and `sortOrder`,
+ * `photoKey`, `scriptAccent`, `destinationSlug` and `category` are not form
+ * fields either. Delete-and-recreate would reset every one of them each time
+ * anyone saved an unrelated field of the tour — the flags most of all, which
+ * would silently un-mark Spiti Valley Circuit's unconfirmed duration on
+ * /group-tours the first time someone fixed a typo in its FAQ. That is the
+ * `photosCount` lesson (a save rewriting what nobody edited), applied where it
+ * would cost a safety flag instead of a count.
+ *
+ * So: a batch that arrives with its slug is UPDATED, form-owned columns only; a
+ * stored batch that did not arrive is DELETED; a batch with no slug is CREATED.
+ *
+ * ## Removal deletes the row
+ *
+ * There is no archive state for a batch. Nothing references a departure row —
+ * leads are log-only (BLOCKERS.md §6) and carry the batch's date label as text —
+ * so deleting one loses no history, and a removed batch that lingered hidden
+ * would be a second visibility rule to get wrong.
+ */
+async function syncDepartures(
+  tx: Pick<PrismaClient, 'groupDeparture'>,
+  tourSlug: string,
+  batches: DepartureBatchValue[],
+  fromTour: { destinationSlug: string; category: (typeof CATEGORY_TO_PRISMA)[keyof typeof CATEGORY_TO_PRISMA]; photoKey: string }
+): Promise<void> {
+  const stored = await tx.groupDeparture.findMany({ where: { tourSlug }, select: { slug: true } });
+  const storedSlugs = new Set(stored.map((row) => row.slug));
+
+  const submittedSlugs = new Set<string>();
+  for (const batch of batches) {
+    if (!batch.slug) continue;
+    if (!storedSlugs.has(batch.slug)) throw new ForeignDepartureError(batch.slug);
+    submittedSlugs.add(batch.slug);
+  }
+
+  const removed = [...storedSlugs].filter((slug) => !submittedSlugs.has(slug));
+  if (removed.length > 0) {
+    // `tourSlug` in the where as well as the slug list — belt and braces, so
+    // this statement cannot touch another tour's rows whatever the list holds.
+    await tx.groupDeparture.deleteMany({ where: { tourSlug, slug: { in: removed } } });
+  }
+
+  for (const batch of batches) {
+    if (!batch.slug) continue;
+    await tx.groupDeparture.update({ where: { slug: batch.slug }, data: departureColumns(batch) });
+  }
+
+  const created = batches.filter((batch) => !batch.slug);
+  if (created.length === 0) return;
+
+  /**
+   * `sortOrder` is `@unique` and is the GLOBAL order of /group-tours. A new batch
+   * is appended (max + 1), inside the transaction, like a new tour's
+   * `catalogueOrder`. Two DIFFERENT tours saving new batches at the same instant
+   * can read the same max; the unique constraint then refuses one of them and
+   * that admin is told the save failed and to retry — nothing is lost or
+   * overwritten.
+   */
+  const last = await tx.groupDeparture.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
+  let sortOrder = (last?.sortOrder ?? -1) + 1;
+
+  await tx.groupDeparture.createMany({
+    data: created.map((batch) => ({
+      ...departureColumns(batch),
+      // Not a public URL (no /group-tours/[slug] route exists), so a random
+      // suffix is fine and cannot collide with a seeded slug.
+      slug: `${tourSlug}-batch-${randomUUID().slice(0, 8)}`,
+      tourSlug,
+      destinationSlug: fromTour.destinationSlug,
+      category: fromTour.category,
+      photoKey: fromTour.photoKey,
+      scriptAccent: '',
+      sortOrder: sortOrder++,
+      // Flags default to false: a batch typed by an admin has no second
+      // transcription to disagree with. A price doubt on the TOUR is still
+      // carried onto it at read time by `toPublicDeparture()`.
+    })),
+  });
+}
+
+/**
  * Transaction budget for the save path, widened from Prisma's 5-second default.
  *
  * Not a guess and not defensive padding — the default was measured failing.
@@ -681,12 +885,13 @@ export async function createTour(
         pricingTiers: { create: children.pricingTiers },
         galleryImages: { create: children.galleryImages },
       },
-      select: { slug: true },
+      select: { slug: true, destinationSlug: true, category: true, photoKey: true },
     });
 
     await syncBrochure(tx, tour.slug, values);
+    await syncDepartures(tx, tour.slug, values.departures, tour);
 
-    return tour;
+    return { slug: tour.slug };
   }, SAVE_TRANSACTION_OPTIONS);
 
   return { configured: true, value: created };
@@ -799,7 +1004,7 @@ export async function updateTour(
         pricingTiers: { create: children.pricingTiers },
         galleryImages: { create: children.galleryImages },
       },
-      select: { slug: true },
+      select: { slug: true, destinationSlug: true, category: true, photoKey: true },
     });
 
     /**
@@ -810,6 +1015,11 @@ export async function updateTour(
      * `@@unique` would then reject.
      */
     await syncBrochure(tx, tour.slug, values);
+    /**
+     * Also after the update and on the NEW slug: `GroupDeparture.tourSlug` is
+     * `ON UPDATE CASCADE`, so a renamed tour's batches have already followed.
+     */
+    await syncDepartures(tx, tour.slug, values.departures, tour);
 
     return { outcome: 'saved', slug: tour.slug };
   }, SAVE_TRANSACTION_OPTIONS);

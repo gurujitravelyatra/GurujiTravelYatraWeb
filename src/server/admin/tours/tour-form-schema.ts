@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
+import { isOrderedRange, parseIsoDate } from '@/lib/departure-dates';
 import { deriveSavingsLabel, parseRupeeAmount, RUPEE_FORMAT_MESSAGE } from '@/lib/rupees';
+import { parseSeatsInput, SEATS_FORMAT_MESSAGE } from '@/lib/seats';
 
 import { containsMarkup, MARKUP_REJECTED_MESSAGE } from './plain-text';
 
@@ -216,6 +218,80 @@ export const pricingTierSchema = z.object({
 });
 
 /**
+ * One DEPARTURE BATCH — a dated, seated `GroupDeparture` of this tour. Added
+ * 2026-09-25; the user's original request asked for "batch departure dates with
+ * seats-available count per batch" as part of the tour form.
+ *
+ * ## What the admin types vs what is stored
+ *
+ * The stored columns are DISPLAY TEXT (`dateRangeLabel` "12 — 18 May 2026",
+ * `seatsLabel` "14 seats left" | "Sold out"), because that is what the design
+ * export transcribed and what every card, lead payload and log line reads. The
+ * form collects the FACTS instead — two calendar dates and a seat count — and
+ * the repository writes the text through `departure-dates.ts` and `seats.ts`.
+ * So an admin cannot type "mid-May, TBC" into what a visitor reads as a
+ * confirmed departure, and 0 seats is always the exact "Sold out" that turns the
+ * card's Reserve button off. No column was added or changed for this.
+ *
+ * Every field is a STRING here, including the dates and the count, so the form's
+ * input and output shapes stay identical and a load → save round trip is exact
+ * (`getAdminTourBySlug` returns this shape).
+ *
+ * ## What is deliberately NOT here
+ *
+ * `durationUnverified`/`priceUnverified` (safety flags — developer-managed, the
+ * same user decision that keeps `pricingUnverified` off the form),
+ * `destinationSlug`/`category`/`photoKey` (taken from the tour when a batch is
+ * created, and never rewritten by an unrelated save), `scriptAccent` (a design
+ * flourish, written empty for new batches — the card renders nothing for it) and
+ * `sortOrder` (the global order of `/group-tours`, which a per-tour form does
+ * not own; a new batch is appended).
+ */
+export const departureBatchSchema = z
+  .object({
+    /**
+     * IDENTITY of an existing batch — absent for a new one, never shown. A batch
+     * that keeps its slug is UPDATED in place rather than deleted and re-created,
+     * so the columns this form does not own (the safety flags above, above all)
+     * survive every save. The repository refuses a slug that does not already
+     * belong to this tour.
+     */
+    slug: z.string().trim().regex(SLUG_PATTERN).optional(),
+    /** The card title. Pre-filled with the tour name for a new batch. */
+    name: plainText(z.string().trim().min(2, 'Give this batch a title — usually the tour name.').max(120)),
+    startDate: z.string().trim().refine((value) => parseIsoDate(value) !== undefined, 'Choose the departure date.'),
+    endDate: z.string().trim().refine((value) => parseIsoDate(value) !== undefined, 'Choose the return date.'),
+    seatsAvailable: z.string().trim().refine((value) => parseSeatsInput(value) !== undefined, SEATS_FORMAT_MESSAGE),
+    /** The same canonical rupee rule as the tour's own price (M6). Required: it is the card's most prominent figure. */
+    priceFrom: plainText(z.string().trim().min(1, 'Enter this batch’s price, e.g. ₹42,500.')).refine(
+      (value) => parseRupeeAmount(value) !== undefined,
+      RUPEE_FORMAT_MESSAGE
+    ),
+    durationLabel: plainText(z.string().trim().min(1, 'Enter the duration, e.g. “6N / 7D”.').max(40)),
+    boardingPoints: plainText(z.string().trim().min(1, 'Enter the boarding point(s), e.g. “Ahmedabad · Delhi”.').max(120)),
+    tourManagerLabel: plainText(z.string().trim().min(1, 'Say whether a tour manager travels, e.g. “Yes, GTY manager”.').max(80)),
+  })
+  .superRefine((batch, ctx) => {
+    if (parseIsoDate(batch.startDate) && parseIsoDate(batch.endDate) && !isOrderedRange(batch.startDate, batch.endDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endDate'],
+        message: 'The return date must be on or after the departure date.',
+      });
+    }
+  });
+
+export type DepartureBatchValue = z.infer<typeof departureBatchSchema>;
+
+/**
+ * A ceiling on batches per tour. Generous — the business runs a handful a year
+ * per tour — but a bound, because every batch is a statement inside the save
+ * transaction and an unbounded array is a hand-crafted POST choosing how long
+ * that transaction runs.
+ */
+export const MAX_DEPARTURES_PER_TOUR = 50;
+
+/**
  * DRAFT-LEVEL validation — what it takes to SAVE, not to publish.
  *
  * Deliberately permissive. A draft exists so work can be saved half-finished:
@@ -284,6 +360,17 @@ const tourFormObject = z.object({
     .optional(),
   galleryImages: z.array(galleryImageSchema).default([]),
   brochureFile: brochureFileSchema.optional(),
+
+  /**
+   * Batch departures — see `departureBatchSchema`. Optional at every level, the
+   * publish bar included: the task asked for the editor, not for a rule that a
+   * Group Tour must have a date, and inventing one would block publishing a tour
+   * whose next batch is not scheduled yet.
+   */
+  departures: z
+    .array(departureBatchSchema)
+    .max(MAX_DEPARTURES_PER_TOUR, `A tour may have at most ${MAX_DEPARTURES_PER_TOUR} batches.`)
+    .default([]),
 });
 
 /**
@@ -304,6 +391,25 @@ const tourFormObject = z.object({
  *    was written), so re-saving one changes nothing.
  */
 export const tourFormSchema = tourFormObject
+  .superRefine((values, ctx) => {
+    /**
+     * Two batches claiming the same identity would be two updates to one row —
+     * the second silently wins. Only a hand-built payload can produce it (the
+     * form never duplicates a slug), so it is refused rather than resolved.
+     */
+    const seen = new Set<string>();
+    values.departures.forEach((batch, index) => {
+      if (!batch.slug) return;
+      if (seen.has(batch.slug)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['departures', index, 'slug'],
+          message: 'This batch appears twice in the submission. Reload the page and try again.',
+        });
+      }
+      seen.add(batch.slug);
+    });
+  })
   .superRefine((values, ctx) => {
     if (!values.priceWas) return;
 

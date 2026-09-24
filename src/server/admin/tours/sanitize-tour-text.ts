@@ -244,5 +244,25 @@ export function sanitizeTourFormValues(values: ParsedTourFormValues): ParsedTour
     brochureFile: values.brochureFile
       ? { ...values.brochureFile, fileName: toPlainText(values.brochureFile.fileName) }
       : undefined,
+
+    /**
+     * Departure batches (2026-09-25) — every human-typed string, on the same
+     * terms as the tour's own fields. These reach `/group-tours` AND
+     * `GET /api/group-tours`, a JSON surface where React's escaping protects
+     * nothing, so they need the write-time guarantee as much as `name` does.
+     *
+     * NOT sanitized, and why each is already safe: `slug` (SLUG_PATTERN,
+     * `[a-z0-9-]` only), `startDate`/`endDate` (must parse as `YYYY-MM-DD`
+     * calendar dates) and `seatsAvailable` (digits only) — none can carry a `<`,
+     * and the stored labels are FORMATTED from them, never copied.
+     */
+    departures: values.departures.map((batch) => ({
+      ...batch,
+      name: toPlainText(batch.name),
+      priceFrom: toPlainText(batch.priceFrom),
+      durationLabel: toPlainText(batch.durationLabel),
+      boardingPoints: toPlainText(batch.boardingPoints),
+      tourManagerLabel: toPlainText(batch.tourManagerLabel),
+    })),
   };
 }

@@ -614,7 +614,13 @@ model RailTour {
 /// `tourManagerLabel` exist in NO other source.
 model GroupDeparture {
   slug            String              @id
-  name            String              @unique
+  /// The card title. NOT unique (2026-09-25, migration
+  /// `20260925100000_departure_name_not_unique`): two batches of the same tour
+  /// are two departures with the same title and different dates, which is the
+  /// ordinary case the admin batch editor exists for. `slug` is the identity;
+  /// leads carry the batch's `dateRangeLabel` beside the name, so a lead is
+  /// still attributable to one batch.
+  name            String
   destinationSlug String
   destination     Destination         @relation(fields: [destinationSlug], references: [slug])
   category        DestinationCategory

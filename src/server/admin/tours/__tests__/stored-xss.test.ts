@@ -109,6 +109,7 @@ function values(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFormVa
     coverImage: undefined,
     galleryImages: [],
     brochureFile: undefined,
+    departures: [],
     ...overrides,
   };
 }
@@ -123,6 +124,7 @@ interface MockTx {
   tourFaq: { deleteMany: jest.Mock };
   tourPricingTier: { deleteMany: jest.Mock };
   tourGalleryImage: { deleteMany: jest.Mock };
+  groupDeparture: Record<'findMany' | 'findFirst' | 'deleteMany' | 'update' | 'createMany', jest.Mock>;
 }
 
 let tx: MockTx;
@@ -146,6 +148,18 @@ function setUpPrisma() {
     tourFaq: { deleteMany: jest.fn().mockResolvedValue({}) },
     tourPricingTier: { deleteMany: jest.fn().mockResolvedValue({}) },
     tourGalleryImage: { deleteMany: jest.fn().mockResolvedValue({}) },
+    /**
+     * Departures (2026-09-25). Empty by default: these suites are about media and
+     * markup, and a tour with no batches must go through the save exactly as
+     * before. `departure-sync.test.ts` exercises the batch writes.
+     */
+    groupDeparture: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      update: jest.fn().mockResolvedValue({}),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   };
 
   mockGetOptionalPrismaClient.mockReturnValue({
@@ -187,6 +201,18 @@ function expectNoMarkupStored(data: unknown) {
   const offending = allStrings(data).filter(containsMarkup);
   expect(offending).toEqual([]);
 }
+
+/** A well-formed departure batch, so a refusal is about the one field under test. */
+const CLEAN_BATCH = {
+  name: 'Spiti',
+  startDate: '2026-10-06',
+  endDate: '2026-10-15',
+  seatsAvailable: '8',
+  priceFrom: '₹42,500',
+  durationLabel: '9N / 10D',
+  boardingPoints: 'Delhi',
+  tourManagerLabel: 'Yes',
+};
 
 describe('the schema REFUSES markup, on the field the admin can see', () => {
   it.each(ALL_PAYLOADS)('rejects %j in the tour name', (payload) => {
@@ -238,6 +264,12 @@ describe('the schema REFUSES markup, on the field the admin can see', () => {
       'pricingTiers.description',
       { pricingTiers: [{ name: 'Deluxe', price: '₹1', description: PAYLOADS.SCRIPT }] },
     ],
+    // Batch departures (2026-09-25) — every free-text field a batch has.
+    ['departures.name', { departures: [{ ...CLEAN_BATCH, name: PAYLOADS.SCRIPT }] }],
+    ['departures.priceFrom', { departures: [{ ...CLEAN_BATCH, priceFrom: PAYLOADS.SCRIPT }] }],
+    ['departures.durationLabel', { departures: [{ ...CLEAN_BATCH, durationLabel: PAYLOADS.SCRIPT }] }],
+    ['departures.boardingPoints', { departures: [{ ...CLEAN_BATCH, boardingPoints: PAYLOADS.SCRIPT }] }],
+    ['departures.tourManagerLabel', { departures: [{ ...CLEAN_BATCH, tourManagerLabel: PAYLOADS.SCRIPT }] }],
   ] as const)('refuses a payload in %s', (_field, override) => {
     const result = tourFormSchema.safeParse(values(override as Partial<ParsedTourFormValues>));
     expect(result.success).toBe(false);

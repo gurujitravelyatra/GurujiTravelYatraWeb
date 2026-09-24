@@ -58,6 +58,7 @@ export default async function NewTourPage() {
             faqs: [],
             pricingTiers: [],
             galleryImages: [],
+            departures: [],
           }}
           uploadsEnabled={isCloudinaryConfigured()}
         />

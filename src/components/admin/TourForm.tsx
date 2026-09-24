@@ -21,6 +21,7 @@ import { saveTourAction } from '@/app/admin/tours/actions';
 import { EMPTY_FORM_STATE, type TourFormState } from '@/app/admin/tours/form-state';
 
 import { FormField } from './FormField';
+import { TourDeparturesSection, type DepartureVisibility } from './TourDeparturesSection';
 import { TourUploadsSection } from './TourUploadsSection';
 
 interface DestinationOption {
@@ -65,6 +66,12 @@ interface TourFormProps {
    * Required whenever `editingSlug` is set — the action refuses an edit without it.
    */
   versionToken?: string;
+  /** Whether this tour's batches are on /group-tours now — from `departureWithholdReason()`, server-side. */
+  departureVisibility?: DepartureVisibility;
+  /** Safety flags of each stored batch (effective values), keyed by batch slug. Read-only. */
+  departureMarkers?: Record<string, { durationUnverified: boolean; priceUnverified: boolean }>;
+  /** The tour's own `pricingUnverified` — every batch of such a tour is marked publicly. */
+  tourPricingUnverified?: boolean;
 }
 
 const EMPTY_VALUES: TourFormValues = {
@@ -91,6 +98,7 @@ const EMPTY_VALUES: TourFormValues = {
   coverImage: undefined,
   galleryImages: [],
   brochureFile: undefined,
+  departures: [],
 };
 
 /**
@@ -126,6 +134,9 @@ export function TourForm({
   uploadsEnabled = false,
   withheldFromPublicSite = false,
   versionToken,
+  departureVisibility = 'NEW',
+  departureMarkers = {},
+  tourPricingUnverified = false,
 }: TourFormProps) {
   const [state, formAction, pending] = useActionState<TourFormState, FormData>(
     saveTourAction,
@@ -571,6 +582,21 @@ export function TourForm({
           )}
         </div>
       </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/*
+        Batch departures — rendered only for a Group Tour or a tour that already
+        has batches (see the component). Saved in the same transaction as the
+        rest of this form, behind the same M7 version check.
+      */}
+      <TourDeparturesSection
+        control={control}
+        register={register}
+        fieldError={fieldError}
+        visibility={departureVisibility}
+        markers={departureMarkers}
+        tourPricingUnverified={tourPricingUnverified}
+      />
 
       {/* ---------------------------------------------------------------- */}
       <section className="flex flex-col gap-5 rounded-18 border border-gty-border bg-gty-white p-5">

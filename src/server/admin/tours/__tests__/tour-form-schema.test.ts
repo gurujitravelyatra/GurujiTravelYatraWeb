@@ -371,3 +371,88 @@ describe('the two categorisation axes stay in sync with the database enums', () 
     expect(AUDIENCE_TAG_VALUES).not.toContain('Spiritual');
   });
 });
+
+/**
+ * Batch departures (2026-09-25). The form collects FACTS — dates and a count —
+ * and the repository writes the display text from them, so these rules are what
+ * stands between an admin's typo and a visitor reading it as a confirmed batch.
+ */
+describe('departure batches', () => {
+  const BATCH = {
+    name: 'Spiti Valley Circuit',
+    startDate: '2026-10-06',
+    endDate: '2026-10-15',
+    seatsAvailable: '8',
+    priceFrom: '₹42,500',
+    durationLabel: '9N / 10D',
+    boardingPoints: 'Delhi',
+    tourManagerLabel: 'Yes, GTY manager',
+  };
+  const withBatches = (...departures: Record<string, unknown>[]) =>
+    tourFormSchema.safeParse({ ...MINIMAL_DRAFT, departures });
+  const firstIssue = (result: ReturnType<typeof withBatches>) =>
+    result.success ? undefined : { path: result.error.issues[0]?.path.join('.'), message: result.error.issues[0]?.message };
+
+  it('accepts a well-formed batch, and a tour with none', () => {
+    expect(withBatches(BATCH).success).toBe(true);
+    expect(tourFormSchema.safeParse(MINIMAL_DRAFT).success).toBe(true);
+  });
+
+  it('accepts 0 seats — that is how a batch is marked sold out', () => {
+    expect(withBatches({ ...BATCH, seatsAvailable: '0' }).success).toBe(true);
+  });
+
+  it.each(['-1', '1.5', 'twelve', '', '1000', '1e2'])('refuses %j as a seat count', (seatsAvailable) => {
+    expect(firstIssue(withBatches({ ...BATCH, seatsAvailable }))?.path).toBe('departures.0.seatsAvailable');
+  });
+
+  it('requires both dates, as real calendar dates', () => {
+    expect(firstIssue(withBatches({ ...BATCH, startDate: '' }))?.path).toBe('departures.0.startDate');
+    expect(firstIssue(withBatches({ ...BATCH, endDate: '2026-02-30' }))?.path).toBe('departures.0.endDate');
+    expect(firstIssue(withBatches({ ...BATCH, startDate: '12 May 2026' }))?.path).toBe('departures.0.startDate');
+  });
+
+  it('refuses a return before the departure, on the return field', () => {
+    const issue = firstIssue(withBatches({ ...BATCH, startDate: '2026-10-15', endDate: '2026-10-06' }));
+    expect(issue).toEqual({ path: 'departures.0.endDate', message: 'The return date must be on or after the departure date.' });
+  });
+
+  it('holds a batch price to the same canonical rupee rule as the tour’s (M6)', () => {
+    for (const priceFrom of ['42500', 'Rs 42,500', '₹42,500 pp', 'on request', '']) {
+      expect(firstIssue(withBatches({ ...BATCH, priceFrom }))?.path).toBe('departures.0.priceFrom');
+    }
+  });
+
+  it('requires the text fields a card renders', () => {
+    for (const field of ['name', 'durationLabel', 'boardingPoints', 'tourManagerLabel']) {
+      expect(firstIssue(withBatches({ ...BATCH, [field]: '' }))?.path).toBe(`departures.0.${field}`);
+    }
+  });
+
+  it('refuses the same batch identity twice in one submission', () => {
+    const result = withBatches({ ...BATCH, slug: 'spiti-valley-circuit' }, { ...BATCH, slug: 'spiti-valley-circuit' });
+    expect(firstIssue(result)?.path).toBe('departures.1.slug');
+  });
+
+  it('refuses a batch identity that is not slug-shaped', () => {
+    expect(firstIssue(withBatches({ ...BATCH, slug: '../other' }))?.path).toBe('departures.0.slug');
+  });
+
+  it('bounds the number of batches', () => {
+    const many = Array.from({ length: 51 }, () => BATCH);
+    expect(firstIssue(withBatches(...many))?.path).toBe('departures');
+  });
+
+  it('does NOT make a batch a condition of publishing — the task asked for the editor, not that rule', () => {
+    const result = parseTourForm('publish', {
+      ...MINIMAL_DRAFT,
+      audienceTags: ['Group Tour'],
+      shortDescription: 'A description.',
+      durationLabel: '9 Days 8 Nights',
+      priceFrom: '₹42,500',
+      coverImage: COVER,
+      departures: [],
+    });
+    expect(result.success).toBe(true);
+  });
+});

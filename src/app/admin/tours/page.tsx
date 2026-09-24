@@ -198,6 +198,17 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                           <span className="flex flex-col gap-[2px]">
                             <span className="text-14 font-bold text-gty-ink">{tour.name}</span>
                             <span className="text-12 text-gty-subtle">/{tour.slug}</span>
+                            {/*
+                              Batch count — a `_count` on the list's own query, so
+                              no extra round trip. Shown only when non-zero: most
+                              tours are not fixed-departure tours, and "0 batches"
+                              on every row is noise.
+                            */}
+                            {tour.departureCount > 0 && (
+                              <span className="text-12 text-gty-subtle" data-testid={`tour-batch-count-${tour.slug}`}>
+                                {tour.departureCount} {tour.departureCount === 1 ? 'batch' : 'batches'}
+                              </span>
+                            )}
                           </span>
                         </span>
                       </th>

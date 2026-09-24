@@ -93,6 +93,7 @@ const BASE_ROW: AdminTourListItem = {
   lifecycle: 'PUBLISHED',
   priceFrom: '₹28,900',
   pricingTierCount: 0,
+  departureCount: 0,
   pricingUnverified: true,
   status: 'PUBLISHED',
   archivedAt: null,
@@ -116,6 +117,7 @@ const BASE_FORM = {
   faqs: [],
   pricingTiers: [],
   galleryImages: [],
+  departures: [],
 };
 
 function detail(overrides: Partial<AdminTourDetail> = {}): AdminTourDetail {
@@ -126,6 +128,7 @@ function detail(overrides: Partial<AdminTourDetail> = {}): AdminTourDetail {
     archivedAt: null,
     pricingUnverified: true,
     updatedAt: new Date('2026-09-19T00:00:00.000Z'),
+    departureMarkers: {},
     ...overrides,
   };
 }

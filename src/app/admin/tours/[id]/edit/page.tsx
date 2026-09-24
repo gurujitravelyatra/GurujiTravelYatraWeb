@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { requireAdminSession } from '@/server/auth/session';
 import { getAdminTourBySlug, listDestinationOptions } from '@/server/admin/tours/tour-repository';
 import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
-import { publicWithholdReason, WITHHOLD_REASON_TEXT } from '@/content/public-listing';
+import { departureWithholdReason, publicWithholdReason, WITHHOLD_REASON_TEXT } from '@/content/public-listing';
 import { TourForm } from '@/components/admin/TourForm';
 
 export const metadata: Metadata = {
@@ -77,6 +77,14 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
    */
   const withheld = publicWithholdReason(tour.value);
   const liveOnPublicSite = withheld === null;
+
+  /**
+   * The same question for this tour's BATCHES, answered by the departure half
+   * of the same gate — which differs on purpose: a price-unconfirmed tour's
+   * batches ARE listed (marked), per BLOCKERS.md item 9.
+   */
+  const departureReason = departureWithholdReason(tour.value);
+  const departureVisibility = departureReason === null ? 'LISTED' : departureReason === 'ARCHIVED' ? 'ARCHIVED' : 'DRAFT';
 
   return (
     <main className="mx-auto w-full max-w-[860px] px-5 py-12 860:px-8">
@@ -199,6 +207,9 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         uploadsEnabled={isCloudinaryConfigured()}
         withheldFromPublicSite={withheld === 'PRICE_UNCONFIRMED'}
         versionToken={updatedAt.toISOString()}
+        departureVisibility={departureVisibility}
+        departureMarkers={tour.value.departureMarkers}
+        tourPricingUnverified={tour.value.pricingUnverified}
       />
     </main>
   );

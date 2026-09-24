@@ -80,6 +80,7 @@ function values(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFormVa
     coverImage: undefined,
     galleryImages: [],
     brochureFile: undefined,
+    departures: [],
     ...overrides,
   };
 }
@@ -94,6 +95,7 @@ interface MockTx {
   tourFaq: { deleteMany: jest.Mock };
   tourPricingTier: { deleteMany: jest.Mock };
   tourGalleryImage: { deleteMany: jest.Mock };
+  groupDeparture: Record<'findMany' | 'findFirst' | 'deleteMany' | 'update' | 'createMany', jest.Mock>;
 }
 
 let tx: MockTx;
@@ -122,6 +124,18 @@ function setUpPrisma({ existingBrochurePublicId }: { existingBrochurePublicId?: 
     tourFaq: { deleteMany: jest.fn().mockResolvedValue({}) },
     tourPricingTier: { deleteMany: jest.fn().mockResolvedValue({}) },
     tourGalleryImage: { deleteMany: jest.fn().mockResolvedValue({}) },
+    /**
+     * Departures (2026-09-25). Empty by default: these suites are about media and
+     * markup, and a tour with no batches must go through the save exactly as
+     * before. `departure-sync.test.ts` exercises the batch writes.
+     */
+    groupDeparture: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      update: jest.fn().mockResolvedValue({}),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
   };
 
   mockGetOptionalPrismaClient.mockReturnValue({
@@ -372,6 +386,7 @@ describe('reading a tour back into the form', () => {
           itineraryDays: [],
           faqs: [],
           pricingTiers: [],
+          departures: [],
           coverImageUrl: OLD_COVER.url,
           coverImagePublicId: OLD_COVER.publicId,
           galleryImages: [
@@ -416,7 +431,7 @@ describe('reading a tour back into the form', () => {
           fullDescription: null, bestTimeToVisit: null, priceFrom: '', priceWas: null,
           savingsLabel: null, seatsLabel: null, isHot: false, inclusions: [], exclusions: [],
           status: 'DRAFT', archivedAt: null, updatedAt: new Date(),
-          itineraryDays: [], faqs: [], pricingTiers: [], galleryImages: [], brochure: null,
+          itineraryDays: [], faqs: [], pricingTiers: [], galleryImages: [], brochure: null, departures: [],
           coverImageUrl: OLD_COVER.url,
           coverImagePublicId: null,
         }),

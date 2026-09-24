@@ -86,6 +86,7 @@ function baseValues(overrides: Partial<ParsedTourFormValues> = {}): ParsedTourFo
     coverImage: undefined,
     galleryImages: [],
     brochureFile: undefined,
+    departures: [],
     ...overrides,
   };
 }
@@ -151,6 +152,13 @@ async function cleanup(): Promise<void> {
   if (!prisma) return;
   // Children cascade from the tour, but deleting them explicitly keeps the
   // cleanup correct even if a cascade is ever relaxed.
+  //
+  // Departures FIRST, and explicitly (2026-09-25): `GroupDeparture.tour` is
+  // `onDelete: SetNull`, NOT cascade, so deleting a test tour would turn any
+  // batch it had into an UNLINKED departure — which is publicly listed on the
+  // live /group-tours. Nothing in this file creates batches today; this keeps
+  // that from becoming a live-site leak the day something does.
+  await prisma.groupDeparture.deleteMany({ where: { tourSlug: { startsWith: TEST_PREFIX } } });
   await prisma.tour.deleteMany({ where: { slug: { startsWith: TEST_PREFIX } } });
 }
 

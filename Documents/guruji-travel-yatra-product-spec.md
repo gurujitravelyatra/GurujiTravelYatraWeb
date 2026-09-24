@@ -387,7 +387,7 @@ SPITI VALLEY
 Views 1,842 · Brochure Requests 327 · Downloads 291 · Enquiries 84 · Bookings 19
 ```
 
-### 7.1 What is actually built, in this repo (as of 2026-09-19)
+### 7.1 What is actually built, in this repo (as of 2026-09-19; batch departures added 2026-09-25)
 
 **Routes.** `/admin/login`, `/admin` (dashboard), `/admin/tours` (list),
 `/admin/tours/new`, `/admin/tours/[id]/edit`, and the upload endpoint
@@ -431,6 +431,20 @@ until someone sets them.
 **Content safety.** All admin-authored tour copy is plain text: markup is
 refused by the form's validation and stripped again at the write, so the stored
 row is markup-free regardless of which path wrote it.
+
+**Batch departures (added 2026-09-25).** The "Set price, dates, available seats"
+requirement above is met per BATCH, inside the tour form (`/admin/tours/new`,
+`/admin/tours/[id]/edit`), not on a separate page: a "Batch departures" section,
+shown for a tour tagged Group Tour or one that already has batches, where each
+batch has a title, departure and return dates, seats available (0 = sold out),
+a price, duration, boarding points and tour manager. Batches save in the same
+transaction as the rest of the tour. The public text ("12 — 18 May 2026",
+"14 seats left" / "Sold out") is generated from the dates and the count rather
+than typed. **A tour's batches are shown on `/group-tours` only while the tour
+itself is published and not archived** — archiving or un-publishing a tour
+withdraws its batches too. A batch of a tour whose price is unconfirmed stays
+listed, with its price marked "pending confirmation". Departures not linked to
+any catalogue tour (two of the four seeded ones) are not editable here.
 
 **Not built:** scheduling a future publish, video upload, testimonials
 management, brochure version history with preview/restore, and the per-tour
