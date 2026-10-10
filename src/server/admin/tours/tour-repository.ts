@@ -223,7 +223,10 @@ export async function listAdminTours(filter: ListToursFilter = {}): Promise<Conf
       destination: { select: { name: true } },
       _count: { select: { pricingTiers: true, departures: true } },
     },
-    orderBy: { updatedAt: 'desc' },
+    // `slug` breaks ties: seeded tours share a handful of `updatedAt` values, and
+    // Postgres returns tied rows in whatever order the plan produces — which
+    // changed when `relationJoins` was enabled (prisma/schema.prisma).
+    orderBy: [{ updatedAt: 'desc' }, { slug: 'asc' }],
   });
 
   return {

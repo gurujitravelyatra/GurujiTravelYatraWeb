@@ -143,6 +143,13 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
    * contract as `publiclyListedRails`. Dropping a whole rail would change the
    * page's structure based on a temporary data flag, and `PackageRail` already
    * renders a defensive empty state.
+   *
+   * ONE SQL query, because `relationJoins` is enabled (prisma/schema.prisma).
+   * Without it this four-level include is five sequential round trips to a
+   * remote database (~1.2s measured), which is what made `/tour-packages` 503
+   * under concurrent prefetches (BLOCKERS.md item 16). The page itself is now
+   * static, so this runs at build/revalidate time, but the admin and any future
+   * caller still pay for it.
    */
   async getPackageRails(): Promise<PackageRail[]> {
     const rows = await this.prisma.rail.findMany({

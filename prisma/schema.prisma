@@ -27,8 +27,25 @@
 // (`src/content/content-adapter.ts`), and this whole directory is deleted. No
 // page or component changes either way — that is the entire point of the port.
 
+// ## `relationJoins` (preview) — enabled 2026-10-10, BLOCKERS.md item 16
+//
+// Without it, Prisma 5 resolves every `include` level as a SEPARATE round trip.
+// The database is remote (Railway, ~240ms per round trip from here), so
+// `getPackageRails()`'s rail → items → tour → destination/gallery include was 5
+// sequential queries and ~1.2s, and `/tour-packages` 503'd under prefetch load.
+// With it, the default load strategy becomes JOIN (one LATERAL/JSON query per
+// call): measured 5 queries/~1210ms → 1 query/~300ms on that call.
+//
+// This changes the strategy for EVERY `include` in the app, not just the rails.
+// Verified before enabling, against the live DB: every include-shaped query in
+// `src/` (public catalogue, popular, departures, admin list, admin detail)
+// returned byte-identical results under both strategies — except the ORDER of
+// rows tied on `updatedAt` in the admin list, which Postgres never guaranteed;
+// that query now has an explicit `slug` tiebreaker. Server is PostgreSQL 18.
+// To opt a single query back out: `relationLoadStrategy: 'query'`.
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
