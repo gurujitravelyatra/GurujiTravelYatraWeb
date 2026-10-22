@@ -7,6 +7,7 @@ import type {
   Package,
   PackageRail,
   Review,
+  SiteStatsSummary,
   StatMetric,
   TripPlaceOption,
 } from './types';
@@ -41,6 +42,18 @@ export interface ContentPort {
   getPackageRails(): Promise<PackageRail[]>;
   getFeaturedVideos(): Promise<FeaturedVideo[]>;
   getStats(): Promise<StatMetric[]>;
+
+  /**
+   * The 3-figure "in numbers" band `StatsBar` renders on Home and About Us —
+   * the CRM-contract-shaped summary (see `SiteStatsSummary`), as opposed to
+   * `getStats()`'s wider 5-item list that `Hero`/`WhyGtyBand` still use for
+   * their own, unrelated figure picks. Deliberately a separate method rather
+   * than a filter applied at the `StatsBar` call site: once a real CRM client
+   * exists, this is the one method that reads `GET /public/site`, and nothing
+   * about `getStats()` needs to change for that swap.
+   */
+  getSiteStatsSummary(): Promise<SiteStatsSummary>;
+
   getTestimonials(): Promise<Review[]>;
 
   /**

@@ -128,6 +128,9 @@ class StubContentAdapter implements ContentPort {
   getStats() {
     return Promise.resolve([]);
   }
+  getSiteStatsSummary() {
+    return Promise.resolve({ showFiguresNote: false });
+  }
   getTestimonials() {
     return Promise.resolve([]);
   }

@@ -38,7 +38,7 @@ export const metadata: Metadata = {
  * Reinstating the timeline is a one-line revert of this commit.
  */
 export default async function AboutUsPage() {
-  const stats = await contentAdapter.getStats();
+  const stats = await contentAdapter.getSiteStatsSummary();
 
   return (
     <SiteShell activePath="/about-us" pageLabel="About Us">

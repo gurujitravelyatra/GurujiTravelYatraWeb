@@ -4,15 +4,16 @@ import { Hero } from '../Hero';
 import { StatsBar } from '../StatsBar';
 import { WhyGtyBand } from '../WhyGtyBand';
 import { FixtureContentAdapter } from '@/content/adapters/fixture-content-adapter';
-import { statMetrics } from '@/content/fixtures/stats.fixture';
+import { siteStatsSummary, statMetrics } from '@/content/fixtures/stats.fixture';
 import { whyItems } from '@/content/fixtures/whys.fixture';
-import type { StatMetric } from '@/content/types';
+import type { SiteStatsSummary, StatMetric } from '@/content/types';
 import { ModalProvider } from '@/components/modals/modal-context';
 
 /**
  * Stats never moved to the database (BLOCKERS.md §5 — only tours, destinations,
  * departures and brochures did), so this asserts against the fixture adapter
- * directly. `PrismaContentAdapter.getStats()` delegates straight back here.
+ * directly. `PrismaContentAdapter.getStats()`/`getSiteStatsSummary()` delegate
+ * straight back here.
  */
 const contentAdapter = new FixtureContentAdapter();
 
@@ -35,6 +36,14 @@ function renderHero(stats: StatMetric[]) {
  * "8+ Years") while `StatsBar`, further down the same Home page, rendered
  * `contentAdapter.getStats()`. Editing one would silently contradict the
  * other. The hero now selects from the array it is handed.
+ *
+ * CRM-migration decision 3 redesigned `StatsBar` to take a `SiteStatsSummary`
+ * (the CRM's `/public/site` shape) instead of the same `StatMetric[]` array
+ * `Hero` reads — the two components no longer share one literal prop value,
+ * but they still share one SOURCE: `siteStatsSummary` (`stats.fixture.ts`) is
+ * derived from `statMetrics` via `getStatByLabel`, so the two cannot disagree
+ * while both exist, and the swap to a live CRM touches only the adapter, not
+ * either component.
  */
 const FAKE_STATS: StatMetric[] = [
   { icon: '☺', value: '42,000+', label: 'Happy Travellers' },
@@ -44,22 +53,22 @@ const FAKE_STATS: StatMetric[] = [
   { icon: '♥', value: '77%', label: 'Traveller Satisfaction' },
 ];
 
-describe('Hero and StatsBar share one stats source', () => {
-  it('both render values from the SAME array they are given — neither has its own literals', () => {
+const FAKE_SITE_STATS: SiteStatsSummary = {
+  happyTravellers: '42,000+',
+  destinations: '7+',
+  yearsExperience: '3+',
+  showFiguresNote: false,
+};
+
+describe('Hero renders values from the array it is given — no literal of its own', () => {
+  it('shows substituted values and never the hardcoded ones', () => {
     const { unmount } = renderHero(FAKE_STATS);
     const heroStrip = screen.getByTestId('hero-stats');
 
-    // If the hero still hardcoded its numbers, these substituted values could
-    // not appear and the real fixture values would show instead.
     expect(within(heroStrip).getByText(/42,000\+/)).toBeInTheDocument();
     expect(within(heroStrip).getByText(/7\+/)).toBeInTheDocument();
     expect(heroStrip.textContent).not.toMatch(/10,000\+|150\+/);
     unmount();
-
-    render(<StatsBar stats={FAKE_STATS} />);
-    const bar = screen.getByTestId('section-11-stats');
-    expect(within(bar).getByText(/42,000\+/)).toBeInTheDocument();
-    expect(bar.textContent).not.toMatch(/10,000\+/);
   });
 
   it('every figure the hero shows comes from the canonical stats list', async () => {
@@ -104,61 +113,71 @@ describe('Hero and StatsBar share one stats source', () => {
 });
 
 /**
- * H2 — the figures conflict with the spec and with each other, and "98%
- * Traveller Satisfaction" is a factual claim with no review data behind it.
- * They ship marked, the same way testimonials do.
+ * CRM-migration decision 3 — `StatsBar` redesigned to the CRM's 3-figure
+ * `/public/site` shape. These replace the old tests that fed it the full
+ * 5-item `StatMetric[]` array.
  */
-describe('placeholder stats are visibly marked', () => {
-  it('marks every placeholder stat and shows the footnote', () => {
-    render(<StatsBar stats={statMetrics} />);
+describe('StatsBar renders only the 3 CRM-shaped figures it is given', () => {
+  it('renders Happy Travellers, Destinations and Years of Experience verbatim', async () => {
+    render(<StatsBar stats={FAKE_SITE_STATS} />);
+    const bar = screen.getByTestId('section-11-stats');
 
-    for (const stat of statMetrics) {
-      expect(screen.getByTestId(`stat-placeholder-marker-${stat.label}`)).toBeInTheDocument();
-    }
+    expect(within(bar).getByText('42,000+')).toBeInTheDocument();
+    expect(within(bar).getByText('Happy Travellers')).toBeInTheDocument();
+    expect(within(bar).getByText('7+')).toBeInTheDocument();
+    expect(within(bar).getByText('Destinations')).toBeInTheDocument();
+    expect(within(bar).getByText('3+')).toBeInTheDocument();
+    expect(within(bar).getByText('Years of Experience')).toBeInTheDocument();
+  });
+
+  it('is fed by the SAME canonical fixture Hero reads', async () => {
+    render(<StatsBar stats={siteStatsSummary} />);
+    const bar = screen.getByTestId('section-11-stats');
+
+    const happyTravellers = statMetrics.find((stat) => stat.label === 'Happy Travellers')!;
+    const destinations = statMetrics.find((stat) => stat.label === 'Destinations')!;
+    const yearsOfExperience = statMetrics.find((stat) => stat.label === 'Years of Experience')!;
+
+    expect(within(bar).getByText(happyTravellers.value)).toBeInTheDocument();
+    expect(within(bar).getByText(destinations.value)).toBeInTheDocument();
+    expect(within(bar).getByText(yearsOfExperience.value)).toBeInTheDocument();
+  });
+
+  it('never renders "Group Tours" or "Traveller Satisfaction" — there is no CRM field for either', () => {
+    render(<StatsBar stats={siteStatsSummary} />);
+
+    expect(screen.queryByText('Group Tours')).not.toBeInTheDocument();
+    expect(screen.queryByText('Traveller Satisfaction')).not.toBeInTheDocument();
+  });
+
+  it('hides a stat instead of rendering a blank box when its value is absent', () => {
+    render(<StatsBar stats={{ happyTravellers: '10,000+', showFiguresNote: false }} />);
+    const bar = screen.getByTestId('section-11-stats');
+
+    expect(within(bar).getByText('10,000+')).toBeInTheDocument();
+    expect(within(bar).queryByText('Destinations')).not.toBeInTheDocument();
+    expect(within(bar).queryByText('Years of Experience')).not.toBeInTheDocument();
+  });
+
+  it('renders nothing at all — not an empty band — when every figure is absent', () => {
+    const { container } = render(<StatsBar stats={{ showFiguresNote: false }} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows the asterisk and footnote on every figure when showFiguresNote is true', () => {
+    render(<StatsBar stats={siteStatsSummary} />);
+
+    expect(screen.getByTestId('stat-placeholder-marker-happyTravellers')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-placeholder-marker-destinations')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-placeholder-marker-yearsExperience')).toBeInTheDocument();
     expect(screen.getByTestId('stats-placeholder-note')).toHaveTextContent(/pending confirmation/i);
   });
 
-  it('marks NO stat and shows no footnote when every figure is confirmed', () => {
-    render(<StatsBar stats={FAKE_STATS} />);
+  it('shows no marker and no footnote when showFiguresNote is false', () => {
+    render(<StatsBar stats={FAKE_SITE_STATS} />);
 
-    for (const stat of FAKE_STATS) {
-      expect(screen.queryByTestId(`stat-placeholder-marker-${stat.label}`)).not.toBeInTheDocument();
-    }
+    expect(screen.queryByTestId('stat-placeholder-marker-happyTravellers')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stats-placeholder-note')).not.toBeInTheDocument();
-  });
-
-  it('marks only the unconfirmed figures in a mixed list', () => {
-    const mixed: StatMetric[] = [
-      { icon: '☺', value: '10,000+', label: 'Happy Travellers', isPlaceholder: true },
-      { icon: '◍', value: '150+', label: 'Destinations' },
-    ];
-    render(<StatsBar stats={mixed} />);
-
-    expect(screen.getByTestId('stat-placeholder-marker-Happy Travellers')).toBeInTheDocument();
-    expect(screen.queryByTestId('stat-placeholder-marker-Destinations')).not.toBeInTheDocument();
-    expect(screen.getByTestId('stats-placeholder-note')).toBeInTheDocument();
-  });
-
-  it('keeps the asterisk out of the accessible text, describing the group with the footnote instead', () => {
-    render(<StatsBar stats={statMetrics} />);
-
-    const marker = screen.getByTestId('stat-placeholder-marker-Happy Travellers');
-    expect(marker).toHaveAttribute('aria-hidden', 'true');
-    expect(document.getElementById('stats-placeholder-note')).toBeInTheDocument();
-  });
-
-  it('marks the hero strip too, since it shows the same unconfirmed figures', () => {
-    renderHero(statMetrics);
-
-    expect(screen.getByTestId('hero-stat-placeholder-Happy Travellers')).toBeInTheDocument();
-    expect(screen.getByTestId('hero-stats-placeholder-note')).toHaveTextContent(/pending confirmation/i);
-  });
-
-  it('leaves the hero unmarked when the figures are confirmed', () => {
-    renderHero(FAKE_STATS);
-
-    expect(screen.queryByTestId('hero-stat-placeholder-Happy Travellers')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('hero-stats-placeholder-note')).not.toBeInTheDocument();
   });
 });
 
@@ -188,20 +207,23 @@ describe('WhyGtyBand quotes the canonical years figure', () => {
 });
 
 /**
- * F2 — the placeholder marking has to REACH assistive tech, on all three
- * surfaces, in the same way.
+ * F2 — the placeholder marking has to REACH assistive tech, on all surfaces
+ * that have one, in the same way.
  *
- * `StatsBar` was the only one that got this right. `WhyGtyBand` rendered its
- * asterisk `aria-hidden` but gave the footnote no `id`, so nothing could point
- * at it — the marker was suppressed for screen readers AND the explanation was
- * never associated, leaving an unconfirmed figure reading as settled fact.
- * `Hero` had neither half, plus a 9px white footnote sitting directly on a
- * photograph.
+ * `WhyGtyBand` used to render its asterisk `aria-hidden` but give the
+ * footnote no `id`, so nothing could point at it — the marker was suppressed
+ * for screen readers AND the explanation was never associated, leaving an
+ * unconfirmed figure reading as settled fact. `Hero` had neither half, plus a
+ * 9px white footnote sitting directly on a photograph. `StatsBar` is covered
+ * by its own describe block above (its marker ids changed under decision 3);
+ * this block keeps asserting the shared three-part pattern on the two
+ * surfaces whose contract did not change.
  *
- * These tests assert the three pieces together, per surface, because any one of
- * them alone is worthless: a visible asterisk, an `id` on the footnote, and an
- * `aria-describedby` on a ROLED container that resolves to that exact id. (The
- * role matters: `aria-describedby` on a bare `<div>` is routinely ignored.)
+ * These tests assert the three pieces together, per surface, because any one
+ * of them alone is worthless: a visible asterisk, an `id` on the footnote,
+ * and an `aria-describedby` on a ROLED container that resolves to that exact
+ * id. (The role matters: `aria-describedby` on a bare `<div>` is routinely
+ * ignored.)
  */
 describe('placeholder footnotes are wired to the figures they explain', () => {
   interface Surface {
@@ -213,13 +235,6 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
   }
 
   const surfaces: Surface[] = [
-    {
-      name: 'StatsBar',
-      render: () => void render(<StatsBar stats={statMetrics} />),
-      groupLabel: 'Guruji Travel Yatra in numbers',
-      noteTestId: 'stats-placeholder-note',
-      markerTestId: 'stat-placeholder-marker-Happy Travellers',
-    },
     {
       name: 'WhyGtyBand',
       render: () => void render(<WhyGtyBand />),
@@ -267,19 +282,27 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
       });
 
       it('drops the aria-describedby entirely when there is no footnote to point at', () => {
-        // Only the data-driven surfaces can be handed confirmed figures;
-        // `WhyGtyBand` reads the fixture directly and is covered by the
-        // "marks nothing else in the band" test above.
+        // Only Hero can be handed confirmed figures here; `WhyGtyBand` reads
+        // the fixture directly and is covered by the "marks nothing else in
+        // the band" test above.
         if (surface.name === 'WhyGtyBand') return;
 
-        if (surface.name === 'Hero') renderHero(FAKE_STATS);
-        else render(<StatsBar stats={FAKE_STATS} />);
+        renderHero(FAKE_STATS);
 
         expect(screen.queryByTestId(surface.noteTestId)).not.toBeInTheDocument();
         expect(screen.getByRole('group', { name: surface.groupLabel })).not.toHaveAttribute('aria-describedby');
       });
     });
   }
+
+  it('StatsBar drops the aria-describedby entirely when showFiguresNote is false', () => {
+    render(<StatsBar stats={FAKE_SITE_STATS} />);
+
+    expect(screen.queryByTestId('stats-placeholder-note')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' })).not.toHaveAttribute(
+      'aria-describedby'
+    );
+  });
 
   it('uses the SAME three-part pattern on every surface — no bespoke variant', () => {
     for (const surface of surfaces) {
@@ -294,6 +317,13 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
 
       cleanup();
     }
+
+    render(<StatsBar stats={siteStatsSummary} />);
+    const statsNote = screen.getByTestId('stats-placeholder-note');
+    const statsGroup = screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' });
+    expect(statsNote.tagName).toBe('P');
+    expect(statsGroup.getAttribute('aria-describedby')).toBe(statsNote.id);
+    expect(statsNote).toHaveTextContent(/pending confirmation/i);
   });
 
   it("renders the hero's footnote at readable size, not the 9px overlay it used to be", () => {

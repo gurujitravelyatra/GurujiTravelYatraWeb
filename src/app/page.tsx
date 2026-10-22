@@ -47,11 +47,12 @@ import { Newsletter } from '@/components/home/Newsletter';
  * 15 Footer               → SiteShell
  */
 export default async function HomePage() {
-  const [popularDestinations, internationalDestinations, featuredVideos, stats] = await Promise.all([
+  const [popularDestinations, internationalDestinations, featuredVideos, stats, siteStats] = await Promise.all([
     contentAdapter.getPopularDestinations(),
     contentAdapter.getInternationalDestinations(),
     contentAdapter.getFeaturedVideos(),
     contentAdapter.getStats(),
+    contentAdapter.getSiteStatsSummary(),
   ]);
 
   return (
@@ -69,7 +70,7 @@ export default async function HomePage() {
       <JourneyVideoBlock videos={featuredVideos} />
       <WhyGtyBand />
       <RecentTripsGallery trips={recentTripPlaceholders} />
-      <StatsBar stats={stats} />
+      <StatsBar stats={siteStats} />
       <InstagramStrip />
       <Newsletter />
     </SiteShell>

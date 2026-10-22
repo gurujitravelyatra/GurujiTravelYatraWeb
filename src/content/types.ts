@@ -184,6 +184,40 @@ export interface StatMetric {
 }
 
 /**
+ * The homepage/About Us "in numbers" band — REDESIGNED to carry exactly the 3
+ * figures the CRM's `/public/site` settings expose (see
+ * documentation/technical-specification/public-website.md): `happyTravellersLabel`,
+ * `destinationsLabel`, `yearsExperienceLabel`, plus `showFiguresNote`.
+ *
+ * Despite the "Label" suffix in the contract's field names, each one holds the
+ * FIGURE itself (e.g. `"10,000+"`), not a caption — the caption ("Happy
+ * Travellers") is fixed UI copy the component owns, not data. A consumer must
+ * render each value VERBATIM, exactly as the CRM typed it, and must never
+ * reformat, parse or invent one.
+ *
+ * `undefined` means "not set" — the contract states every settings field is
+ * `null` until the Owner has saved it once, with no backfill — and a consumer
+ * MUST hide that one stat rather than render an empty box for it.
+ *
+ * This intentionally drops two figures the previous 5-item `StatMetric[]` bar
+ * showed ("Group Tours", "Traveller Satisfaction"): the CRM contract has no
+ * field for either, and there is nowhere left to source them from.
+ */
+export interface SiteStatsSummary {
+  happyTravellers?: string;
+  destinations?: string;
+  yearsExperience?: string;
+  /**
+   * Mirrors `/public/site`'s `showFiguresNote` setting exactly — a single
+   * switch for the whole band's "*Figures pending confirmation" footnote,
+   * replacing the old per-stat `isPlaceholder` derivation. Until a real CRM
+   * is wired in, the fixture value is `true` (every figure here is still
+   * unconfirmed — see `stats.fixture.ts`).
+   */
+  showFiguresNote: boolean;
+}
+
+/**
  * One cell of the "Why Travel With GTY?" band. Static site copy, not
  * `ContentPort` content — but it carries `isPlaceholder` for the same reason
  * `StatMetric` does: one of its titles quotes the canonical years-of-service

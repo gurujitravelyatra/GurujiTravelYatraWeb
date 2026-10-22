@@ -3,7 +3,7 @@ import { aboutMilestones } from '../fixtures/about.fixture';
 import { internationalDestinations } from '../fixtures/international.fixture';
 import { tripPlaceOptions } from '../fixtures/places.fixture';
 import { featuredVideos } from '../fixtures/videos.fixture';
-import { statMetrics } from '../fixtures/stats.fixture';
+import { siteStatsSummary, statMetrics } from '../fixtures/stats.fixture';
 import { testimonials } from '../fixtures/testimonials.fixture';
 import {
   publiclyListedDepartures,
@@ -49,6 +49,10 @@ export class FixtureContentAdapter implements ContentPort {
 
   getStats() {
     return Promise.resolve(statMetrics);
+  }
+
+  getSiteStatsSummary() {
+    return Promise.resolve(siteStatsSummary);
   }
 
   getTestimonials() {

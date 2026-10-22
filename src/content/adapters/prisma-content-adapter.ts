@@ -261,6 +261,10 @@ export class PrismaContentAdapter implements ContentPort, BrochurePort {
     return this.fixtures.getStats();
   }
 
+  getSiteStatsSummary() {
+    return this.fixtures.getSiteStatsSummary();
+  }
+
   getTestimonials() {
     return this.fixtures.getTestimonials();
   }

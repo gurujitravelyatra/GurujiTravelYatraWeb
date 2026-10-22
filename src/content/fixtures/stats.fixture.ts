@@ -18,7 +18,7 @@
 //
 // TODO(stats-confirm): replace with the business's real figures and drop the
 // `isPlaceholder` flags. Greppable alongside `TODO(pricing-confirm)`.
-import type { StatMetric } from '../types';
+import type { SiteStatsSummary, StatMetric } from '../types';
 
 export const statMetrics: StatMetric[] = [
   { icon: '☺', value: '10,000+', label: 'Happy Travellers', isPlaceholder: true },
@@ -38,3 +38,22 @@ export const statMetrics: StatMetric[] = [
 export function getStatByLabel(label: string): StatMetric | undefined {
   return statMetrics.find((stat) => stat.label === label);
 }
+
+/**
+ * The CRM-contract-shaped 3-figure summary `StatsBar` now renders — see
+ * `SiteStatsSummary` in `../types`. Derived from `statMetrics` above rather
+ * than hand-typed again, so the two cannot disagree while both exist.
+ *
+ * `showFiguresNote: true` is the honest interim value: every figure in
+ * `statMetrics` is still `isPlaceholder`, i.e. unconfirmed, so the band's
+ * footnote must stay visible. Once a real CRM supplies `showFiguresNote`
+ * directly (`GET /public/site`), this whole fixture export is deleted and
+ * the adapter reads the live value instead — nothing about `StatsBar` or its
+ * callers needs to change for that swap.
+ */
+export const siteStatsSummary: SiteStatsSummary = {
+  happyTravellers: getStatByLabel('Happy Travellers')?.value,
+  destinations: getStatByLabel('Destinations')?.value,
+  yearsExperience: getStatByLabel('Years of Experience')?.value,
+  showFiguresNote: true,
+};
