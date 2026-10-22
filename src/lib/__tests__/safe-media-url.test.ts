@@ -67,6 +67,76 @@ describe('isSafeMediaUrl', () => {
   });
 });
 
+/**
+ * CRM-migration decision 4 — the allowlist now also accepts an R2 host, read
+ * from `NEXT_PUBLIC_MEDIA_HOST`, EXACTLY (no wildcard). `cloudinary-url.ts`
+ * reads that env var once at module load, so each case here reloads the
+ * module fresh via `jest.isolateModules` with the env var set (or deleted)
+ * beforehand — the only way to exercise both the "configured" and "unset"
+ * states in one file.
+ */
+describe('isSafeMediaUrl with NEXT_PUBLIC_MEDIA_HOST configured', () => {
+  const FAKE_R2_HOST = 'https://media.example.r2.dev';
+  const originalEnv = process.env.NEXT_PUBLIC_MEDIA_HOST;
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.NEXT_PUBLIC_MEDIA_HOST;
+    else process.env.NEXT_PUBLIC_MEDIA_HOST = originalEnv;
+  });
+
+  function freshModule(): typeof import('../cloudinary-url') {
+    let mod!: typeof import('../cloudinary-url');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      mod = require('../cloudinary-url');
+    });
+    return mod;
+  }
+
+  it('renders a real R2 URL once the host is configured', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = FAKE_R2_HOST;
+    const { isSafeMediaUrl, safeMediaUrl } = freshModule();
+
+    const url = `${FAKE_R2_HOST}/tour-images/abc.jpg`;
+    expect(isSafeMediaUrl(url)).toBe(true);
+    expect(safeMediaUrl(url)).toBe(url);
+  });
+
+  it('still refuses a non-allowlisted host even once R2 is configured', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = FAKE_R2_HOST;
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl('https://evil.example/tour-images/abc.jpg')).toBe(false);
+    // A lookalike host is refused for the same trailing-slash reason the
+    // Cloudinary prefix is — this is an exact-host allowlist, not a suffix one.
+    expect(isSafeMediaUrl(`${FAKE_R2_HOST}.evil.example/x.jpg`)).toBe(false);
+  });
+
+  it('still accepts Cloudinary once R2 is configured — the allowlist only grows', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = FAKE_R2_HOST;
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl('https://res.cloudinary.com/demo/image/upload/v1/cover.jpg')).toBe(true);
+  });
+
+  it('refuses an R2 URL when the env var is unset, without throwing', () => {
+    delete process.env.NEXT_PUBLIC_MEDIA_HOST;
+    const { isSafeMediaUrl, safeMediaUrl } = freshModule();
+
+    const url = `${FAKE_R2_HOST}/tour-images/abc.jpg`;
+    expect(() => isSafeMediaUrl(url)).not.toThrow();
+    expect(isSafeMediaUrl(url)).toBe(false);
+    expect(safeMediaUrl(url)).toBeUndefined();
+  });
+
+  it('tolerates a trailing slash on the configured host', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = `${FAKE_R2_HOST}/`;
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl(`${FAKE_R2_HOST}/tour-images/abc.jpg`)).toBe(true);
+  });
+});
+
 describe('the read-side and write-side prefixes agree', () => {
   /**
    * `cloudinary-url.ts` declares its own copy of the prefix rather than

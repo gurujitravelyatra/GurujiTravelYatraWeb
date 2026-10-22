@@ -32,6 +32,34 @@
 const CLOUDINARY_DELIVERY_PREFIX = 'https://res.cloudinary.com/';
 
 /**
+ * The R2 media host, for the CRM migration — CRM-migration decision 4.
+ *
+ * Read from `NEXT_PUBLIC_MEDIA_HOST`, an env var rather than a hard-coded
+ * string, because the final R2 address is not confirmed yet. `NEXT_PUBLIC_`
+ * on purpose: this is a public CDN domain, not a credential, so inlining it
+ * into the browser bundle is the correct and intended behaviour, not a leak.
+ *
+ * EXACT HOST ONLY, no wildcard — the same allowlist reasoning
+ * `CLOUDINARY_DELIVERY_PREFIX` already uses, and for the same reason the test
+ * below pins: a wildcard/suffix match is exactly what lets
+ * `res.cloudinary.com.evil.example` through.
+ *
+ * UNSET IS A SUPPORTED MODE. `next build` must not fail because this is
+ * missing — nothing here throws or reads the var at import time in a way
+ * that could — and a URL that would have matched the R2 host simply fails
+ * `isSafeMediaUrl` like any other unrecognised URL, which `PhotoPlaceholder`
+ * already turns into its neutral placeholder box rather than a broken image
+ * or a render error.
+ */
+const rawMediaHost = process.env.NEXT_PUBLIC_MEDIA_HOST;
+const MEDIA_HOST_PREFIX = rawMediaHost ? `${rawMediaHost.replace(/\/+$/, '')}/` : undefined;
+
+/** Every host prefix a stored media URL may legitimately start with. */
+function allowedMediaPrefixes(): readonly string[] {
+  return MEDIA_HOST_PREFIX ? [CLOUDINARY_DELIVERY_PREFIX, MEDIA_HOST_PREFIX] : [CLOUDINARY_DELIVERY_PREFIX];
+}
+
+/**
  * RENDER-TIME URL REFUSAL — defence in depth, added after the 2026-09-19 review.
  *
  * ## The hole
@@ -64,7 +92,7 @@ const CLOUDINARY_DELIVERY_PREFIX = 'https://res.cloudinary.com/';
  */
 export function isSafeMediaUrl(url: string | undefined | null): boolean {
   if (typeof url !== 'string') return false;
-  return url.startsWith(CLOUDINARY_DELIVERY_PREFIX);
+  return allowedMediaPrefixes().some((prefix) => url.startsWith(prefix));
 }
 
 /**
