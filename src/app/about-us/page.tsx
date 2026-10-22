@@ -4,7 +4,6 @@ import { contentAdapter } from '@/content/content-adapter';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { StatsBar } from '@/components/home/StatsBar';
 import { AboutStory } from '@/components/about/AboutStory';
-import { AboutTimeline } from '@/components/about/AboutTimeline';
 import { AboutTravellers } from '@/components/about/AboutTravellers';
 import { AboutCta } from '@/components/about/AboutCta';
 
@@ -30,14 +29,20 @@ export const metadata: Metadata = {
  * §5.8's "repeated trust stats" reuse the existing `StatsBar` composed from
  * `contentAdapter.getStats()` — the same source and the same `isPlaceholder`
  * flags Home's stats bar renders, not a second stats implementation.
+ *
+ * The "Our Journey" milestone timeline that used to render here has been
+ * REMOVED (placeholder-content decision, CRM migration audit): every entry
+ * quoted the same unconfirmed traveller/destination figures as the stats
+ * bar, and the CRM contract has no milestone/timeline equivalent to source
+ * real ones from. The page's main story/traveller/CTA copy is unaffected.
+ * Reinstating the timeline is a one-line revert of this commit.
  */
 export default async function AboutUsPage() {
-  const [milestones, stats] = await Promise.all([contentAdapter.getAboutMilestones(), contentAdapter.getStats()]);
+  const stats = await contentAdapter.getStats();
 
   return (
     <SiteShell activePath="/about-us" pageLabel="About Us">
       <AboutStory />
-      <AboutTimeline milestones={milestones} />
       <AboutTravellers />
       <StatsBar stats={stats} />
       <AboutCta />

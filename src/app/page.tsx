@@ -9,7 +9,6 @@ import { InternationalDestinationsRail } from '@/components/home/InternationalDe
 import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
 import { RecentTripsGallery } from '@/components/home/RecentTripsGallery';
-import { TestimonialsCarousel } from '@/components/home/TestimonialsCarousel';
 import { StatsBar } from '@/components/home/StatsBar';
 import { InstagramStrip } from '@/components/home/InstagramStrip';
 import { Newsletter } from '@/components/home/Newsletter';
@@ -35,7 +34,12 @@ import { Newsletter } from '@/components/home/Newsletter';
  *                            export distinct from Popular Destinations
  *                            (tech spec row 7 decision: do not invent it)
  *  9 Recent Trips gallery → [TOKENS]
- * 10 Testimonials         → [EXPORT, reconciled]
+ * 10 Testimonials         → REMOVED (placeholder-content decision — see
+ *                            memory/project_gty_content_database.md and the
+ *                            CRM migration audit: the CRM contract has no
+ *                            testimonials endpoint, and the entries here were
+ *                            never real customer reviews). Reinstating this
+ *                            section is a one-line revert of this commit.
  * 11 Stats bar            → [EXPORT]
  * 12 Instagram strip      → [TOKENS]
  * 13 Newsletter           → [TOKENS]
@@ -43,12 +47,11 @@ import { Newsletter } from '@/components/home/Newsletter';
  * 15 Footer               → SiteShell
  */
 export default async function HomePage() {
-  const [popularDestinations, internationalDestinations, featuredVideos, stats, testimonials] = await Promise.all([
+  const [popularDestinations, internationalDestinations, featuredVideos, stats] = await Promise.all([
     contentAdapter.getPopularDestinations(),
     contentAdapter.getInternationalDestinations(),
     contentAdapter.getFeaturedVideos(),
     contentAdapter.getStats(),
-    contentAdapter.getTestimonials(),
   ]);
 
   return (
@@ -66,7 +69,6 @@ export default async function HomePage() {
       <JourneyVideoBlock videos={featuredVideos} />
       <WhyGtyBand />
       <RecentTripsGallery trips={recentTripPlaceholders} />
-      <TestimonialsCarousel testimonials={testimonials} />
       <StatsBar stats={stats} />
       <InstagramStrip />
       <Newsletter />
