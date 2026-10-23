@@ -21,26 +21,28 @@ import {
 const contentAdapter = new FixtureContentAdapter();
 
 /**
- * C1 — the flag that did nothing.
+ * CRM-migration decision 1 — the `pricingUnverified` WITHHOLD gate is REMOVED.
  *
- * Three tours carry `pricingUnverified: true` because the design export
- * transcribed them twice with disagreeing prices. Nothing read the flag, so
- * they rendered full "was ₹X / Save ₹Y" discount badges exactly like a
- * confirmed tour — on three of the five cards in Home's Popular Destinations
- * rail. These tests assert the flag is now enforced at the query level, so no
- * listing anywhere can quote an unconfirmed price.
+ * These three tours still carry `pricingUnverified: true` in the fixture
+ * (the design export transcribed them twice with disagreeing prices), but
+ * `publicWithholdReason()` no longer reads that flag: the CRM's own
+ * `isLiveOnWebsite` publish gate (today's stand-in: `status`/`archivedAt`) is
+ * trusted fully instead of the website second-guessing a published price.
+ * This suite now asserts the INVERSE of what it used to — these tours are
+ * ordinary, fully-listed records.
  */
-const WITHHELD_TOURS = ['Do Dham Yatra', 'Kashi Darshan', 'Kashmir Family Escape'];
+const PREVIOUSLY_WITHHELD_TOURS = ['Do Dham Yatra', 'Kashi Darshan', 'Kashmir Family Escape'];
 
 describe('public listing gate', () => {
-  it('still holds the flagged records in the fixture — hidden, never deleted', () => {
-    // Deleting them would lose the `TODO(pricing-confirm)` audit trail and make
-    // re-including them a data-entry job rather than a one-line flag removal.
+  it('still holds the flagged records in the fixture, flag and all', () => {
+    // The flag itself is untouched — no fixture edit, no migration — only the
+    // GATE stopped reading it. Deleting the flag would be a separate, later
+    // cleanup once nothing admin-side reads it either.
     const flagged = allTours.filter((tour) => tour.pricingUnverified).map((tour) => tour.name);
-    expect(flagged.sort()).toEqual(WITHHELD_TOURS);
+    expect(flagged.sort()).toEqual(PREVIOUSLY_WITHHELD_TOURS);
   });
 
-  it('returns no pricingUnverified record from ANY public listing query', async () => {
+  it('no longer withholds a pricingUnverified record from any public listing query', async () => {
     const [tours, popular, rails] = await Promise.all([
       contentAdapter.getAllTours(),
       contentAdapter.getPopularDestinations(),
@@ -48,91 +50,63 @@ describe('public listing gate', () => {
     ]);
 
     const everythingListed = [...tours, ...popular, ...rails.flatMap((rail) => rail.items), ...(await getAllPackages())];
+    const listedNames = new Set(everythingListed.map((pkg) => pkg.name));
 
     expect(everythingListed.length).toBeGreaterThan(0);
     for (const pkg of everythingListed) {
-      expect(pkg.pricingUnverified).not.toBe(true);
+      // The predicate's own `isPubliclyListable` never disagrees with the
+      // fact that the tour is actually present in every listing query.
       expect(isPubliclyListable(pkg)).toBe(true);
     }
-  });
-
-  it('names none of the withheld tours in any listing', async () => {
-    const listedNames = new Set(
-      [
-        ...(await contentAdapter.getAllTours()),
-        ...(await contentAdapter.getPopularDestinations()),
-        ...(await contentAdapter.getPackageRails()).flatMap((rail) => rail.items),
-      ].map((pkg) => pkg.name)
-    );
-
-    for (const name of WITHHELD_TOURS) {
-      expect(listedNames.has(name)).toBe(false);
+    for (const name of PREVIOUSLY_WITHHELD_TOURS) {
+      expect(listedNames.has(name)).toBe(true);
     }
   });
 
-  it('withholds a discount badge by withholding the whole card — no listed tour quotes an unconfirmed saving', async () => {
-    for (const pkg of await contentAdapter.getAllTours()) {
-      // Every remaining "Save ₹X" on the site belongs to a confirmed record.
-      if (pkg.savingsLabel !== undefined || pkg.priceWas !== undefined) {
-        expect(pkg.pricingUnverified).toBeUndefined();
-      }
-    }
-  });
-
-  it('404s a direct /tour-packages/[slug] URL for a withheld tour (the documented choice over a "pricing pending" page)', async () => {
-    // `getPackageBySlug` returning undefined is exactly what makes the route
-    // call `notFound()`.
+  it('resolves /tour-packages/[slug] for a tour whose pricing was previously unconfirmed', async () => {
     for (const slug of ['do-dham-yatra', 'kashi-darshan', 'kashmir-family-escape']) {
-      await expect(getPackageBySlug(slug)).resolves.toBeUndefined();
+      await expect(getPackageBySlug(slug)).resolves.toBeDefined();
     }
   });
 
-  it('keeps the withheld slugs out of generateStaticParams()', async () => {
+  it('includes those slugs in generateStaticParams()', async () => {
     const slugs = (await getAllPackages()).map((pkg) => pkg.slug);
 
-    expect(slugs).not.toContain('do-dham-yatra');
-    expect(slugs).not.toContain('kashi-darshan');
-    expect(slugs).not.toContain('kashmir-family-escape');
+    expect(slugs).toContain('do-dham-yatra');
+    expect(slugs).toContain('kashi-darshan');
+    expect(slugs).toContain('kashmir-family-escape');
   });
 
-  it('still serves every confirmed tour — the gate withholds exactly 3 records and nothing else', async () => {
+  it('serves every tour in the fixture — the gate no longer withholds any of them', async () => {
     const tours = await contentAdapter.getAllTours();
 
-    expect(tours).toHaveLength(allTours.length - WITHHELD_TOURS.length);
-    expect(tours).toHaveLength(19);
+    expect(tours).toHaveLength(allTours.length);
+    expect(tours).toHaveLength(22);
   });
 
-  it('narrows the Popular rail rather than back-filling it with substitutes', async () => {
+  it('serves the full Popular rail, not a narrowed one', async () => {
     const popular = await contentAdapter.getPopularDestinations();
 
-    // 3 of the export's 5 popular tours are withheld. The honest result is a
-    // shorter rail, not two invented replacements.
-    expect(popular).toHaveLength(2);
-    expect(popular.map((pkg) => pkg.name)).toEqual([
-      'Spiti Valley Bike Trip',
-      'Leh Ladakh Group Trip from Delhi',
-    ]);
+    expect(popular).toHaveLength(5);
     expect(popularPackages).toHaveLength(5);
   });
 
-  it('keeps all 4 rails, narrowing the one that held the flagged tours', async () => {
+  it('keeps all 4 rails at full strength — nothing is narrowed any more', async () => {
     const rails = await contentAdapter.getPackageRails();
 
     expect(rails).toHaveLength(4);
     expect(rails[0].title).toBe('Trending Tour Packages');
-    expect(rails[0].items).toHaveLength(2);
+    expect(rails[0].items).toHaveLength(5);
     for (const rail of rails.slice(1)) {
       expect(rail.items).toHaveLength(5);
     }
   });
 
-  it('re-including a tour is a one-line flag removal, not a data migration', () => {
-    const withheld = allTours.find((tour) => tour.name === 'Do Dham Yatra');
-    expect(withheld).toBeDefined();
-
-    // Same object, flag cleared → immediately listable. Nothing else to edit.
-    expect(isPubliclyListable({ ...withheld!, pricingUnverified: undefined })).toBe(true);
-    expect(isPubliclyListable(withheld!)).toBe(false);
+  it('a pricingUnverified record is listable — the flag no longer gates visibility', () => {
+    const tour = allTours.find((item) => item.name === 'Do Dham Yatra');
+    expect(tour).toBeDefined();
+    expect(tour!.pricingUnverified).toBe(true);
+    expect(isPubliclyListable(tour!)).toBe(true);
   });
 });
 
@@ -145,12 +119,13 @@ describe('getDestinationOptions', () => {
     }
   });
 
-  it('drops destinations whose only journeys are withheld', () => {
+  it('includes destinations reachable only through a previously price-unconfirmed tour', () => {
     const slugs = getDestinationOptions(toursRenderedOnCataloguePage).map((option) => option.slug);
 
-    // Kedarnath/Varanasi are reachable only through withheld tours.
-    expect(slugs).not.toContain('kedarnath');
-    expect(slugs).not.toContain('varanasi');
+    // Kedarnath/Varanasi are reachable only through tours that used to carry
+    // pricingUnverified; the gate no longer withholds them.
+    expect(slugs).toContain('kedarnath');
+    expect(slugs).toContain('varanasi');
   });
 
   it('de-duplicates destinations served by several tours', () => {
@@ -184,6 +159,9 @@ describe('getPriceRange', () => {
   it('reports the true bounds of the catalogue', () => {
     const range = getPriceRange(toursRenderedOnCataloguePage);
 
+    // Unaffected by decision 1: the three previously-withheld tours
+    // (₹16,400 / ₹28,900 / ₹34,200) all sit strictly between the catalogue's
+    // real min and max, so including them does not move either bound.
     expect(range).toEqual({ min: 12800, max: 78500, label: '₹12,800 — ₹78,500' });
   });
 

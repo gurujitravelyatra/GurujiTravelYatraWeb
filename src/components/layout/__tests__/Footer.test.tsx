@@ -55,14 +55,15 @@ describe('Footer', () => {
       }
     });
 
-    it('no longer advertises destinations whose only tours are withheld (Kedarnath/Badrinath/Varanasi)', () => {
+    it('advertises Kedarnath and Varanasi — CRM-migration decision 1 stopped withholding their tours', () => {
       render(<Footer />);
 
-      // Those three tours are `pricingUnverified` and withheld from every
-      // public listing, so a footer link promising them would lead to an
-      // empty catalogue.
-      for (const name of ['Kedarnath', 'Badrinath', 'Varanasi', 'Kedarnath Yatra', 'Badrinath Yatra']) {
-        expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      // Do Dham Yatra (Kedarnath) and Kashi Darshan (Varanasi) used to carry
+      // `pricingUnverified` and be withheld from every public listing. The
+      // website no longer second-guesses a published tour's price, so these
+      // destinations now have a real, non-empty catalogue behind them.
+      for (const name of ['Kedarnath', 'Varanasi']) {
+        expect(screen.getByRole('link', { name })).toBeInTheDocument();
       }
     });
   });

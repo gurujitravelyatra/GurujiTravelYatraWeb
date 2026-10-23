@@ -4,32 +4,44 @@ import { publicWithholdReason } from '@/content/public-listing';
 import type { AdminTourListItem, AdminTourDetail } from '@/server/admin/tours/tour-repository';
 
 /**
- * H1 — THE ADMIN MUST NOT CLAIM A TOUR IS LIVE WHEN THE PUBLIC GATE WITHHOLDS IT.
+ * H1, historical — THE ADMIN MUST NOT CLAIM A TOUR IS LIVE WHEN THE PUBLIC
+ * GATE WITHHOLDS IT.
  *
- * `Tour.pricingUnverified` withholds a tour from every public surface: no card,
- * no rail, no catalogue row, and `/tour-packages/[slug]` returns 404. The admin
- * CMS was the one surface that did not know. It showed a green "Published" pill,
- * offered a "View on site ↗" link to a page that 404s, and printed "Saved and
- * published. This tour is now visible on the public site." — three claims, all
- * false, for the same three tours.
+ * `Tour.pricingUnverified` used to withhold a tour from every public surface:
+ * no card, no rail, no catalogue row, and `/tour-packages/[slug]` returned
+ * 404. The admin CMS was the one surface that did not know — it showed a
+ * green "Published" pill, offered a "View on site ↗" link to a page that
+ * 404'd, and printed "Saved and published. This tour is now visible on the
+ * public site." for a tour that was not. That was fixed by composing every
+ * admin claim out of `publicWithholdReason()`, the same predicate the public
+ * site itself runs.
  *
- * That is the eighth instance of the pattern in
- * `memory/feedback_qg_unenforced-safety-flag.md`, and this time with a twist
- * worth naming: the flag WAS enforced. `isPubliclyListable()` reads it and
- * withholds correctly. What was un-enforced was the flag's VISIBILITY to the
- * person whose job is to notice — so the tell-tale in that memory ("grep the
- * flag name; if the only hits are the definition, the data and a test") gave a
- * false all-clear, because the definition and a real consumer both existed.
+ * ## CRM-migration decision 1 removed the condition this test file guarded
+ *
+ * The website no longer withholds ANY tour for an unconfirmed price — the
+ * CRM's own `isLiveOnWebsite` publish gate (today's stand-in:
+ * `status`/`archivedAt`) is trusted fully instead. `publicWithholdReason()`
+ * can no longer return `'PRICE_UNCONFIRMED'`, so there is no longer a case
+ * where a PUBLISHED, unarchived tour disagrees with the admin's pill. The
+ * admin's "withheld — price unconfirmed" banner, the "Publish in CMS only"
+ * button label and the `withheldFromPublicSite` prop were all removed as
+ * dead code that could never trigger again (`src/app/admin/tours/page.tsx`,
+ * `src/app/admin/tours/[id]/edit/page.tsx`, `src/components/admin/TourForm.tsx`).
+ *
+ * This file now asserts the INVERSE of what it used to for a
+ * `pricingUnverified` tour (it is an ordinary admin row in every respect),
+ * and keeps the still-genuine cross-check for DRAFT/ARCHIVED, which decision
+ * 1 did not touch.
  *
  * ## These tests render the real page components
  *
  * Not a helper, not the predicate in isolation — the predicate has its own
- * tests and passing them is what the old code did too. The assertion that means
- * something is that the STRING a human reads changes, so the pages are rendered
- * with `renderToStaticMarkup` (the server renderer Next uses) and the markup is
- * searched. `react-dom/server.node` explicitly: under jsdom the bare
- * `react-dom/server` specifier resolves to the browser build and throws on
- * import — the same trap `stored-xss-render.test.tsx` records.
+ * tests and passing them is what the old code did too. The assertion that
+ * means something is that the STRING a human reads is correct, so the pages
+ * are rendered with `renderToStaticMarkup` (the server renderer Next uses)
+ * and the markup is searched. `react-dom/server.node` explicitly: under
+ * jsdom the bare `react-dom/server` specifier resolves to the browser build
+ * and throws on import — the same trap `stored-xss-render.test.tsx` records.
  */
 
 const mockRequireAdminSession = jest.fn();
@@ -58,8 +70,8 @@ jest.mock('@/server/uploads/cloudinary', () => ({
  * The editor is a large client component with `useActionState`, file inputs and
  * `XMLHttpRequest` progress — none of which is what this file is about, and all
  * of which would make the edit page untestable server-side. It is replaced by a
- * stub that ECHOES the one prop under test, so the assertion is still on a value
- * the real component receives rather than on a mock's existence.
+ * stub that renders a fixed marker, so the page under test still gets a real
+ * component tree.
  */
 /**
  * The list page imports its server actions, and `actions.ts` imports
@@ -75,9 +87,7 @@ jest.mock('../tours/actions', () => ({
 }));
 
 jest.mock('@/components/admin/TourForm', () => ({
-  TourForm: (props: { withheldFromPublicSite?: boolean }) => (
-    <div data-testid="tour-form" data-withheld={String(props.withheldFromPublicSite ?? false)} />
-  ),
+  TourForm: () => <div data-testid="tour-form" />,
 }));
 
 import AdminToursPage from '../tours/page';
@@ -161,114 +171,71 @@ async function renderEditPage(
   return renderToStaticMarkup(element);
 }
 
-describe('the tour LIST names a withheld tour as withheld', () => {
-  it('renders the reason next to the Published pill', async () => {
+describe('the tour LIST treats a pricingUnverified tour exactly like any other published tour', () => {
+  it('renders the Published pill and nothing else about the (removed) price-withholding reason', async () => {
     const html = await renderToursPage([BASE_ROW]);
 
-    // The pill is still there — the tour genuinely IS published in the CMS, and
-    // hiding that would be a different lie.
     expect(html).toContain('Published');
-    expect(html).toContain('Withheld from the public site');
-    expect(html).toContain('price unconfirmed');
-  });
-
-  it('does NOT put that reason on an ordinary published tour', async () => {
-    // The complement, and the half that stops this passing vacuously: a test
-    // asserting only the presence of a string would pass just as well if the
-    // banner rendered on every row, which would train the admin to ignore it.
-    const html = await renderToursPage([{ ...BASE_ROW, pricingUnverified: false }]);
-
-    expect(html).toContain('Published');
+    // The banner this used to assert is gone: there is no condition left
+    // under which `publicWithholdReason()` can disagree with this pill.
     expect(html).not.toContain('Withheld from the public site');
+    expect(html).not.toContain('price unconfirmed');
   });
 
-  it('does not offer a plain “Publish” button for a withheld draft', async () => {
-    // Pressing Publish on a withheld tour moves `status` and changes nothing a
-    // visitor can see. The button must not promise otherwise.
+  it('offers a plain "Publish" button for a draft, even a price-unconfirmed one', async () => {
+    // Pressing Publish on any draft now does exactly what it says: the CRM's
+    // own publish gate (today's stand-in: status/archivedAt) is the only
+    // thing left that decides visibility.
     const html = await renderToursPage([
       { ...BASE_ROW, lifecycle: 'DRAFT', status: 'DRAFT', pricingUnverified: true },
     ]);
 
-    expect(html).toContain('Publish in CMS only');
+    expect(html).toContain('>Publish<');
+    expect(html).not.toContain('Publish in CMS only');
   });
 });
 
-describe('the tour EDITOR explains a withheld tour and links nowhere broken', () => {
-  it('renders the banner', async () => {
+describe('the tour EDITOR treats a pricingUnverified tour exactly like any other published tour', () => {
+  it('renders no withheld banner', async () => {
     const html = await renderEditPage(detail());
 
-    expect(html).toContain('Withheld from the public site');
-    expect(html).toContain('price unconfirmed');
+    expect(html).not.toContain('Withheld from the public site');
+    expect(html).not.toContain('cannot be cleared from this screen');
   });
 
-  it('says the flag cannot be cleared from this screen', async () => {
-    // The user's explicit decision (2026-09-19): badge and banner only, no
-    // clear/confirm action. The banner has to say so, or the admin's next move
-    // is to hunt for a control that does not exist.
+  it('offers "View on site", because the page no longer 404s for this tour', async () => {
     const html = await renderEditPage(detail());
-
-    expect(html).toContain('cannot be cleared from this screen');
-    expect(html).toContain('pricingUnverified');
-  });
-
-  it('withholds the “View on site” link, because that page 404s', async () => {
-    const html = await renderEditPage(detail());
-
-    expect(html).not.toContain('View on site');
-    expect(html).not.toContain('href="/tour-packages/do-dham-yatra"');
-  });
-
-  it('still offers “View on site” for a tour that really is live', async () => {
-    // Guards the guard: an assertion that the link is ABSENT passes just as
-    // well if the link were removed altogether.
-    const html = await renderEditPage(detail({ pricingUnverified: false }));
 
     expect(html).toContain('View on site');
     expect(html).toContain('/tour-packages/do-dham-yatra');
   });
 
-  it('does not say a withheld tour is “now visible on the public site” after saving', async () => {
+  it('says the tour is "now visible on the public site" after a publish — truthfully, since it now is', async () => {
     const html = await renderEditPage(detail(), { saved: 'publish' });
 
-    expect(html).not.toContain('now visible on the public site');
-    expect(html).toContain('still NOT visible on the public site');
-  });
-
-  it('DOES say so for a tour that really is live', async () => {
-    const html = await renderEditPage(detail({ pricingUnverified: false }), { saved: 'publish' });
-
     expect(html).toContain('now visible on the public site');
-  });
-
-  it('tells the form that this tour is withheld', async () => {
-    // The Publish button's label and the sentence beneath it are the form's
-    // half of the same claim.
-    expect(await renderEditPage(detail())).toContain('data-withheld="true"');
-    expect(await renderEditPage(detail({ pricingUnverified: false }))).toContain(
-      'data-withheld="false"'
-    );
+    expect(html).not.toContain('still NOT visible on the public site');
   });
 });
 
 /**
- * THE INVARIANT.
+ * THE INVARIANT, NARROWED TO WHAT CAN STILL VARY.
  *
- * The two tests above check the copy on two screens. This one checks the
- * property the copy is a rendering of, over arbitrary data: the admin's view of
- * "what is live" and the public site's view of "what is live" cannot silently
- * disagree. Either the public catalogue contains the slug, or the admin row is
- * marked withheld WITH a reason — never neither.
- *
- * Stated as a cross-check rather than as "the badge renders", because the
- * failure this guards against is a FOURTH condition being added to
- * `publicWithholdReason()` later and the admin not learning about it. A reason
- * string the admin does not render is a test failure here, not a silent
- * regression.
+ * `publicWithholdReason()` keeps exactly two reasons now (`DRAFT`,
+ * `ARCHIVED`); this checks the admin's view of "what is live" and the public
+ * site's view cannot silently disagree about either one. Stated as a
+ * cross-check rather than as "the badge renders", because the failure this
+ * guards against is a NEW withholding condition being added to
+ * `publicWithholdReason()` later and the admin not learning about it.
  */
 describe('the admin list and the public catalogue cannot disagree about what is live', () => {
   const CASES: { label: string; row: AdminTourListItem; inPublicCatalogue: boolean }[] = [
     { label: 'an ordinary published tour', row: { ...BASE_ROW, pricingUnverified: false }, inPublicCatalogue: true },
-    { label: 'a price-unconfirmed tour', row: BASE_ROW, inPublicCatalogue: false },
+    {
+      label: 'a published tour with pricingUnverified set (no longer withheld)',
+      row: BASE_ROW,
+      inPublicCatalogue: true,
+    },
     {
       label: 'a draft',
       row: { ...BASE_ROW, lifecycle: 'DRAFT', status: 'DRAFT', pricingUnverified: false },
@@ -315,21 +282,13 @@ describe('the admin list and the public catalogue cannot disagree about what is 
     }
   );
 
-  it('renders a visible explanation for EVERY withheld case, not only the flagged one', async () => {
-    /**
-     * The generalisation of the two copy tests above, and the thing that fails
-     * when a fourth withholding condition is added without admin copy: every
-     * row the public gate withholds must render SOMETHING beyond the bare
-     * lifecycle pill or a word naming its state.
-     */
+  it('renders a visible explanation for EVERY withheld case', async () => {
     for (const testCase of CASES.filter((c) => !c.inPublicCatalogue)) {
       const html = await renderToursPage([testCase.row]);
       const reason = publicWithholdReason(testCase.row);
 
       const explained =
-        (reason === 'DRAFT' && html.includes('Draft')) ||
-        (reason === 'ARCHIVED' && html.includes('Archived')) ||
-        (reason === 'PRICE_UNCONFIRMED' && html.includes('Withheld from the public site'));
+        (reason === 'DRAFT' && html.includes('Draft')) || (reason === 'ARCHIVED' && html.includes('Archived'));
 
       expect({ reason, explained }).toEqual({ reason, explained: true });
     }

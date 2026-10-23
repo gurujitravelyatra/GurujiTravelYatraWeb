@@ -12,11 +12,18 @@ import type { Package } from '@/content/types';
  * F4 — the rails render fewer cards than the design assumed, and the layout
  * never noticed.
  *
- * Withholding the three `pricingUnverified` tours took Popular Destinations
- * from 5 cards to 2. The grid still declared five columns, the dot indicator
- * still drew five dots, and `PackageRail`'s scroll arrow still appeared for a
- * row with nothing to scroll. Each of those is a piece of UI asserting there is
- * more content than there is.
+ * Originally found via the `pricingUnverified` withholding gate, which used
+ * to take Popular Destinations from 5 cards to 2: the grid still declared
+ * five columns, the dot indicator still drew five dots, and `PackageRail`'s
+ * scroll arrow still appeared for a row with nothing to scroll. Each of
+ * those is a piece of UI asserting there is more content than there is.
+ *
+ * CRM-migration decision 1 removed that withholding gate, so the live
+ * fixture's Popular Destinations rail is back to all 5 cards and no longer
+ * exercises the sparse case on its own. The adaptive-layout rule this suite
+ * guards is independent of WHY a rail might be short, so the tests that need
+ * a genuinely sparse list now build one explicitly (a slice of the real,
+ * confirmed data) rather than relying on the fixture to happen to be sparse.
  */
 
 /** jsdom reports 0 for every layout measurement, so overflow must be simulated. */
@@ -40,6 +47,13 @@ function withRowOverflow(scrollWidth: number, clientWidth: number, body: () => v
 }
 
 const TRENDING = publiclyListedRails.find((rail) => rail.title.includes('Trending'));
+/**
+ * A genuinely sparse 2-item slice for the arrow tests below. `TRENDING!.items`
+ * itself is back to 5 items since CRM-migration decision 1 removed the
+ * pricingUnverified withholding gate — these tests build their own sparse
+ * sample rather than relying on the fixture to stay naturally short.
+ */
+const SPARSE_TRENDING_ITEMS = TRENDING!.items.slice(0, 2);
 
 describe('Popular Destinations adapts to how many cards there actually are', () => {
   it('declares exactly as many grid columns as it has cards', () => {
@@ -53,12 +67,14 @@ describe('Popular Destinations adapts to how many cards there actually are', () 
   });
 
   it('no longer hardcodes the five-column ladder the design was drawn against', () => {
-    // The live fixture currently yields 2 listable popular tours. If confirmed
-    // pricing ever restores the other three, the assertion below flips
-    // automatically — the point is that the grid tracks the data either way.
-    expect(publiclyListedPopular.length).toBeLessThan(5);
+    // A synthetic sparse sample — the real fixture is back to 5 cards since
+    // CRM-migration decision 1 removed the pricingUnverified withholding
+    // gate, so it no longer exercises this case on its own. The point is
+    // that the grid tracks WHATEVER count it is given, not a fixed five.
+    const sparse = publiclyListedPopular.slice(0, 2);
+    expect(sparse.length).toBeLessThan(5);
 
-    render(<PopularDestinationsSection packages={publiclyListedPopular} />);
+    render(<PopularDestinationsSection packages={sparse} />);
     expect(screen.getByTestId('popular-destinations-grid').className).not.toMatch(/grid-cols-5/);
   });
 
@@ -87,24 +103,24 @@ describe('Popular Destinations adapts to how many cards there actually are', () 
 });
 
 describe('a rail offers a scroll arrow only when there is somewhere to scroll', () => {
-  it('hides the arrow on the 2-card Trending rail, which fits on screen', () => {
+  it('hides the arrow on a short 2-card rail, which fits on screen', () => {
     expect(TRENDING).toBeDefined();
 
-    render(<PackageRail title={TRENDING!.title} items={TRENDING!.items} background="white" onViewAll={jest.fn()} />);
+    render(<PackageRail title={TRENDING!.title} items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
 
     expect(screen.queryByRole('button', { name: `Scroll ${TRENDING!.title}` })).not.toBeInTheDocument();
   });
 
   it('shows it again once the row genuinely overflows', () => {
     withRowOverflow(1200, 400, () => {
-      render(<PackageRail title="Trending" items={TRENDING!.items} background="white" onViewAll={jest.fn()} />);
+      render(<PackageRail title="Trending" items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
       expect(screen.getByRole('button', { name: 'Scroll Trending' })).toBeInTheDocument();
     });
   });
 
   it('treats a sub-pixel rounding difference as "fits", not as overflow', () => {
     withRowOverflow(400.5, 400, () => {
-      render(<PackageRail title="Trending" items={TRENDING!.items} background="white" onViewAll={jest.fn()} />);
+      render(<PackageRail title="Trending" items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
       expect(screen.queryByRole('button', { name: 'Scroll Trending' })).not.toBeInTheDocument();
     });
   });

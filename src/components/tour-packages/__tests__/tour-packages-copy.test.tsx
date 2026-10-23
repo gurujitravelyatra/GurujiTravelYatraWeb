@@ -63,13 +63,14 @@ describe('/tour-packages rendered copy claims nothing the product cannot back', 
     expect(container.textContent ?? '').not.toMatch(/₹15,000 — ₹75,000/);
   });
 
-  it('shows no "Save ₹…" badge for a tour whose pricing is unconfirmed', () => {
+  it('renders the three previously price-unconfirmed tours like any other card (CRM-migration decision 1)', () => {
     renderPage();
 
-    // C1 cross-check at the render layer: the three withheld tours are the
-    // only unconfirmed prices, and none of their cards exist here.
+    // The website no longer withholds a tour for an unconfirmed price — the
+    // CRM's own isLiveOnWebsite publish gate is trusted fully instead — so
+    // these three cards exist here same as before, each with its real price.
     for (const name of ['Do Dham Yatra', 'Kashi Darshan', 'Kashmir Family Escape']) {
-      expect(screen.queryByRole('link', { name: new RegExp(name) })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: new RegExp(name) })).toBeInTheDocument();
     }
   });
 });

@@ -55,8 +55,13 @@ import { GET as getBrochure } from '../brochures/[slug]/route';
  * clause, to prove the predicate rather than the SQL is the gate.)
  */
 
-/** Tours the catalogue withholds — read from the fixture so this cannot drift. */
-const withheldTours = allTours.filter((tour) => tour.pricingUnverified === true);
+/**
+ * Tours that carry `pricingUnverified` in the fixture — read so this cannot
+ * drift. CRM-migration decision 1 means these are no longer withheld: the
+ * flag is still real data, but `isPubliclyListable()` stopped reading it, so
+ * every one of these is an ordinary, fully-listed tour now.
+ */
+const previouslyWithheldTours = allTours.filter((tour) => tour.pricingUnverified === true);
 
 async function bodyOf(response: Response): Promise<{ data?: unknown; error?: string; fields?: unknown }> {
   return (await response.json()) as { data?: unknown; error?: string; fields?: unknown };
@@ -80,13 +85,15 @@ describe('GET /api/tours', () => {
     expect((body.data as unknown[]).length).toBeGreaterThan(0);
   });
 
-  it('never returns a tour the catalogue withholds', async () => {
+  it('returns every tour, including ones whose pricing was previously unconfirmed (CRM-migration decision 1)', async () => {
+    expect(previouslyWithheldTours.length).toBeGreaterThan(0);
+
     const response = await getTours(toursRequest());
     const tours = (await bodyOf(response)).data as Array<{ slug: string }>;
 
     const returned = new Set(tours.map((tour) => tour.slug));
-    for (const withheld of withheldTours) {
-      expect(returned.has(withheld.slug)).toBe(false);
+    for (const tour of previouslyWithheldTours) {
+      expect(returned.has(tour.slug)).toBe(true);
     }
   });
 
@@ -155,50 +162,34 @@ describe('GET /api/tours/[slug]', () => {
   });
 
   /**
-   * THE REGRESSION THIS ROUTE EXISTS TO NOT CAUSE.
-   *
-   * `memory/feedback_qg_unenforced-safety-flag.md` records four occurrences of a
-   * safety flag that failed to reach a newly built surface — most recently
-   * `/group-tours` republishing a price `/tour-packages` withholds. A brand-new
-   * public JSON endpoint addressable by slug is the textbook fifth opportunity.
-   *
-   * Asserted on the RESPONSE, never on the flag's presence: a test that checks
-   * `tour.pricingUnverified === true` passes whether or not anything acts on it.
+   * CRM-migration decision 1 reversed this test's premise. It used to assert
+   * a 404 that leaked nothing about a withheld tour; it now asserts the
+   * opposite — a tour whose price was previously "unconfirmed" is an
+   * ordinary 200 with its real data, because the website no longer
+   * second-guesses the CRM's own publish decision on that basis.
    */
-  it('404s for a withheld tour, and leaks nothing about it', async () => {
-    expect(withheldTours.length).toBeGreaterThan(0);
+  it('200s for a tour whose pricing was previously unconfirmed, with its real data', async () => {
+    expect(previouslyWithheldTours.length).toBeGreaterThan(0);
 
-    for (const withheld of withheldTours) {
+    for (const tour of previouslyWithheldTours) {
       const response = await getTourBySlug(
-        new Request(`http://localhost/api/tours/${withheld.slug}`),
-        slugContext(withheld.slug)
+        new Request(`http://localhost/api/tours/${tour.slug}`),
+        slugContext(tour.slug)
       );
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
 
-      const serialised = JSON.stringify(await bodyOf(response));
-      // No price, no savings label, no confirmation the record exists.
-      expect(serialised).not.toContain(withheld.priceFrom);
-      if (withheld.savingsLabel) expect(serialised).not.toContain(withheld.savingsLabel);
-      expect(serialised).not.toContain(withheld.name);
+      const body = await bodyOf(response);
+      expect(body.data).toEqual(expect.objectContaining({ slug: tour.slug, name: tour.name }));
     }
   });
 
-  it('404s for a nonexistent slug, indistinguishably from a withheld one', async () => {
+  it('still 404s for a genuinely nonexistent slug', async () => {
     const missing = await getTourBySlug(
       new Request('http://localhost/api/tours/not-a-real-tour'),
       slugContext('not-a-real-tour')
     );
     expect(missing.status).toBe(404);
-
-    const withheld = await getTourBySlug(
-      new Request(`http://localhost/api/tours/${withheldTours[0].slug}`),
-      slugContext(withheldTours[0].slug)
-    );
-
-    // Same status and same body shape — a caller cannot tell the two apart and
-    // therefore cannot enumerate which tours carry unconfirmed pricing.
-    expect(Object.keys(await bodyOf(withheld))).toEqual(Object.keys(await bodyOf(missing)));
   });
 
   it('returns JSON, not an HTML 404 page', async () => {

@@ -9,19 +9,17 @@ describe('FixtureContentAdapter', () => {
     for (const rail of rails) {
       expect(typeof rail.title).toBe('string');
       expect(rail.title.length).toBeGreaterThan(0);
-      for (const item of rail.items) {
-        expect(item.pricingUnverified).not.toBe(true);
-      }
     }
 
-    // The Trending rail held all 3 withheld tours, so it keeps 2 of 5; the
-    // other three rails are untouched.
-    expect(rails.map((rail) => rail.items.length)).toEqual([2, 5, 5, 5]);
+    // CRM-migration decision 1: the pricingUnverified WITHHOLD gate is
+    // removed (the CRM's own isLiveOnWebsite publish gate is trusted fully
+    // instead), so every rail is at full strength — nothing is narrowed.
+    expect(rails.map((rail) => rail.items.length)).toEqual([5, 5, 5, 5]);
   });
 
-  it('getAllTours() resolves every publicly-listable tour exactly once (19 = 22 records - 3 withheld)', async () => {
+  it('getAllTours() resolves every tour in the fixture exactly once (22 — nothing withheld for price)', async () => {
     const tours = await adapter.getAllTours();
-    expect(tours).toHaveLength(19);
+    expect(tours).toHaveLength(22);
 
     const slugs = tours.map((tour) => tour.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
@@ -42,8 +40,9 @@ describe('FixtureContentAdapter', () => {
 
   it('getPopularDestinations() resolves the publicly-listable selection in Package shape', async () => {
     const popular = await adapter.getPopularDestinations();
-    // 3 of the export's 5 popular tours are pricingUnverified and withheld.
-    expect(popular).toHaveLength(2);
+    // CRM-migration decision 1: 3 of the export's 5 popular tours carry
+    // pricingUnverified, but that no longer withholds them — all 5 are listed.
+    expect(popular).toHaveLength(5);
     for (const item of popular) {
       expect(item).toEqual(
         expect.objectContaining({

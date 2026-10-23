@@ -2,6 +2,7 @@ import {
   deriveSavingsLabel,
   formatRupees,
   groupIndian,
+  hasConfirmedTourPrice,
   parseRupeeAmount,
   readStoredRupeeAmount,
 } from '../rupees';
@@ -70,6 +71,39 @@ describe('Indian digit grouping, independent of the runtime’s ICU data', () =>
     for (const amount of [1, 999, 1000, 42500, 120000, 9876543]) {
       expect(parseRupeeAmount(formatRupees(amount))).toBe(amount);
     }
+  });
+});
+
+/**
+ * CRM-migration decision 1's rider: the website no longer withholds a whole
+ * tour for an unconfirmed price, but it must never print "₹0" or a blank
+ * figure for one that arrives missing or reading as zero. This is the
+ * predicate every price render site (`PackageCard`, the detail page) checks
+ * before choosing between the real figure and `PriceOnRequest`.
+ */
+describe('hasConfirmedTourPrice — the render-time fallback boundary (CRM-migration decision 1)', () => {
+  it('is true for a real, positive, canonical price', () => {
+    expect(hasConfirmedTourPrice('₹42,500')).toBe(true);
+    expect(hasConfirmedTourPrice('₹999')).toBe(true);
+  });
+
+  it('is true for a tolerantly-readable stored price, even if not canonical', () => {
+    expect(hasConfirmedTourPrice('₹42500')).toBe(true);
+    expect(hasConfirmedTourPrice(' ₹ 1,20,000 ')).toBe(true);
+  });
+
+  it('is false for a missing price', () => {
+    expect(hasConfirmedTourPrice(undefined)).toBe(false);
+    expect(hasConfirmedTourPrice('')).toBe(false);
+  });
+
+  it('is false for a price that reads as zero — never renders "₹0"', () => {
+    expect(hasConfirmedTourPrice('₹0')).toBe(false);
+  });
+
+  it('is false for text that is not a real number, rather than inventing one', () => {
+    expect(hasConfirmedTourPrice('On request')).toBe(false);
+    expect(hasConfirmedTourPrice('₹42,500 per 2 pax')).toBe(false);
   });
 });
 

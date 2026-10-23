@@ -46,21 +46,6 @@ interface TourFormProps {
    */
   uploadsEnabled?: boolean;
   /**
-   * True when the public site withholds this tour NO MATTER WHAT this form does
-   * — today, only `pricingUnverified`.
-   *
-   * Resolved on the server by `publicWithholdReason()`, the public gate itself,
-   * and passed down as a boolean rather than re-derived here: the browser has no
-   * business owning a copy of a visibility rule, and a second copy is how the
-   * admin's claim and the site's behaviour came to disagree in the first place.
-   *
-   * It does NOT disable Publish. Publishing a withheld tour is still a
-   * meaningful act — it records the editorial state, and the tour appears the
-   * moment the price is confirmed. What it must not do is TELL the admin the
-   * tour is now live.
-   */
-  withheldFromPublicSite?: boolean;
-  /**
    * M7: the tour's `updatedAt` (ISO) when this editor was loaded. Posted back
    * as `expectedUpdatedAt`; the save is refused if anyone has saved since.
    * Required whenever `editingSlug` is set — the action refuses an edit without it.
@@ -132,7 +117,6 @@ export function TourForm({
   isPublished = false,
   publishBlocked = false,
   uploadsEnabled = false,
-  withheldFromPublicSite = false,
   versionToken,
   departureVisibility = 'NEW',
   departureMarkers = {},
@@ -772,25 +756,21 @@ export function TourForm({
           disabled={pending}
           onClick={() => void submitWith('publish')()}
         >
-          {pending ? 'Saving…' : withheldFromPublicSite ? 'Publish in CMS only' : 'Publish'}
+          {pending ? 'Saving…' : 'Publish'}
         </Button>
 
         {/*
-          Both of these sentences claimed a visibility the code could not
-          promise. "This tour is live" was printed for every published tour
-          including the withheld ones, and "Save as Draft will remove it from
-          the public site" described removing something that was never there.
-
-          The withheld case is therefore its own branch rather than a qualifier
-          bolted onto the other two — it is a different fact about the tour, not
-          a softening of the same one.
+          CRM-migration decision 1 removed the `pricingUnverified` WITHHOLD
+          gate: the CRM's own publish decision is trusted fully, so Publish
+          always means the tour becomes visible (subject only to the
+          draft/archived state these two sentences already cover). The
+          former third branch here ("withheld while its price is
+          unconfirmed") described a state that can no longer occur.
         */}
         <p className="text-12 text-gty-subtle">
-          {withheldFromPublicSite
-            ? 'This tour is withheld from the public site while its price is unconfirmed. Publishing records its CMS status; it will not appear on the site either way.'
-            : isPublished
-              ? 'This tour is live. “Save as Draft” will remove it from the public site.'
-              : 'Drafts are never visible on the public site.'}
+          {isPublished
+            ? 'This tour is live. “Save as Draft” will remove it from the public site.'
+            : 'Drafts are never visible on the public site.'}
         </p>
       </div>
     </form>

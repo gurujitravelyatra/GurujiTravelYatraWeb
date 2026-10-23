@@ -266,28 +266,24 @@ describe('PrismaContentAdapter — uploaded media reaches the public surfaces (P
 
 describe('PrismaContentAdapter — the public-listing gate is enforced, not merely queried', () => {
   /**
-   * THE test of this change. `memory/feedback_qg_unenforced-safety-flag.md`
-   * records four occurrences of a safety flag that existed as data and did
-   * nothing at runtime, and porting content into a database is exactly the
-   * moment a flag decays into an inert column.
+   * CRM-migration decision 1 — the inverse of what this test used to assert.
    *
-   * The mock deliberately IGNORES the `where` clause and returns a flagged row
-   * anyway — simulating a query that drifts, a stale view, or a hand-written
-   * `findMany` added later without the filter. The adapter must still withhold
-   * it, because the gate is the shared `isPubliclyListable` predicate and the
-   * `where` clause is only an optimisation.
+   * `pricingUnverified` is still a real column (no migration, no field
+   * removal), but `isPubliclyListable()` no longer reads it: the CRM's own
+   * `isLiveOnWebsite` publish gate (today's stand-in: `status`/`archivedAt`)
+   * is trusted fully instead of the website second-guessing a published
+   * price. A flagged row is listed exactly like any other published,
+   * unarchived tour.
    */
-  it('withholds a pricingUnverified tour even when the query returns one', async () => {
+  it('no longer withholds a pricingUnverified tour — the CRM publish gate is trusted fully', async () => {
     const { client } = mockPrisma({
       tour: [tourRow({ slug: 'do-dham-yatra', pricingUnverified: true }), tourRow()],
     });
 
     const tours = await new PrismaContentAdapter(client).getAllTours();
 
-    expect(tours.map((tour) => tour.slug)).toEqual(['spiti-valley-circuit']);
-    for (const tour of tours) {
-      expect(tour.pricingUnverified).not.toBe(true);
-    }
+    expect(tours.map((tour) => tour.slug).sort()).toEqual(['do-dham-yatra', 'spiti-valley-circuit']);
+    expect(tours.find((tour) => tour.slug === 'do-dham-yatra')?.pricingUnverified).toBe(true);
   });
 
   /**
@@ -364,11 +360,15 @@ describe('PrismaContentAdapter — the public-listing gate is enforced, not mere
     // its tour's title, itinerary summary and price under a different URL, so a
     // gate that covered tours and not brochures would be variant 4 of the memory
     // — a sibling surface the gate silently did not reach.
+    //
+    // CRM-migration decision 1 removed `pricingUnverified` from this clause:
+    // a brochure for a previously price-unconfirmed tour is no longer withheld
+    // on that basis.
     const { client, calls } = mockPrisma({ brochure: [brochureRow()] });
     await new PrismaContentAdapter(client).getBrochures();
 
     expect(calls.brochure).toMatchObject({
-      where: { tour: { status: 'PUBLISHED', archivedAt: null, pricingUnverified: false } },
+      where: { tour: { status: 'PUBLISHED', archivedAt: null } },
     });
   });
 
@@ -382,14 +382,16 @@ describe('PrismaContentAdapter — the public-listing gate is enforced, not mere
     );
   });
 
-  it('withholds a flagged tour from the popular selection too', async () => {
+  it('no longer withholds a flagged tour from the popular selection', async () => {
     const { client } = mockPrisma({
       tour: [tourRow({ slug: 'kashi-darshan', pricingUnverified: true, popularOrder: 0 })],
     });
-    await expect(new PrismaContentAdapter(client).getPopularDestinations()).resolves.toEqual([]);
+    await expect(new PrismaContentAdapter(client).getPopularDestinations()).resolves.toEqual([
+      expect.objectContaining({ slug: 'kashi-darshan', pricingUnverified: true }),
+    ]);
   });
 
-  it('withholds flagged tours from rails but KEEPS the rail', async () => {
+  it('no longer withholds flagged tours from rails', async () => {
     const { client } = mockPrisma({
       rail: [
         {
@@ -402,17 +404,18 @@ describe('PrismaContentAdapter — the public-listing gate is enforced, not mere
 
     const rails = await new PrismaContentAdapter(client).getPackageRails();
 
-    // Same contract as `publiclyListedRails`: narrowing a rail must not delete
-    // it, because the page's structure should not change on a temporary flag.
     expect(rails).toHaveLength(1);
     expect(rails[0].title).toBe('Trending Tour Packages');
-    expect(rails[0].items.map((item) => item.slug)).toEqual(['spiti-valley-circuit']);
+    expect(rails[0].items.map((item) => item.slug).sort()).toEqual(['do-dham-yatra', 'spiti-valley-circuit']);
   });
 
   it('still asks the database to filter — the where clause backs up the predicate', async () => {
     const { client, calls } = mockPrisma({ tour: [] });
     await new PrismaContentAdapter(client).getAllTours();
-    expect(calls.tour).toMatchObject({ where: { pricingUnverified: false }, orderBy: { catalogueOrder: 'asc' } });
+    expect(calls.tour).toMatchObject({
+      where: { status: 'PUBLISHED', archivedAt: null },
+      orderBy: { catalogueOrder: 'asc' },
+    });
   });
 });
 
@@ -570,12 +573,14 @@ describe('PrismaContentAdapter — brochures', () => {
     expect(brochure.downloadCount).toBe(0);
   });
 
-  it('asks the database for brochures of publicly-listable tours only', async () => {
+  it('asks the database for brochures of published, unarchived tours only', async () => {
     const { client, calls } = mockPrisma({ brochure: [] });
     await new PrismaContentAdapter(client).getBrochures();
-    // A brochure for a withheld tour is unreachable content quoting an
-    // unconfirmed price — its tour's detail route 404s.
-    expect(calls.brochure).toMatchObject({ where: { tour: { pricingUnverified: false } } });
+    // A brochure for a draft or archived tour is unreachable content —
+    // its tour's detail route 404s. CRM-migration decision 1 removed the
+    // `pricingUnverified` leg of this filter: a brochure for a tour whose
+    // price was previously "unconfirmed" is no longer withheld on that basis.
+    expect(calls.brochure).toMatchObject({ where: { tour: { status: 'PUBLISHED', archivedAt: null } } });
   });
 
   it('carries no price for a tour whose price the catalogue withholds', async () => {

@@ -9,29 +9,31 @@ import { popularPackages } from './fixtures/popular.fixture';
 /**
  * PUBLIC LISTING GATE.
  *
- * `Package.pricingUnverified` used to be documentation only: three tours
- * ("Do Dham Yatra", "Kashmir Family Escape", "Kashi Darshan") carried the flag
- * and nothing read it, so they rendered full "was ₹X / Save ₹Y" discount
- * badges on Home's Popular Destinations rail and in the Tour Packages
- * catalogue exactly like a confirmed tour. Quoting an unconfirmed price with a
- * fabricated saving is the most expensive kind of dishonest copy on the site.
+ * ## CRM-migration decision 1 (removed the PRICE_UNCONFIRMED leg)
  *
- * The flag is now ENFORCED here, at the content-query level, so there is one
- * place to reason about it rather than a per-component `if`:
+ * `Package.pricingUnverified` used to withhold a tour from every public
+ * listing — three tours ("Do Dham Yatra", "Kashmir Family Escape", "Kashi
+ * Darshan") carried the flag because the design export transcribed them
+ * twice with disagreeing prices, and this function 404'd their detail route
+ * and hid them from every rail/catalogue/card until someone confirmed a real
+ * figure.
  *
- *  - flagged records stay in `packages.fixture.ts` untouched, keeping the
- *    `TODO(pricing-confirm)` audit trail intact;
- *  - no public listing query returns them, so no card, rail, chip count or
- *    catalogue row can show their pricing;
- *  - `/tour-packages/[slug]` resolves off the same public set, so a flagged
- *    tour's direct URL 404s via `notFound()` rather than rendering a detail
- *    page with the same unconfirmed discount. 404 is the deliberate choice
- *    over a "pricing pending" detail page: the tours are unreachable from
- *    anywhere in the UI, so a bespoke half-page state would be dead code that
- *    still quotes an unconfirmed figure.
+ * That check is REMOVED as of the CRM-migration review: once the site is a
+ * read-client of the CRM, `isLiveOnWebsite` (the CRM's own publish gate,
+ * which already refuses to publish a tour with no price above zero) is the
+ * only visibility check the website needs or should second-guess. The
+ * website trusting its OWN second opinion about whether a published price is
+ * "confirmed enough" duplicated a judgement call that belongs to the CRM.
  *
- * Re-including a tour once its pricing is confirmed is a one-line fixture
- * edit: delete `pricingUnverified: true`. Nothing here needs to change.
+ * `Package.pricingUnverified` and `PublicWithholdReason`'s `'PRICE_UNCONFIRMED'`
+ * member are both left in place (no field is deleted, no migration is
+ * needed) — this function simply never returns that reason any more, so a
+ * tour that still carries the flag in the fixture/database is listed exactly
+ * like any other published, unarchived tour. The one thing that still must
+ * never happen is printing "₹0" or a blank figure for a genuinely missing or
+ * zero price — that is handled at RENDER time now (`hasConfirmedTourPrice()`
+ * in `@/lib/rupees`, rendered as "Price on request" wherever a tour's price
+ * appears), not by withholding the whole tour.
  *
  * ## Phase B added two more reasons to withhold, in this SAME function
  *
@@ -51,9 +53,9 @@ import { popularPackages } from './fixtures/popular.fixture';
  * draft and archive protection with no edit at the call site and no way to opt
  * out.
  *
- * The three conditions are ordered strongest-first and read as one sentence: a
- * tour is publicly listable when it has been PUBLISHED, has not been ARCHIVED,
- * and carries no UNCONFIRMED PRICE.
+ * The two remaining conditions are ordered strongest-first and read as one
+ * sentence: a tour is publicly listable when it has been PUBLISHED and has
+ * not been ARCHIVED.
  *
  * ## Phase E: the gate now also answers WHY, for the admin
  *
@@ -124,7 +126,12 @@ export function publicWithholdReason(pkg: PublicListingFacts): PublicWithholdRea
    */
   if (pkg.archivedAt != null) return 'ARCHIVED';
 
-  if (pkg.pricingUnverified === true) return 'PRICE_UNCONFIRMED';
+  /**
+   * CRM-migration decision 1: deliberately NOT checking `pricingUnverified`
+   * here any more — see the file-level doc comment above. The CRM's own
+   * `isLiveOnWebsite` publish gate is trusted fully; this function no longer
+   * second-guesses a published tour's price.
+   */
 
   return null;
 }
@@ -182,15 +189,18 @@ export type DepartureParent = PublicListingFacts | null;
  * "published and not archived" would be two copies of a security rule, and the
  * copy nobody tests is the one that drifts.
  *
- * ## One reason is deliberately NOT inherited: `PRICE_UNCONFIRMED`
+ * ## `PRICE_UNCONFIRMED` exemption — now a no-op, kept for the record
  *
- * A departure of a tour whose price is unconfirmed stays listed, and is MARKED
- * instead (see `toPublicDeparture`). That is not this function's call to make —
- * it is the user's product decision of BLOCKERS.md item 9: "Do Dham Yatra" is
- * exactly this case, the user chose the asterisk-and-footnote treatment over
- * withholding for its departure card (no fabricated "was ₹X / Save ₹Y" badge is
- * at stake on a departure, and withholding would empty a quarter of the page).
- * Hiding it here would silently reverse that decision.
+ * This used to exempt `PRICE_UNCONFIRMED` explicitly so a departure of a
+ * price-doubtful tour stayed listed and merely MARKED (BLOCKERS.md item 9).
+ * CRM-migration decision 1 removed `PRICE_UNCONFIRMED` from
+ * `publicWithholdReason()`'s possible outputs entirely, so this comparison
+ * can no longer match anything — `reason` is always `'DRAFT'`, `'ARCHIVED'`
+ * or `null` now. Left in place rather than deleted because it is harmless,
+ * it costs nothing, and it is the honest record of why a departure's price
+ * doubt was never supposed to withhold it even before decision 1. If
+ * `publicWithholdReason` ever grows a price-related reason again, this line
+ * is where to decide whether departures should inherit it.
  *
  * ## Default-closed against a FUTURE reason
  *

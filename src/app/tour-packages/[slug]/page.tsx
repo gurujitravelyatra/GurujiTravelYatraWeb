@@ -5,7 +5,9 @@ import { notFound } from 'next/navigation';
 import { getAllPackages, getPackageBySlug } from '@/content/get-all-packages';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { PriceOnRequest } from '@/components/ui/price-on-request';
 import { isSafeMediaUrl } from '@/lib/cloudinary-url';
+import { hasConfirmedTourPrice } from '@/lib/rupees';
 import { PackageDetailCtas } from '@/components/tour-packages/PackageDetailCtas';
 
 interface PackageDetailPageProps {
@@ -72,6 +74,14 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
    * bad row costs one thumbnail, not the tour.
    */
   const galleryUrls = (pkg.galleryImageUrls ?? []).filter(isSafeMediaUrl);
+
+  /**
+   * CRM-migration decision 1: the public-listing gate no longer withholds a
+   * tour for an unconfirmed price, so this page may now render a tour whose
+   * `priceFrom` is missing/zero — never show "₹0" or a blank figure for
+   * that, and never a "Save ₹X" badge with no real price beside it.
+   */
+  const priceConfirmed = hasConfirmedTourPrice(pkg.priceFrom);
 
   return (
     <SiteShell activePath="/tour-packages" pageLabel={pkg.name}>
@@ -161,15 +171,21 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
         <div className="h-px bg-gty-border-4" />
 
         <div className="flex flex-wrap items-center gap-4">
-          {pkg.savingsLabel && (
-            <span className="inline-flex items-center gap-[7px] rounded-9 border border-gty-green-border bg-gty-green-bg px-[13px] py-[7px] text-13-5 font-bold text-gty-green-text">
-              Save ₹{pkg.savingsLabel}
-            </span>
+          {priceConfirmed ? (
+            <>
+              {pkg.savingsLabel && (
+                <span className="inline-flex items-center gap-[7px] rounded-9 border border-gty-green-border bg-gty-green-bg px-[13px] py-[7px] text-13-5 font-bold text-gty-green-text">
+                  Save ₹{pkg.savingsLabel}
+                </span>
+              )}
+              <span className="flex items-baseline gap-[9px]">
+                <span className="text-29 font-extrabold text-gty-primary">{pkg.priceFrom}</span>
+                {pkg.priceWas && <span className="text-16 text-gty-faint line-through">{pkg.priceWas}</span>}
+              </span>
+            </>
+          ) : (
+            <PriceOnRequest />
           )}
-          <span className="flex items-baseline gap-[9px]">
-            <span className="text-29 font-extrabold text-gty-primary">{pkg.priceFrom}</span>
-            {pkg.priceWas && <span className="text-16 text-gty-faint line-through">{pkg.priceWas}</span>}
-          </span>
         </div>
 
         <PackageDetailCtas packageName={pkg.name} />

@@ -41,11 +41,15 @@ interface RouteContext {
  *    tour. Answering 404 here would tell a caller "this tour has no brochure",
  *    which is an assertion this process is in no position to make.
  *  - **404** — the store is live and holds no brochure for this slug. Includes
- *    the case where the slug's TOUR is withheld: `getBrochureByTourSlug` filters
- *    on `tour: { pricingUnverified: false }`, because a brochure for a withheld
- *    tour would republish the same unconfirmed price the catalogue suppresses —
- *    a brochure record is not a loophole around the pricing gate. As on
- *    `/api/tours/[slug]`, withheld and absent are indistinguishable on purpose.
+ *    the case where the slug's TOUR is a draft or archived: `getBrochureByTourSlug`
+ *    still filters on `tour: { status: 'PUBLISHED', archivedAt: null }`, for the
+ *    same reason the tour's own detail page 404s. As on `/api/tours/[slug]`,
+ *    withheld and absent are indistinguishable on purpose.
+ *
+ *    CRM-migration decision 1 removed the `pricingUnverified` leg of this
+ *    filter: a brochure for a tour whose price was previously "unconfirmed" is
+ *    no longer withheld on that basis — the website trusts the CRM's own
+ *    publish gate fully instead of second-guessing a published price.
  *  - **500** — the query itself failed (handled by `handleRoute`).
  */
 export async function GET(_request: Request, context: RouteContext) {

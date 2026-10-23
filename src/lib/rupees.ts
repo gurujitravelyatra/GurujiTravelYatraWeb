@@ -85,3 +85,25 @@ export function deriveSavingsLabel(priceFrom: string | undefined, priceWas: stri
   if (from === undefined || was === undefined || was <= from) return undefined;
   return groupIndian(was - from);
 }
+
+/**
+ * True when `priceFrom` is a real, positive, readable amount a card may
+ * quote — CRM-migration decision 1.
+ *
+ * `public-listing.ts` no longer withholds a whole tour for an unconfirmed
+ * price (the CRM's own `isLiveOnWebsite` publish gate, which already refuses
+ * to publish a tour with no price above zero, is trusted fully instead). But
+ * trusting the publish gate is not the same as trusting every individual
+ * price string: if a price ever arrives missing, empty or reading as zero —
+ * today only reachable via a hand-edited row, tomorrow via a CRM response
+ * with `price: null` or `{ amount: 0 }` — the site must never print "₹0" or
+ * a blank figure. `readStoredRupeeAmount` already treats anything that is
+ * not a real positive number (missing, empty, zero, or unparseable text) as
+ * absent, which is exactly the boundary this needs.
+ *
+ * Callers render `PriceOnRequest` (`@/components/ui/price-on-request`)
+ * instead of the price whenever this is `false`.
+ */
+export function hasConfirmedTourPrice(priceFrom: string | undefined): boolean {
+  return readStoredRupeeAmount(priceFrom) !== undefined;
+}

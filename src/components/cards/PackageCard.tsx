@@ -1,7 +1,9 @@
 import Link from 'next/link';
 
 import type { Package } from '@/content/types';
+import { hasConfirmedTourPrice } from '@/lib/rupees';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { PriceOnRequest } from '@/components/ui/price-on-request';
 
 export interface PackageCardProps {
   package: Package;
@@ -18,6 +20,14 @@ export interface PackageCardProps {
  * `<Link>` valid DOM (no nested interactive elements).
  */
 export function PackageCard({ package: pkg }: PackageCardProps) {
+  /**
+   * CRM-migration decision 1: the public-listing gate no longer withholds a
+   * tour for an unconfirmed price, so a card may now reach this component
+   * with a missing/zero `priceFrom` — never render "₹0" or a blank figure
+   * for that, and never a "Save ₹X" badge with no real price beside it.
+   */
+  const priceConfirmed = hasConfirmedTourPrice(pkg.priceFrom);
+
   return (
     <Link
       href={`/tour-packages/${pkg.slug}`}
@@ -66,7 +76,7 @@ export function PackageCard({ package: pkg }: PackageCardProps) {
         <span className="text-19 font-extrabold leading-[1.2] tracking-tightest text-gty-ink">{pkg.name}</span>
         <span className="text-14 leading-[1.4] text-gty-body">{pkg.subtitle}</span>
         <span className="mt-1 h-px bg-gty-border-4" />
-        {pkg.savingsLabel && (
+        {priceConfirmed && pkg.savingsLabel && (
           <span className="flex">
             <span className="flex items-center gap-[7px] rounded-9 border border-gty-green-border bg-gty-green-bg px-[13px] py-[7px] text-13-5 font-bold text-gty-green-text">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
@@ -77,10 +87,19 @@ export function PackageCard({ package: pkg }: PackageCardProps) {
           </span>
         )}
         <span className="flex items-center justify-between gap-[10px] pt-2">
-          <span className="flex items-baseline gap-[9px]">
-            <span className="text-23 font-extrabold text-gty-primary">{pkg.priceFrom}</span>
-            {pkg.priceWas && <span className="text-14 text-gty-faint line-through">{pkg.priceWas}</span>}
-          </span>
+          {priceConfirmed ? (
+            <span className="flex items-baseline gap-[9px]">
+              <span className="text-23 font-extrabold text-gty-primary">{pkg.priceFrom}</span>
+              {pkg.priceWas && <span className="text-14 text-gty-faint line-through">{pkg.priceWas}</span>}
+            </span>
+          ) : (
+            // `interactive={false}`: this whole card is already one <Link>
+            // (BLOCKERS.md Decision E keeps every other element here
+            // non-interactive for the same reason — a nested <a> is invalid
+            // DOM). The real, clickable call/WhatsApp CTA renders on the
+            // detail page this card already links to.
+            <PriceOnRequest interactive={false} />
+          )}
           <span
             aria-hidden="true"
             className="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-gty-red-200 text-gty-primary"

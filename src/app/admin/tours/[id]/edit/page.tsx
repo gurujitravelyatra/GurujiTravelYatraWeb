@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { requireAdminSession } from '@/server/auth/session';
 import { getAdminTourBySlug, listDestinationOptions } from '@/server/admin/tours/tour-repository';
 import { isCloudinaryConfigured } from '@/server/uploads/cloudinary';
-import { departureWithholdReason, publicWithholdReason, WITHHOLD_REASON_TEXT } from '@/content/public-listing';
+import { departureWithholdReason, publicWithholdReason } from '@/content/public-listing';
 import { TourForm } from '@/components/admin/TourForm';
 
 export const metadata: Metadata = {
@@ -147,36 +147,13 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         )}
 
         {/*
-          THE WITHHELD BANNER — the `pricingUnverified` case, which is the one
-          the rest of this page has no vocabulary for.
-
-          Draft and archived tours already have their own explanations (the pill
-          above, and the archive notice just above this), and both are states the
-          admin put the tour into deliberately. `PRICE_UNCONFIRMED` is neither:
-          the tour IS published, nobody in the admin UI set the flag, and until
-          now nothing on any admin screen mentioned it existed. Hence a banner
-          rather than a badge, and hence the explanation of what a visitor sees.
-
-          There is deliberately NO control here to clear the flag (the user's
-          decision, 2026-09-19). Clearing it means someone confirmed the price
-          against the source, which is not something a button on this page can
-          evidence — so it stays a developer-managed column and this banner says
-          who to ask.
+          CRM-migration decision 1 removed the `PRICE_UNCONFIRMED` withhold
+          reason — the banner that used to render here explained a tour
+          withheld from the public site for an unconfirmed price, which can
+          no longer happen (`publicWithholdReason()` never returns that
+          value any more; see `src/content/public-listing.ts`). Draft and
+          archived tours still have their own explanations above.
         */}
-        {withheld === 'PRICE_UNCONFIRMED' && (
-          <p
-            role="status"
-            className="rounded-12 border border-gty-primary bg-gty-red-50 px-4 py-3 text-12-5 leading-relaxed text-gty-ink"
-          >
-            <strong className="font-bold">Withheld from the public site — price unconfirmed.</strong>{' '}
-            {WITHHOLD_REASON_TEXT.PRICE_UNCONFIRMED.replace(
-              'Withheld from the public site — price unconfirmed. ',
-              ''
-            )}{' '}
-            The flag is set in the database and cannot be cleared from this screen — ask a developer to
-            confirm the price against the source and clear <code>pricingUnverified</code>.
-          </p>
-        )}
 
         {saved && (
           <p role="status" className="rounded-12 border border-gty-green-border bg-gty-green-bg px-4 py-3 text-12-5 text-gty-green-text">
@@ -205,7 +182,6 @@ export default async function EditTourPage({ params, searchParams }: EditTourPag
         isPublished={lifecycle === 'PUBLISHED'}
         publishBlocked={query.publishBlocked === '1'}
         uploadsEnabled={isCloudinaryConfigured()}
-        withheldFromPublicSite={withheld === 'PRICE_UNCONFIRMED'}
         versionToken={updatedAt.toISOString()}
         departureVisibility={departureVisibility}
         departureMarkers={tour.value.departureMarkers}

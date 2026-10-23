@@ -44,7 +44,7 @@ import { toDomainCategory } from './prisma-category';
  *
  * Kept as one shared constant rather than repeated inline at each `findMany`,
  * because the failure mode of repeating it is that one copy drifts: a query that
- * filtered `pricingUnverified` but forgot `status` would have looked right in
+ * filtered on one condition but forgot another would have looked right in
  * review and published every draft tour on that surface. There is now one
  * expression to get right, spread into the queries that need extra conditions.
  *
@@ -54,11 +54,17 @@ import { toDomainCategory } from './prisma-category';
  * predicate wins and the row is withheld, which is the safe direction.
  * `prisma-content-adapter.test.ts` asserts exactly that by handing the adapter a
  * mock that ignores this clause entirely and returns a draft row anyway.
+ *
+ * CRM-migration decision 1 removed `pricingUnverified: false` from this
+ * clause. Leaving it here after `isPubliclyListable()` stopped checking the
+ * flag would have been the DANGEROUS direction of the two ever disagreeing:
+ * an optimisation stricter than the gate silently keeps withholding rows the
+ * gate itself would now allow, which is a real functional regression, not
+ * merely a stale comment — the opposite of "the predicate wins".
  */
 const PUBLICLY_LISTABLE_WHERE = {
   status: 'PUBLISHED',
   archivedAt: null,
-  pricingUnverified: false,
 } as const;
 
 /**

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { requireAdminSession } from '@/server/auth/session';
 import { listAdminTours, type ListToursFilter, type TourStatusFilter } from '@/server/admin/tours/tour-repository';
 import { CATEGORY_VALUES } from '@/server/admin/tours/tour-form-schema';
-import { publicWithholdReason } from '@/content/public-listing';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import type { DestinationCategory } from '@/content/types';
 
@@ -224,43 +223,25 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                       </td>
                       <td className="px-4 py-4">
                         {/*
-                          THE PILL IS NOT THE WHOLE TRUTH, and this cell now says
-                          so. `lifecycle` is a flattening of `status`/`archivedAt`
-                          for display; whether a visitor can actually reach the
-                          tour is `publicWithholdReason()`, the public site's own
-                          predicate, called here on the row's real columns.
-
-                          A `pricingUnverified` tour is PUBLISHED in the CMS and
-                          withheld by that gate, so it used to render a green
-                          "Published" pill and nothing else — the admin's only
-                          view of the catalogue disagreed with the site and
-                          neither side reported it.
+                          `lifecycle` is a flattening of `status`/`archivedAt` for
+                          display, and the pill is the whole truth now: the public
+                          site's own `publicWithholdReason()` predicate agrees with
+                          it exactly, because CRM-migration decision 1 removed the
+                          one condition (an unconfirmed price) that used to make a
+                          PUBLISHED tour's pill disagree with what a visitor could
+                          actually reach. No second line is needed under it any
+                          more — see src/content/public-listing.ts.
                         */}
-                        <span className="flex flex-col items-start gap-[6px]">
-                          <span
-                            className={`inline-flex items-center rounded-pill border px-[10px] py-[4px] text-11-5 font-bold ${
-                              LIFECYCLE_STYLES[tour.lifecycle]
-                            }`}
-                          >
-                            {tour.lifecycle === 'PUBLISHED'
-                              ? 'Published'
-                              : tour.lifecycle === 'DRAFT'
-                                ? 'Draft'
-                                : 'Archived'}
-                          </span>
-
-                          {/*
-                            Shown only for the reason the pill does NOT already
-                            state. A draft's pill says "Draft" and an archived
-                            tour's says "Archived"; re-stating those underneath
-                            would be noise on every row and would train the eye
-                            to skip the one line that carries new information.
-                          */}
-                          {publicWithholdReason(tour) === 'PRICE_UNCONFIRMED' && (
-                            <span className="inline-flex items-center rounded-pill border border-gty-border-9 bg-gty-bg px-[10px] py-[4px] text-11 font-bold text-gty-primary">
-                              Withheld from the public site — price unconfirmed
-                            </span>
-                          )}
+                        <span
+                          className={`inline-flex items-center rounded-pill border px-[10px] py-[4px] text-11-5 font-bold ${
+                            LIFECYCLE_STYLES[tour.lifecycle]
+                          }`}
+                        >
+                          {tour.lifecycle === 'PUBLISHED'
+                            ? 'Published'
+                            : tour.lifecycle === 'DRAFT'
+                              ? 'Draft'
+                              : 'Archived'}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-13 text-gty-body">
@@ -293,30 +274,18 @@ export default async function AdminToursPage({ searchParams }: AdminToursPagePro
                                 value={tour.lifecycle === 'PUBLISHED' ? 'false' : 'true'}
                               />
                               {/*
-                                The label names what the button DOES, which for a
-                                withheld tour is not what "Publish" means anywhere
-                                else on this screen: it moves `status` and the
-                                tour still does not appear. Saying "Publish" there
-                                is the same over-claim as the green pill, one
-                                click further along.
-
-                                `title` carries the reason rather than a longer
-                                label, so the column does not reflow for one row.
+                                CRM-migration decision 1: Publish always means
+                                what it says now. The "Publish in CMS only" label
+                                and its explanatory `title` used to apply to a
+                                `pricingUnverified` tour, whose price the public
+                                site second-guessed and withheld regardless of
+                                this button — that condition no longer exists.
                               */}
                               <button
                                 type="submit"
-                                title={
-                                  tour.pricingUnverified
-                                    ? 'This tour’s price is unconfirmed, so the public site withholds it. Publishing changes its CMS status only — it will not appear on the site.'
-                                    : undefined
-                                }
                                 className="rounded-8 border border-gty-border-9 px-[10px] py-[6px] text-12 font-bold text-gty-ink transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:text-gty-primary"
                               >
-                                {tour.lifecycle === 'PUBLISHED'
-                                  ? 'Unpublish'
-                                  : tour.pricingUnverified
-                                    ? 'Publish in CMS only'
-                                    : 'Publish'}
+                                {tour.lifecycle === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
                               </button>
                             </form>
                           )}

@@ -4,20 +4,23 @@ import userEvent from '@testing-library/user-event';
 import { JourneyVideoBlock } from '../JourneyVideoBlock';
 import { featuredVideos } from '@/content/fixtures/videos.fixture';
 import { allTours } from '@/content/fixtures/packages.fixture';
-import { isPubliclyListable } from '@/content/public-listing';
 
 /**
- * F1 — the product rule, stated exactly: naming a withheld tour is fine;
- * showing a PRICE or a DISCOUNT for one never is.
+ * F1 — the product rule, stated exactly: naming a tour in a trip-preview
+ * caption is fine; showing a PRICE or a DISCOUNT for one never is.
  *
  * `videos.fixture.ts` legitimately captions two trip previews "Kedarnath Do
- * Dham Yatra" and "Kashmir Family Escape", both of which are `pricingUnverified`
- * and therefore withheld from every public listing. That is allowed — the
- * captions describe trips the company has run, not products on sale. What must
- * never happen is a money figure appearing next to one of those captions, which
- * would reintroduce the exact claim `public-listing.ts` exists to suppress
- * (and would do it on the one surface that bypasses the listing gate entirely,
- * since `getFeaturedVideos()` does not pass through it).
+ * Dham Yatra" and "Kashmir Family Escape" — real tours, not products with a
+ * price quoted on this surface. What must never happen is a money figure
+ * appearing next to one of those captions, since `getFeaturedVideos()` does
+ * not pass through the public-listing gate at all.
+ *
+ * (Before CRM-migration decision 1, these two tours also carried
+ * `pricingUnverified` and were withheld from every OTHER public listing,
+ * which made this surface the one place their names appeared without a
+ * price. That withholding is gone now — both tours list normally elsewhere
+ * too — but the rule this suite guards is independent of that: a trip
+ * preview names a trip, never a price.)
  *
  * So this suite asserts the boundary structurally rather than pinning captions:
  * the video block renders NO currency, discount or savings figure at all, for
@@ -62,17 +65,16 @@ describe('trip-preview captions never carry a price', () => {
     }
   });
 
-  it('still names withheld tours, which the product rule permits', () => {
+  it('names real tours in its captions, which the product rule permits', () => {
     render(<JourneyVideoBlock videos={featuredVideos} />);
 
-    // Confirms the test above is actually exercising the interesting case: at
-    // least one caption DOES name a tour that no public listing will show.
-    const withheldNames = allTours.filter((tour) => !isPubliclyListable(tour)).map((tour) => tour.name.toLowerCase());
-    expect(withheldNames.length).toBeGreaterThan(0);
-
+    // Confirms the tests above are exercising a genuine case: at least one
+    // caption corresponds to a real catalogue tour, so "no price leaks next
+    // to a tour name" is actually being tested, not a no-op on empty data.
+    const tourNames = allTours.map((tour) => tour.name.toLowerCase());
     const captions = featuredVideos.map((video) => video.title.toLowerCase());
     const overlap = captions.filter((caption) =>
-      withheldNames.some((name) => name.includes(caption) || caption.includes(name.split(' ')[0]))
+      tourNames.some((name) => name.includes(caption) || caption.includes(name.split(' ')[0]))
     );
     expect(overlap.length).toBeGreaterThan(0);
   });

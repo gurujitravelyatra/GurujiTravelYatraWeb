@@ -56,13 +56,16 @@ describe('getPackageBySlug', () => {
     expect(pkg).toEqual(expect.objectContaining({ name: 'Spiti Valley Bike Trip' }));
   });
 
-  it('404s a tour whose pricing is unconfirmed instead of quoting it on a detail page', async () => {
-    // "Do Dham Yatra" is one of the three records the export transcribed twice
-    // with disagreeing prices. It is withheld from every listing, so its direct
-    // URL must not keep serving the same unconfirmed figures (C1).
-    await expect(getPackageBySlug('do-dham-yatra')).resolves.toBeUndefined();
-    await expect(getPackageBySlug('kashi-darshan')).resolves.toBeUndefined();
-    await expect(getPackageBySlug('kashmir-family-escape')).resolves.toBeUndefined();
+  it('resolves a tour whose pricing was previously unconfirmed (CRM-migration decision 1)', async () => {
+    // "Do Dham Yatra" is one of three records the design export transcribed
+    // twice with disagreeing prices. The website no longer withholds a tour
+    // for an unconfirmed price — the CRM's own isLiveOnWebsite publish gate
+    // is trusted fully instead — so these resolve like any other tour.
+    await expect(getPackageBySlug('do-dham-yatra')).resolves.toEqual(expect.objectContaining({ name: 'Do Dham Yatra' }));
+    await expect(getPackageBySlug('kashi-darshan')).resolves.toEqual(expect.objectContaining({ name: 'Kashi Darshan' }));
+    await expect(getPackageBySlug('kashmir-family-escape')).resolves.toEqual(
+      expect.objectContaining({ name: 'Kashmir Family Escape' })
+    );
   });
 
   it('returns undefined for an unknown slug rather than throwing', async () => {
