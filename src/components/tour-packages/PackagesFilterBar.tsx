@@ -1,83 +1,69 @@
 'use client';
 
-import type { DestinationCategory } from '@/content/types';
-import type { DestinationOption } from '@/content/public-listing';
+import type { CrmCategory, CrmPlace } from '@/server/crm/types';
 import { cn } from '@/lib/utils';
 
-export type CategoryFilter = DestinationCategory | 'All';
-export type DestinationFilter = string | 'All';
-
 export interface PackagesFilterBarProps {
-  categories: DestinationCategory[];
-  selected: CategoryFilter;
-  onSelect: (category: CategoryFilter) => void;
+  categories: CrmCategory[];
+  selectedCategory: CrmCategory | 'All';
+  onSelectCategory: (category: CrmCategory | 'All') => void;
+  places: CrmPlace[];
+  selectedPlace: string | 'All';
+  onSelectPlace: (place: string | 'All') => void;
+  months: string[];
+  selectedMonth: string | 'All';
+  onSelectMonth: (month: string | 'All') => void;
   visibleCount: number;
-  /** Real, data-derived destination options — see `getDestinationOptions`. */
-  destinations: DestinationOption[];
-  selectedDestination: DestinationFilter;
-  onSelectDestination: (destination: DestinationFilter) => void;
-  /** Applies the current selections and moves the visitor to the results. */
-  onSearch: () => void;
-  /** Real min/max across the visible catalogue, computed — never a hardcoded band. */
-  priceRangeLabel?: string;
+  totalCount: number;
+  onClear: () => void;
 }
 
 /**
- * Export lines 355-393, tech spec §4.4 "Filter card" + BLOCKERS.md Decision
- * C. Floats up over the hero's bottom edge via a negative margin applied by
- * the parent (`PackagesCatalogue`).
+ * CRM-migration Step 2 — every filter here is now REAL and server-backed,
+ * each mapping 1:1 to a `GET /public/tours` query parameter (`category`,
+ * `place`, `month`). The month picker used to be permanently disabled
+ * ("there is no departure-date or availability data anywhere in the
+ * system") — the CRM provides exactly that (`GET /public/departures`'s
+ * `months` list), so it is wired for real now, not a visual stub.
  *
- * WHAT IS AND ISN'T WIRED (the export shipped all of this as `onClick="{{ noop
- * }}"`; presenting an inert control as a working one is the defect being fixed
- * here, so each field states its status in the UI as well as in this comment):
- *
- *  - Category chips — REAL. Filter the rails live.
- *  - Destination — REAL. A genuine `<select>` whose options are derived from
- *    the tour data (`getDestinationOptions`), so it can never offer a
- *    destination with zero journeys.
- *  - Search Tours — REAL. Selections already apply live, so the button's job
- *    is to take the visitor to the results; it scrolls the (already filtered)
- *    catalogue into view. It is NOT a no-op and never was allowed to stay one.
- *  - Clear — REAL. Resets both filters.
- *  - Travel month — NOT WIRED, and now says so. There is no departure-date or
- *    availability data anywhere in the system to filter on; wiring a month
- *    picker would require inventing it. Marked `aria-disabled` with a visible
- *    "Coming soon" so it no longer presents as functional to anyone.
- *  - Price range — a READ-OUT, not a control: it reports the real min/max of
- *    the journeys currently listed. It used to read a hardcoded
- *    "₹15,000 — ₹75,000" that matched neither bound (real: ₹12,800 — ₹78,500),
- *    excluding the cheapest and priciest tours on the site from its own claim.
+ * The parent page is the one that actually re-fetches on a change (these
+ * callbacks update the URL query string, which re-renders the Server
+ * Component page with new `getTours()` params) — this component only
+ * reports selections, it does not filter anything itself.
  */
 export function PackagesFilterBar({
   categories,
-  selected,
-  onSelect,
+  selectedCategory,
+  onSelectCategory,
+  places,
+  selectedPlace,
+  onSelectPlace,
+  months,
+  selectedMonth,
+  onSelectMonth,
   visibleCount,
-  destinations,
-  selectedDestination,
-  onSelectDestination,
-  onSearch,
-  priceRangeLabel,
+  totalCount,
+  onClear,
 }: PackagesFilterBarProps) {
   return (
     <div className="rounded-20 bg-gty-white shadow-gty-header">
       <div className="flex flex-wrap items-center gap-5 p-6">
         <FieldFrame
           label="Destination"
-          htmlFor="packages-destination"
+          htmlFor="packages-place"
           iconPath="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
         >
           <div className="relative flex w-full items-center rounded-11 border border-gty-border-2 bg-gty-white">
             <select
-              id="packages-destination"
-              value={selectedDestination}
-              onChange={(event) => onSelectDestination(event.target.value)}
+              id="packages-place"
+              value={selectedPlace}
+              onChange={(event) => onSelectPlace(event.target.value)}
               className="w-full appearance-none truncate rounded-11 bg-transparent px-[13px] py-[11px] pr-9 text-14 text-gty-ink-soft outline-none focus-visible:ring-2 focus-visible:ring-gty-primary"
             >
               <option value="All">All destinations</option>
-              {destinations.map((destination) => (
-                <option key={destination.slug} value={destination.slug}>
-                  {destination.name}
+              {places.map((place) => (
+                <option key={place.slug} value={place.slug}>
+                  {place.name}
                 </option>
               ))}
             </select>
@@ -87,48 +73,34 @@ export function PackagesFilterBar({
 
         <FieldFrame
           label="Travel month"
+          htmlFor="packages-month"
           iconPath="M7 2h2v2h6V2h2v2h2a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h2V2zM3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9zm3 3v2h2v-2H6zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2zm-8 4v2h2v-2H6zm4 0v2h2v-2h-2z"
         >
-          <span
-            aria-disabled="true"
-            data-testid="filter-travel-month"
-            className="flex w-full items-center justify-between gap-2 rounded-11 border border-dashed border-gty-border-2 bg-gty-surface-3 px-[13px] py-[11px] text-14 text-gty-placeholder"
-          >
-            <span className="truncate">Any month</span>
-            <span className="flex-none text-10 font-bold uppercase tracking-label text-gty-subtle">Coming soon</span>
-          </span>
-        </FieldFrame>
-
-        <FieldFrame
-          label="Price range"
-          iconPath="M6 4h12M6 9h12M6 4c5 0 8 1.6 8 5s-3 5-8 5l9 7"
-        >
-          <span
-            data-testid="filter-price-range"
-            className="flex w-full items-center justify-between gap-2 rounded-11 border border-gty-border-2 bg-gty-surface-3 px-[13px] py-[11px] text-14 text-gty-ink-soft"
-          >
-            <span className="truncate">{priceRangeLabel ?? 'No journeys listed'}</span>
-            <span className="flex-none text-10 font-bold uppercase tracking-label text-gty-subtle">Listed range</span>
-          </span>
+          <div className="relative flex w-full items-center rounded-11 border border-gty-border-2 bg-gty-white">
+            <select
+              id="packages-month"
+              value={selectedMonth}
+              onChange={(event) => onSelectMonth(event.target.value)}
+              className="w-full appearance-none truncate rounded-11 bg-transparent px-[13px] py-[11px] pr-9 text-14 text-gty-ink-soft outline-none focus-visible:ring-2 focus-visible:ring-gty-primary"
+            >
+              <option value="All">Any month</option>
+              {months.map((month) => (
+                <option key={month} value={month}>
+                  {month}
+                </option>
+              ))}
+            </select>
+            <ChevronGlyph className="pointer-events-none absolute right-[13px]" />
+          </div>
         </FieldFrame>
 
         <div className="flex flex-none items-center gap-3 border-gty-border-6 860:border-l 860:pl-5">
           <button
             type="button"
-            onClick={() => {
-              onSelect('All');
-              onSelectDestination('All');
-            }}
+            onClick={onClear}
             className="inline-flex items-center gap-2 rounded-pill border border-gty-border-2 px-[22px] py-[13px] text-14 font-bold text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:text-gty-primary"
           >
             Clear <span aria-hidden="true" className="text-16 text-gty-subtle">×</span>
-          </button>
-          <button
-            type="button"
-            onClick={onSearch}
-            className="inline-flex min-h-[42px] items-center gap-[9px] whitespace-nowrap rounded-pill border-[1.5px] border-gty-primary bg-gty-primary px-[26px] py-[14px] text-14 font-bold text-gty-white shadow-gty-btn transition-[background-color,transform] duration-gty-fast ease-gty hover:-translate-y-px hover:bg-gty-primary-deep"
-          >
-            Search Tours <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>
@@ -139,36 +111,20 @@ export function PackagesFilterBar({
         </span>
 
         <div role="group" aria-label="Filter by travel category" className="flex flex-1 flex-wrap gap-[10px]">
-          <CategoryChip label="All" isActive={selected === 'All'} onClick={() => onSelect('All')} />
+          <CategoryChip label="All" isActive={selectedCategory === 'All'} onClick={() => onSelectCategory('All')} />
           {categories.map((category) => (
             <CategoryChip
               key={category}
               label={category}
-              isActive={selected === category}
-              onClick={() => onSelect(category)}
+              isActive={selectedCategory === category}
+              onClick={() => onSelectCategory(category)}
             />
           ))}
         </div>
 
         <p aria-live="polite" className="text-12 font-semibold text-gty-subtle">
-          {visibleCount} {visibleCount === 1 ? 'journey' : 'journeys'} found
+          {visibleCount} of {totalCount} {totalCount === 1 ? 'journey' : 'journeys'}
         </p>
-
-        <span
-          aria-hidden="true"
-          className="hidden items-center gap-3 border-l border-gty-border-5 pl-[18px] 1080:flex"
-        >
-          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-gty-subtle">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18M12 3c2.6 2.6 2.6 15 0 18M12 3c-2.6 2.6-2.6 15 0 18" />
-          </svg>
-          <span className="whitespace-nowrap -rotate-3 font-script text-23 leading-[1.15] text-gty-ink-soft">
-            Not Just Trips
-            <br />
-            But Lifelong Memories
-            <span className="mt-[2px] block h-[2px] w-[150px] rounded-[2px] bg-gty-primary" />
-          </span>
-        </span>
       </div>
     </div>
   );
@@ -193,11 +149,6 @@ function ChevronGlyph({ className }: { className?: string }) {
   );
 }
 
-/**
- * The export's field chrome (icon tile + label + boxed value). Kept identical
- * across wired and unwired fields so the layout is pixel-stable; what differs
- * is what the caller puts inside it.
- */
 function FieldFrame({
   label,
   htmlFor,

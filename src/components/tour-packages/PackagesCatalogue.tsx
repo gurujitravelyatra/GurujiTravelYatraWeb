@@ -1,159 +1,123 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-import type { DestinationCategory, PackageRail as PackageRailData } from '@/content/types';
-import { getDestinationOptions, getPriceRange } from '@/content/public-listing';
-import { PackagesFilterBar, type CategoryFilter, type DestinationFilter } from './PackagesFilterBar';
-import { PackageRail } from './PackageRail';
-import { FilteredResults } from './FilteredResults';
+import type { CrmCategory, CrmPlace, CrmTourCard } from '@/server/crm/types';
+import { PackageCard } from '@/components/cards/PackageCard';
+import { gridColumnsForCount } from '@/lib/card-grid';
+import { cn } from '@/lib/utils';
+import { PackagesFilterBar } from './PackagesFilterBar';
 
 export interface PackagesCatalogueProps {
-  rails: PackageRailData[];
-  categories: DestinationCategory[];
-  /** From `?category=` — already validated server-side. */
-  initialCategory?: CategoryFilter;
-  /** From `?destination=` — already validated server-side. */
-  initialDestination?: DestinationFilter;
+  tours: CrmTourCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  categories: CrmCategory[];
+  places: CrmPlace[];
+  months: string[];
+  selectedCategory: CrmCategory | 'All';
+  selectedPlace: string | 'All';
+  selectedMonth: string | 'All';
 }
 
 /**
- * Owns the filter state shared between `PackagesFilterBar` and the 4
- * `PackageRail`s (tech spec §4.4: "wire the category chip row to real
- * client-side filtering of the fixture data"). One client boundary so both
- * pieces stay in sync without lifting state into a Server Component.
- *
- * DEEP LINKS: the initial category/destination come from the page's
- * `searchParams`, so `/tour-packages?category=International` and
- * `?destination=maldives` land on real filtered results. That is what makes
- * the destination cards, the "View All International Tours" link and the
- * footer's Top Destinations column honest — they used to send every visitor to
- * the same unfiltered catalogue regardless of what they clicked.
- *
- * TWO LAYOUTS, chosen by whether anything is filtered:
- *  - nothing filtered → the four themed rails (Trending / International /
- *    North India / South India), which is the browsing surface they exist for;
- *  - anything filtered → ONE consolidated `FilteredResults` section.
- * The rails filtered independently, so `?destination=goa` used to draw the one
- * matching card in its rail and three empty-state boxes beside it. The rails
- * carry no meaning once a visitor has named what they want.
- *
- * Known limitation, stated rather than hidden: subsequent filter changes are
- * local state only and do NOT rewrite the URL, so the address bar can lag
- * behind the on-screen filter after the visitor clicks a chip. Incoming deep
- * links are correct; shareable-URL-on-every-click would mean a router push per
- * chip click, which is a bigger change than this pass warrants.
+ * CRM-migration Step 2 — REDESIGNED around `GET /public/tours`'s real
+ * server-side filters (`category`, `place`, `month`, `page`), replacing the
+ * old "4 themed rails + client-side array filtering" model. The CRM has no
+ * concept of rail membership, so there is now ONE results grid; filtering
+ * and pagination are both real HTTP requests (via a URL change that
+ * re-renders the Server Component page with new `getTours()` params), not
+ * client-side state over a pre-fetched array.
  */
-export function PackagesCatalogue({ rails, categories, initialCategory, initialDestination }: PackagesCatalogueProps) {
-  const [selected, setSelected] = useState<CategoryFilter>(initialCategory ?? 'All');
-  const [selectedDestination, setSelectedDestination] = useState<DestinationFilter>(initialDestination ?? 'All');
-  const resultsRef = useRef<HTMLDivElement>(null);
+export function PackagesCatalogue({
+  tours,
+  total,
+  page,
+  pageSize,
+  categories,
+  places,
+  months,
+  selectedCategory,
+  selectedPlace,
+  selectedMonth,
+}: PackagesCatalogueProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const allItems = useMemo(() => rails.flatMap((rail) => rail.items), [rails]);
-  const destinations = useMemo(() => getDestinationOptions(allItems), [allItems]);
+  function pushParams(next: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value === undefined || value === 'All') params.delete(key);
+      else params.set(key, value);
+    }
+    // Any filter change restarts pagination — page 2 of the OLD filter is
+    // not a meaningful place to land on the new one.
+    if (!('page' in next)) params.delete('page');
 
-  const filteredRails = useMemo(
-    () =>
-      rails.map((rail) => ({
-        ...rail,
-        items: rail.items.filter(
-          (item) =>
-            (selected === 'All' || item.category === selected) &&
-            (selectedDestination === 'All' || item.destinationSlug === selectedDestination)
-        ),
-      })),
-    [rails, selected, selectedDestination]
-  );
+    // `.size` is not reliably implemented across every URLSearchParams
+    // polyfill/jsdom version this project's test suite runs under — a
+    // string-length check is the portable equivalent.
+    const query = params.toString();
+    router.push(query.length > 0 ? `/tour-packages?${query}` : '/tour-packages');
+  }
 
-  const visibleItems = useMemo(() => filteredRails.flatMap((rail) => rail.items), [filteredRails]);
-  const visibleCount = visibleItems.length;
-
-  const isFiltered = selected !== 'All' || selectedDestination !== 'All';
-
-  /**
-   * What the consolidated section calls itself, composed from the active
-   * filters. Both values are derived from the tour data and validated before
-   * they reach this component, so this can only name a real category and a
-   * real destination — see `FilteredResults`.
-   */
-  const resultsHeading = useMemo(() => {
-    const destinationName = destinations.find((option) => option.slug === selectedDestination)?.name;
-    if (selected !== 'All' && destinationName) return `${selected} journeys in ${destinationName}`;
-    if (destinationName) return `Journeys in ${destinationName}`;
-    return `${selected} journeys`;
-  }, [selected, selectedDestination, destinations]);
-
-  // Reports the real bounds of what is currently listed, so the readout can
-  // never contradict the cards on screen (it used to be a hardcoded band).
-  const priceRangeLabel = useMemo(
-    () => getPriceRange(visibleCount > 0 ? visibleItems : allItems)?.label,
-    [visibleItems, visibleCount, allItems]
-  );
-
-  const scrollToResults = () => {
-    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  /**
-   * "Search Tours" applies the current selections and takes the visitor to the
-   * results. Both wired filters (category chips, destination select) already
-   * apply as they change, so there is nothing further to commit — the button's
-   * real job is the navigation, and it does it. It is deliberately NOT a
-   * `<button>` with no handler, which is what it was: focusable, announced as
-   * actionable, and completely inert. If a future unwired field (travel month)
-   * becomes real and needs an explicit apply step, commit it here.
-   */
-  const handleSearch = () => {
-    scrollToResults();
-  };
-
-  /** "View All Packages" on a rail: drop every filter, then return to that rail. */
-  const handleViewAll = () => {
-    setSelected('All');
-    setSelectedDestination('All');
-    scrollToResults();
-  };
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div>
       <div className="relative z-[4] -mt-[70px] px-gx">
         <PackagesFilterBar
           categories={categories}
-          selected={selected}
-          onSelect={setSelected}
-          visibleCount={visibleCount}
-          destinations={destinations}
-          selectedDestination={selectedDestination}
-          onSelectDestination={setSelectedDestination}
-          onSearch={handleSearch}
-          priceRangeLabel={priceRangeLabel}
+          selectedCategory={selectedCategory}
+          onSelectCategory={(category) => pushParams({ category: category === 'All' ? undefined : category })}
+          places={places}
+          selectedPlace={selectedPlace}
+          onSelectPlace={(place) => pushParams({ place: place === 'All' ? undefined : place })}
+          months={months}
+          selectedMonth={selectedMonth}
+          onSelectMonth={(month) => pushParams({ month: month === 'All' ? undefined : month })}
+          visibleCount={tours.length}
+          totalCount={total}
+          onClear={() => router.push('/tour-packages')}
         />
       </div>
 
-      <div ref={resultsRef} data-testid="packages-results" className="flex flex-col gap-[2px] py-[26px]">
-        {visibleCount === 0 ? (
+      <div data-testid="packages-results" className="flex flex-col gap-4 px-gx py-[26px]">
+        {tours.length === 0 ? (
           <p className="mx-gx rounded-16 border border-dashed border-gty-border-8 bg-gty-surface-3 px-4 py-8 text-center text-14 text-gty-subtle">
             No journeys match this filter yet.
           </p>
-        ) : isFiltered ? (
-          /*
-            FILTERED → ONE section. Keeping the four-rail split here rendered
-            the matching card in its own rail plus a "No journeys match this
-            filter yet." box for each of the other three, so a deep link that
-            worked looked like a page that did not. See `FilteredResults`.
-          */
-          <FilteredResults items={visibleItems} heading={resultsHeading} onClearFilters={handleViewAll} />
         ) : (
-          /* UNFILTERED → the four themed rails, which is what they are for. */
-          filteredRails.map((rail, index) => (
-            <PackageRail
-              key={rail.title}
-              title={rail.title}
-              items={rail.items}
-              background={index % 2 === 0 ? 'white' : 'cream'}
-              onViewAll={handleViewAll}
-            />
-          ))
+          <div data-testid="packages-grid" className={cn('grid gap-5', gridColumnsForCount(tours.length))}>
+            {tours.map((tour) => (
+              <PackageCard key={tour.slug} tour={tour} />
+            ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <nav aria-label="Tour packages pagination" className="flex items-center justify-center gap-3 pt-4">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => pushParams({ page: String(page - 1) })}
+              className="rounded-pill border border-gty-border-2 px-5 py-2 text-13 font-bold text-gty-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Previous
+            </button>
+            <span className="text-13 text-gty-subtle">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => pushParams({ page: String(page + 1) })}
+              className="rounded-pill border border-gty-border-2 px-5 py-2 text-13 font-bold text-gty-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </nav>
         )}
       </div>
     </div>

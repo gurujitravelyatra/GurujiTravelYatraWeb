@@ -2,28 +2,52 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PackagesFilterBar } from '../PackagesFilterBar';
-import { getCategoryChips } from '@/content/get-category-chips';
-import {
-  getDestinationOptions,
-  getPriceRange,
-  publiclyListedRails,
-  toursRenderedOnCataloguePage,
-} from '@/content/public-listing';
+import type { CrmCategory, CrmPlace } from '@/server/crm/types';
 
-const categories = getCategoryChips(publiclyListedRails);
-const destinations = getDestinationOptions(toursRenderedOnCataloguePage);
+const categories: CrmCategory[] = ['Spiritual', 'Adventure', 'International', 'Family', 'Group'];
+const places: CrmPlace[] = [
+  {
+    name: 'Maldives',
+    slug: 'maldives',
+    region: 'Indian Ocean',
+    description: 'd',
+    imageUrl: 'https://res.cloudinary.com/place-images/maldives.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 1,
+  },
+  {
+    name: 'Goa',
+    slug: 'goa',
+    region: 'West India',
+    description: 'd',
+    imageUrl: 'https://res.cloudinary.com/place-images/goa.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 2,
+  },
+];
+const months = ['2026-07', '2026-08'];
 
+/**
+ * CRM-migration Step 2: every filter in `PackagesFilterBar` now maps 1:1 to
+ * a `GET /public/tours` query parameter and is reported up via a callback —
+ * the parent (`PackagesCatalogue`) is the one that navigates. There is no
+ * more "Search Tours" commit button or price-range readout field in this
+ * component; each select already applies on change.
+ */
 function renderBar(overrides: Partial<React.ComponentProps<typeof PackagesFilterBar>> = {}) {
   const props = {
     categories,
-    selected: 'All' as const,
-    onSelect: jest.fn(),
-    visibleCount: toursRenderedOnCataloguePage.length,
-    destinations,
-    selectedDestination: 'All' as const,
-    onSelectDestination: jest.fn(),
-    onSearch: jest.fn(),
-    priceRangeLabel: getPriceRange(toursRenderedOnCataloguePage)?.label,
+    selectedCategory: 'All' as const,
+    onSelectCategory: jest.fn(),
+    places,
+    selectedPlace: 'All' as const,
+    onSelectPlace: jest.fn(),
+    months,
+    selectedMonth: 'All' as const,
+    onSelectMonth: jest.fn(),
+    visibleCount: 12,
+    totalCount: 12,
+    onClear: jest.fn(),
     ...overrides,
   };
   render(<PackagesFilterBar {...props} />);
@@ -31,112 +55,77 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof PackagesFilter
 }
 
 describe('PackagesFilterBar', () => {
-  it('renders the chip list derived from fixture data — no Honeymoon/Wildlife, includes International and Beach', () => {
+  it('renders a chip for every CRM category, plus All', () => {
     renderBar();
 
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'International' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Beach' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Honeymoon' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Wildlife' })).not.toBeInTheDocument();
+    for (const category of categories) {
+      expect(screen.getByRole('button', { name: category })).toBeInTheDocument();
+    }
   });
 
   it('toggles aria-pressed correctly as the selected chip changes', () => {
-    renderBar({ selected: 'International' });
+    renderBar({ selectedCategory: 'International' });
 
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'International' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('calls onSelect with the clicked category', async () => {
+  it('calls onSelectCategory with the clicked category', async () => {
     const user = userEvent.setup();
-    const { onSelect } = renderBar();
+    const { onSelectCategory } = renderBar();
 
-    await user.click(screen.getByRole('button', { name: 'Beach' }));
-    expect(onSelect).toHaveBeenCalledWith('Beach');
+    await user.click(screen.getByRole('button', { name: 'Family' }));
+    expect(onSelectCategory).toHaveBeenCalledWith('Family');
   });
 
-  it('announces the visible count via an aria-live region', () => {
-    renderBar({ selected: 'Beach', visibleCount: 1 });
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
+  it('announces the visible/total count via an aria-live region', () => {
+    renderBar({ visibleCount: 3, totalCount: 12 });
+    expect(screen.getByText('3 of 12 journeys')).toBeInTheDocument();
+  });
+
+  it('the destination select offers every CRM place and reports a real selection', async () => {
+    const user = userEvent.setup();
+    const { onSelectPlace } = renderBar();
+
+    const select = screen.getByLabelText('Destination');
+    expect(select).toBeEnabled();
+
+    await user.selectOptions(select, 'maldives');
+    expect(onSelectPlace).toHaveBeenCalledWith('maldives');
+
+    for (const place of places) {
+      expect(screen.getByRole('option', { name: place.name })).toBeInTheDocument();
+    }
   });
 
   /**
-   * H4: "Search Tours" was `<button type="button">` with no `onClick` at all —
-   * focusable, announced as actionable, doing nothing. Same for "Clear"'s
-   * destination half once a second filter existed.
+   * CRM-migration Step 2: the month filter used to be permanently disabled
+   * ("there is no departure-date or availability data anywhere in the
+   * system"). The CRM provides exactly that (`GET /public/departures`'s
+   * `months` list), so it is a real, working select now.
    */
-  describe('primary CTAs do real work (no inert buttons)', () => {
-    it('Search Tours invokes the search handler', async () => {
-      const user = userEvent.setup();
-      const { onSearch } = renderBar();
+  it('the travel-month select is a real, enabled control offering the CRM-provided months', async () => {
+    const user = userEvent.setup();
+    const { onSelectMonth } = renderBar();
 
-      await user.click(screen.getByRole('button', { name: /Search Tours/ }));
+    const select = screen.getByLabelText('Travel month');
+    expect(select).toBeEnabled();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
 
-      expect(onSearch).toHaveBeenCalledTimes(1);
-    });
+    await user.selectOptions(select, '2026-07');
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-07');
 
-    it('Search Tours is not a no-op — it has a real onClick handler bound', () => {
-      const { onSearch } = renderBar();
-      const button = screen.getByRole('button', { name: /Search Tours/ });
-
-      // Fire a raw click rather than going through user-event, so this fails
-      // loudly if the handler is ever dropped from the element itself.
-      button.click();
-      expect(onSearch).toHaveBeenCalled();
-    });
-
-    it('Clear resets BOTH filters, not just the category', async () => {
-      const user = userEvent.setup();
-      const { onSelect, onSelectDestination } = renderBar({ selected: 'Beach', selectedDestination: 'goa' });
-
-      await user.click(screen.getByRole('button', { name: /Clear/ }));
-
-      expect(onSelect).toHaveBeenCalledWith('All');
-      expect(onSelectDestination).toHaveBeenCalledWith('All');
-    });
+    for (const month of months) {
+      expect(screen.getByRole('option', { name: month })).toBeInTheDocument();
+    }
   });
 
-  /** M6 — controls must not present as functional unless they are. */
-  describe('field honesty', () => {
-    it('the destination field is a real select, offering only destinations that have journeys', async () => {
-      const user = userEvent.setup();
-      const { onSelectDestination } = renderBar();
+  it('Clear calls the onClear handler', async () => {
+    const user = userEvent.setup();
+    const { onClear } = renderBar();
 
-      const select = screen.getByLabelText('Destination');
-      expect(select).toBeEnabled();
-
-      await user.selectOptions(select, 'maldives');
-      expect(onSelectDestination).toHaveBeenCalledWith('maldives');
-
-      // Derived, so a destination with zero tours cannot be offered. Malaysia
-      // is the regression case: the export listed it, no tour goes there.
-      expect(screen.queryByRole('option', { name: 'Malaysia' })).not.toBeInTheDocument();
-      for (const destination of destinations) {
-        expect(screen.getByRole('option', { name: destination.name })).toBeInTheDocument();
-      }
-    });
-
-    it('marks the unwired travel-month field aria-disabled with a visible "coming soon"', () => {
-      renderBar();
-      const field = screen.getByTestId('filter-travel-month');
-
-      expect(field).toHaveAttribute('aria-disabled', 'true');
-      expect(field).toHaveTextContent(/coming soon/i);
-    });
-
-    it('shows the REAL price bounds of the listed journeys, never a hardcoded band', () => {
-      renderBar();
-
-      const range = getPriceRange(toursRenderedOnCataloguePage);
-      expect(range).toBeDefined();
-      expect(screen.getByTestId('filter-price-range')).toHaveTextContent(range!.label);
-
-      // The old hardcoded label excluded both the cheapest and the priciest
-      // journey on the site.
-      expect(screen.queryByText(/₹15,000 — ₹75,000/)).not.toBeInTheDocument();
-      expect(range!.min).toBeLessThanOrEqual(12800);
-      expect(range!.max).toBeGreaterThanOrEqual(78500);
-    });
+    await user.click(screen.getByRole('button', { name: /Clear/ }));
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });

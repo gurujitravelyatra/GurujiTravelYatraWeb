@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
-import { getAllPackages, getPackageBySlug } from '@/content/get-all-packages';
+import { getTourBySlug } from '@/server/crm/client';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import { PriceOnRequest } from '@/components/ui/price-on-request';
 import { isSafeMediaUrl } from '@/lib/cloudinary-url';
-import { hasConfirmedTourPrice } from '@/lib/rupees';
+import { formatTourDuration } from '@/lib/duration';
+import { formatCrmPrice } from '@/lib/rupees';
 import { PackageDetailCtas } from '@/components/tour-packages/PackageDetailCtas';
 
 interface PackageDetailPageProps {
@@ -15,76 +16,49 @@ interface PackageDetailPageProps {
 }
 
 /**
- * BLOCKERS.md Decision D. Static params cover every `Package` a `PackageCard`
- * can link to site-wide — see `getAllPackages()` for why this is not just the
- * 20 `packageRails` items.
+ * CRM-migration Step 2: no more `generateStaticParams()`. The old build-time
+ * SSG model enumerated every tour from the database at build time; the CRM
+ * is now the single source of truth and can add/remove/retire a tour
+ * without a redeploy, so every slug is resolved on demand through
+ * `getTourBySlug()` (cached/tagged for 60s via Next's fetch cache, same as
+ * every other CRM read) and `dynamicParams` stays at its default `true`.
  */
-export async function generateStaticParams() {
-  const packages = await getAllPackages();
-  return packages.map((pkg) => ({ slug: pkg.slug }));
-}
-
 export async function generateMetadata({ params }: PackageDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const pkg = await getPackageBySlug(slug);
-  if (!pkg) {
-    return {};
-  }
+  const result = await getTourBySlug(slug);
+  if (result.status !== 'found') return {};
   return {
-    title: pkg.name,
-    description: `${pkg.durationLabel} · ${pkg.subtitle}`,
+    title: result.tour.seoTitle || result.tour.name,
+    description: result.tour.seoDescription || result.tour.shortDescription,
   };
 }
 
 /**
- * `/tour-packages/[slug]` — Server Component, BLOCKERS.md Decision D.
- * Renders ONLY fields that exist on the `Package` type/fixtures: photo,
- * name, destination, category, duration, subtitle/route, photo count,
- * price, "was" price, savings. No day-by-day itinerary, inclusions/
- * exclusions, hotels, maps or reviews — the export's own detail screen
- * renders those from `PACKS[0]` regardless of which card was clicked (not
- * real per-tour data), so none of it is transcribed here.
+ * `/tour-packages/[slug]` — Server Component.
+ *
+ * Three outcomes, matching the contract exactly:
+ *  - `found` → render the full detail;
+ *  - `redirect` → the slug is retired but the tour still exists; issue the
+ *    website's OWN redirect (the contract is explicit that the CRM's `200`
+ *    body is not itself a redirect);
+ *  - `not-found` → `notFound()`, identical to a tour that never existed —
+ *    the CRM's own design rule is that withheld/retired/absent are never
+ *    distinguishable to a caller.
  */
 export default async function PackageDetailPage({ params }: PackageDetailPageProps) {
   const { slug } = await params;
-  const pkg = await getPackageBySlug(slug);
+  const result = await getTourBySlug(slug);
 
-  if (!pkg) {
-    notFound();
-  }
+  if (result.status === 'not-found') notFound();
+  if (result.status === 'redirect') redirect(`/tour-packages/${result.redirectTo}`);
 
-  // The record's own display name ("Leh Ladakh"), not a de-slugified guess
-  // ("leh ladakh" / "vaishnodevi").
-  const destinationName = pkg.destinationName;
-
-  /**
-   * THE GALLERY URLs ARE FILTERED BEFORE THEY REACH AN `href`.
-   *
-   * `PhotoPlaceholder` already refuses an unsafe `src`, but this page also puts
-   * each URL in an anchor, and an anchor is the more dangerous of the two: a
-   * `javascript:` `src` on an `<img>` does nothing in any current browser, while
-   * a `javascript:` `href` is one click from executing on our origin, in the
-   * visitor's session.
-   *
-   * Nothing writable through the admin can get here — `cloudinaryUrl` in the
-   * tour schema pins the host. But this column is also reachable by a direct SQL
-   * edit, by a restore of a backup predating that rule, and by any future import
-   * script, and a renderer that trusts its datastore is trusting every path that
-   * has ever written to it. Filtering (rather than refusing the page) means one
-   * bad row costs one thumbnail, not the tour.
-   */
-  const galleryUrls = (pkg.galleryImageUrls ?? []).filter(isSafeMediaUrl);
-
-  /**
-   * CRM-migration decision 1: the public-listing gate no longer withholds a
-   * tour for an unconfirmed price, so this page may now render a tour whose
-   * `priceFrom` is missing/zero — never show "₹0" or a blank figure for
-   * that, and never a "Save ₹X" badge with no real price beside it.
-   */
-  const priceConfirmed = hasConfirmedTourPrice(pkg.priceFrom);
+  const tour = result.tour;
+  const priceLabel = formatCrmPrice(tour.price);
+  const durationLabel = formatTourDuration(tour.durationDays, tour.durationNights);
+  const galleryUrls = tour.gallery.filter((image) => isSafeMediaUrl(image.url));
 
   return (
-    <SiteShell activePath="/tour-packages" pageLabel={pkg.name}>
+    <SiteShell activePath="/tour-packages" pageLabel={tour.name}>
       <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-gx py-8">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-[6px] text-13 text-gty-subtle">
           <Link href="/" className="transition-colors duration-gty-fast ease-gty hover:text-gty-primary">
@@ -96,50 +70,35 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
           </Link>
           <span aria-hidden="true">/</span>
           <span aria-current="page" className="text-gty-ink-soft">
-            {pkg.name}
+            {tour.name}
           </span>
         </nav>
 
         <PhotoPlaceholder
-          photoKey={pkg.photoUrl}
-          imageUrl={pkg.coverImageUrl}
-          alt={`${pkg.name} — ${destinationName}`}
+          photoKey={tour.name}
+          imageUrl={tour.coverImageUrl}
+          alt={`${tour.name} — ${tour.primaryPlace.name}`}
           className="h-[280px] w-full rounded-18 760:h-[380px]"
         />
 
-        {/*
-          The gallery, when the tour has one — Phase C.
-
-          Rendered here rather than left as admin-only data on purpose. The badge
-          two elements below says "{photosCount} Photos", and `photosCount` is now
-          derived from this very gallery, so without somewhere to see them the
-          page would promise photographs and provide no way to reach them —
-          the "flag that renders but leads nowhere" shape
-          `memory/feedback_qg_unenforced-safety-flag.md` catalogues.
-
-          A strip of links to the full-size images, not a lightbox. A lightbox is
-          a real component with focus management and keyboard handling, and half
-          of one is worse than none; opening the image is something every browser
-          already does correctly.
-        */}
         {galleryUrls.length > 0 && (
           <section aria-labelledby="tour-gallery-heading" className="flex flex-col gap-3">
             <h2 id="tour-gallery-heading" className="text-16 font-extrabold text-gty-ink">
               Photos
             </h2>
             <ul className="flex flex-wrap gap-3">
-              {galleryUrls.map((url, index) => (
-                <li key={url}>
+              {galleryUrls.map((image, index) => (
+                <li key={image.url}>
                   <a
-                    href={url}
+                    href={image.url}
                     target="_blank"
                     rel="noreferrer"
                     className="block overflow-hidden rounded-12 border border-gty-border transition-transform duration-gty-fast ease-gty hover:-translate-y-[2px]"
                   >
                     <PhotoPlaceholder
-                      photoKey={pkg.photoUrl}
-                      imageUrl={url}
-                      alt={`${pkg.name} — photo ${index + 1} of ${galleryUrls.length}`}
+                      photoKey={tour.name}
+                      imageUrl={image.url}
+                      alt={image.alt || `${tour.name} — photo ${index + 1} of ${galleryUrls.length}`}
                       className="h-[110px] w-[150px]"
                     />
                   </a>
@@ -151,44 +110,134 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
 
         <div className="flex flex-wrap items-center gap-[10px]">
           <span className="inline-flex items-center gap-[6px] rounded-pill bg-gty-red-150 px-3 py-[6px] text-12-5 font-semibold text-gty-primary">
-            {pkg.category}
-          </span>
-          <span className="inline-flex items-center gap-[6px] rounded-8 bg-gty-overlay-dark px-[10px] py-[5px] text-12 font-semibold text-gty-white">
-            {pkg.photosCount} Photos
+            {tour.category}
           </span>
         </div>
 
-        <h1 className="text-29 font-extrabold leading-[1.15] tracking-tightest text-gty-ink 760:text-36">{pkg.name}</h1>
+        <h1 className="text-29 font-extrabold leading-[1.15] tracking-tightest text-gty-ink 760:text-36">{tour.name}</h1>
 
         <p className="flex items-center gap-[7px] text-14 text-gty-body">
           <span aria-hidden="true" className="text-gty-subtle">
             ⏱
           </span>
-          {pkg.durationLabel}
+          {durationLabel}
         </p>
-        <p className="text-15 leading-[1.5] text-gty-body">{pkg.subtitle}</p>
+        <p className="text-15 leading-[1.5] text-gty-body">{tour.description || tour.shortDescription}</p>
 
         <div className="h-px bg-gty-border-4" />
 
-        <div className="flex flex-wrap items-center gap-4">
-          {priceConfirmed ? (
-            <>
-              {pkg.savingsLabel && (
-                <span className="inline-flex items-center gap-[7px] rounded-9 border border-gty-green-border bg-gty-green-bg px-[13px] py-[7px] text-13-5 font-bold text-gty-green-text">
-                  Save ₹{pkg.savingsLabel}
-                </span>
-              )}
-              <span className="flex items-baseline gap-[9px]">
-                <span className="text-29 font-extrabold text-gty-primary">{pkg.priceFrom}</span>
-                {pkg.priceWas && <span className="text-16 text-gty-faint line-through">{pkg.priceWas}</span>}
-              </span>
-            </>
-          ) : (
-            <PriceOnRequest />
-          )}
-        </div>
+        {/* A single GST-inclusive price, or the per-tier prices if the CRM has configured any — never a struck-through "was" price or a "Save ₹X" badge, which this contract has no field for. */}
+        {tour.pricingOptions.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <h2 className="text-16 font-extrabold text-gty-ink">Pricing</h2>
+            <ul className="flex flex-wrap gap-3">
+              {tour.pricingOptions.map((option) => {
+                const optionPrice = formatCrmPrice(option.price);
+                return (
+                  <li
+                    key={option.label}
+                    className="flex min-w-[180px] flex-col gap-1 rounded-14 border border-gty-border bg-gty-surface-3 px-4 py-3"
+                  >
+                    <span className="text-13 font-bold text-gty-ink">{option.label}</span>
+                    <span className="text-20 font-extrabold text-gty-primary">
+                      {optionPrice ?? <PriceOnRequest interactive={false} />}
+                    </span>
+                    {option.note && <span className="text-11-5 text-gty-subtle">{option.note}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : priceLabel ? (
+          <span className="text-29 font-extrabold text-gty-primary">{priceLabel}</span>
+        ) : (
+          <PriceOnRequest />
+        )}
 
-        <PackageDetailCtas packageName={pkg.name} />
+        {tour.highlights.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-16 font-extrabold text-gty-ink">Highlights</h2>
+            <ul className="flex flex-col gap-[6px] text-14 text-gty-body">
+              {tour.highlights.map((highlight) => (
+                <li key={highlight} className="flex gap-2">
+                  <span aria-hidden="true" className="text-gty-primary">
+                    ✓
+                  </span>
+                  {highlight}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {tour.itinerary.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-16 font-extrabold text-gty-ink">Itinerary</h2>
+            <ol className="flex flex-col gap-3">
+              {tour.itinerary.map((day) => (
+                <li key={day.day} className="rounded-14 border border-gty-border bg-gty-surface-3 px-4 py-3">
+                  <p className="text-13 font-bold text-gty-ink">
+                    Day {day.day}: {day.title}
+                  </p>
+                  <p className="text-13-5 text-gty-body">{day.detail}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {(tour.inclusions.length > 0 || tour.exclusions.length > 0) && (
+          <section className="grid gap-6 760:grid-cols-2">
+            {tour.inclusions.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h2 className="text-16 font-extrabold text-gty-ink">Inclusions</h2>
+                <ul className="flex flex-col gap-[6px] text-13-5 text-gty-body">
+                  {tour.inclusions.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {tour.exclusions.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h2 className="text-16 font-extrabold text-gty-ink">Exclusions</h2>
+                <ul className="flex flex-col gap-[6px] text-13-5 text-gty-body">
+                  {tour.exclusions.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
+
+        {tour.departures.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-16 font-extrabold text-gty-ink">Upcoming departures</h2>
+            <ul className="flex flex-wrap gap-3">
+              {tour.departures.map((departure) => (
+                <li
+                  key={departure.date}
+                  className="flex min-w-[160px] flex-col gap-1 rounded-14 border border-gty-border bg-gty-surface-3 px-4 py-3"
+                >
+                  <span className="text-13 font-bold text-gty-ink">{departure.date}</span>
+                  <span className="text-12-5 text-gty-body">
+                    {departure.soldOut ? 'Sold out' : `${departure.seatsLeft} seats left`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {tour.cancellationPolicy && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-16 font-extrabold text-gty-ink">Cancellation Policy</h2>
+            <p className="text-13-5 leading-[1.6] text-gty-body">{tour.cancellationPolicy}</p>
+          </section>
+        )}
+
+        <PackageDetailCtas packageName={tour.name} hasBrochure={tour.hasBrochure} />
       </div>
     </SiteShell>
   );

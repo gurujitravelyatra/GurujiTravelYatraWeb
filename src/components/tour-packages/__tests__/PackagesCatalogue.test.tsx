@@ -1,269 +1,158 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PackagesCatalogue } from '../PackagesCatalogue';
-import { getCategoryChips } from '@/content/get-category-chips';
-import { publiclyListedRails, toursRenderedOnCataloguePage } from '@/content/public-listing';
-import { gridColumnsForCount } from '@/lib/card-grid';
+import type { CrmCategory, CrmPlace, CrmTourCard } from '@/server/crm/types';
 
-const categories = getCategoryChips(publiclyListedRails);
-const TOTAL = toursRenderedOnCataloguePage.length;
+const push = jest.fn();
+let currentSearchParams = new URLSearchParams();
 
-function renderCatalogue(props: Partial<React.ComponentProps<typeof PackagesCatalogue>> = {}) {
-  return render(<PackagesCatalogue rails={publiclyListedRails} categories={categories} {...props} />);
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+  useSearchParams: () => currentSearchParams,
+}));
+
+function tour(slug: string, category: CrmCategory = 'Adventure'): CrmTourCard {
+  return {
+    slug,
+    name: `Tour ${slug}`,
+    category,
+    shortDescription: 'A trip.',
+    coverImageUrl: 'https://res.cloudinary.com/tour-images/abc.jpg',
+    price: { amount: 25000, currency: 'INR' },
+    durationDays: 6,
+    durationNights: 5,
+    departureCity: null,
+    primaryPlace: { name: 'Place', slug: 'place' },
+    nextDeparture: null,
+    hasBrochure: false,
+  };
 }
 
-/** jsdom does not implement scrollIntoView; the components legitimately call it. */
-beforeAll(() => {
-  Element.prototype.scrollIntoView = jest.fn();
-  Element.prototype.scrollBy = jest.fn();
-});
+const categories: CrmCategory[] = ['Spiritual', 'Adventure', 'International'];
+const places: CrmPlace[] = [
+  {
+    name: 'Goa',
+    slug: 'goa',
+    region: 'West India',
+    description: 'd',
+    imageUrl: 'https://res.cloudinary.com/place-images/goa.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 1,
+  },
+];
+const months = ['2026-07'];
+
+function renderCatalogue(overrides: Partial<React.ComponentProps<typeof PackagesCatalogue>> = {}) {
+  const tours = [tour('a'), tour('b'), tour('c')];
+  return render(
+    <PackagesCatalogue
+      tours={tours}
+      total={tours.length}
+      page={1}
+      pageSize={12}
+      categories={categories}
+      places={places}
+      months={months}
+      selectedCategory="All"
+      selectedPlace="All"
+      selectedMonth="All"
+      {...overrides}
+    />
+  );
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
+  currentSearchParams = new URLSearchParams();
 });
 
-describe('PackagesCatalogue filtering', () => {
-  it('starts unfiltered, listing every publicly-listed catalogue tour', () => {
+/**
+ * CRM-migration Step 2: `/tour-packages` is now ONE server-filtered grid
+ * (`GET /public/tours`'s `category`/`place`/`month`/`page`), not four
+ * client-filtered rails. Filter controls navigate (via `router.push` with a
+ * new query string), which the SERVER re-renders with new results — this
+ * component itself holds no filtering logic over a pre-fetched array.
+ */
+describe('PackagesCatalogue', () => {
+  it('renders the tours it is given and the visible/total count', () => {
     renderCatalogue();
-    expect(screen.getByText(`${TOTAL} journeys found`)).toBeInTheDocument();
+    expect(screen.getByText('3 of 3 journeys')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Tour [abc]/ })).toHaveLength(3);
   });
 
-  it('filters by category', async () => {
+  it('selecting a category pushes a new URL with that category, dropping page', async () => {
     const user = userEvent.setup();
     renderCatalogue();
 
-    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'International' }));
+
+    expect(push).toHaveBeenCalledWith('/tour-packages?category=International');
   });
 
-  it('filters by destination through the real select', async () => {
+  it('selecting a place pushes a new URL with that place', async () => {
     const user = userEvent.setup();
     renderCatalogue();
 
-    await user.selectOptions(screen.getByLabelText('Destination'), 'maldives');
+    await user.selectOptions(screen.getByLabelText('Destination'), 'goa');
 
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Maldives Escape/ })).toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/tour-packages?place=goa');
   });
 
-  it('combines both filters rather than letting one override the other', async () => {
+  it('selecting a month pushes a new URL with that month', async () => {
     const user = userEvent.setup();
     renderCatalogue();
 
-    await user.click(screen.getByRole('button', { name: /^International$/ }));
-    await user.selectOptions(screen.getByLabelText('Destination'), 'dubai');
+    await user.selectOptions(screen.getByLabelText('Travel month'), '2026-07');
 
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/tour-packages?month=2026-07');
   });
 
-  it('shows the empty state when the combination matches nothing, instead of a misleading partial list', async () => {
+  it('combines filters already present in the URL with a new one', async () => {
+    currentSearchParams = new URLSearchParams({ category: 'International' });
+    const user = userEvent.setup();
+    renderCatalogue({ selectedCategory: 'International' });
+
+    await user.selectOptions(screen.getByLabelText('Destination'), 'goa');
+
+    const [pushedUrl] = push.mock.calls[0] as [string];
+    expect(pushedUrl).toContain('category=International');
+    expect(pushedUrl).toContain('place=goa');
+  });
+
+  it('Clear navigates back to the plain /tour-packages', async () => {
     const user = userEvent.setup();
     renderCatalogue();
 
-    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
-    await user.selectOptions(screen.getByLabelText('Destination'), 'maldives');
+    await user.click(screen.getByRole('button', { name: /Clear/ }));
+    expect(push).toHaveBeenCalledWith('/tour-packages');
+  });
 
-    expect(screen.getByText('0 journeys found')).toBeInTheDocument();
+  it('shows the empty state when there are no tours', () => {
+    renderCatalogue({ tours: [], total: 0 });
     expect(screen.getByText('No journeys match this filter yet.')).toBeInTheDocument();
   });
-});
 
-/** M2/M3 — deep links must land on real filtered results, not the full catalogue. */
-describe('deep links from ?category= / ?destination=', () => {
-  it('opens pre-filtered to a category', () => {
-    renderCatalogue({ initialCategory: 'International' });
+  it('renders pagination controls only when there is more than one page', () => {
+    renderCatalogue({ total: 3, pageSize: 12 });
+    expect(screen.queryByRole('navigation', { name: 'Tour packages pagination' })).not.toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: /^International$/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    expect(screen.getByText('5 journeys found')).toBeInTheDocument();
+    renderCatalogue({ total: 30, pageSize: 12, page: 1 });
+    expect(screen.getByRole('navigation', { name: 'Tour packages pagination' })).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
   });
 
-  it('opens pre-filtered to a destination', () => {
-    renderCatalogue({ initialDestination: 'goa' });
-
-    expect(screen.getByLabelText('Destination')).toHaveValue('goa');
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Goa Beach Holiday/ })).toBeInTheDocument();
+  it('disables Previous on the first page and Next on the last page', () => {
+    renderCatalogue({ total: 30, pageSize: 12, page: 1 });
+    expect(screen.getByRole('button', { name: /Previous/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
   });
 
-  it('ignores nothing — an omitted param simply means "All"', () => {
-    renderCatalogue();
-
-    expect(screen.getByRole('button', { name: /^All$/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByLabelText('Destination')).toHaveValue('All');
-  });
-});
-
-/**
- * H4 — "View All Packages →" was a `<button type="button">` with no handler,
- * four times on this page: focusable, announced as actionable, inert.
- */
-describe('rail "View All Packages" CTAs do real work', () => {
-  it('clears every active filter and returns the visitor to the full list', async () => {
+  it('Next pushes the next page number', async () => {
     const user = userEvent.setup();
-    renderCatalogue({ initialCategory: 'International' });
+    renderCatalogue({ total: 30, pageSize: 12, page: 1 });
 
-    expect(screen.getByText('5 journeys found')).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole('button', { name: /View All Packages/ })[0]);
-
-    expect(screen.getByText(`${TOTAL} journeys found`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All$/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByLabelText('Destination')).toHaveValue('All');
-  });
-
-  it('moves the visitor to the results rather than leaving the page where it was', async () => {
-    const user = userEvent.setup();
-    renderCatalogue();
-
-    await user.click(screen.getAllByRole('button', { name: /View All Packages/ })[0]);
-
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-  });
-
-  it('every rail on the page has a working CTA, not just the first', async () => {
-    const user = userEvent.setup();
-    renderCatalogue({ initialDestination: 'goa' });
-
-    const buttons = screen.getAllByRole('button', { name: /View All Packages/ });
-    expect(buttons.length).toBeGreaterThan(0);
-
-    for (const button of buttons) {
-      await user.click(button);
-      expect(screen.getByLabelText('Destination')).toHaveValue('All');
-    }
-  });
-});
-
-/** H4 — "Search Tours →" likewise had no handler at all. */
-describe('"Search Tours" applies the current selection and shows the results', () => {
-  it('is not inert — clicking it moves the visitor to the results', async () => {
-    const user = userEvent.setup();
-    renderCatalogue();
-
-    await user.click(screen.getByRole('button', { name: /Search Tours/ }));
-
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-  });
-
-  it('leaves the active selection applied, rather than resetting it', async () => {
-    const user = userEvent.setup();
-    renderCatalogue({ initialCategory: 'Beach' });
-
-    await user.click(screen.getByRole('button', { name: /Search Tours/ }));
-
-    expect(screen.getByText('1 journey found')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Beach$/ })).toHaveAttribute('aria-pressed', 'true');
-  });
-});
-
-/**
- * F6 — a deep link that worked looked like a page that did not.
- *
- * The four themed rails each filtered independently, so
- * `/tour-packages?destination=goa` rendered the one matching card inside the
- * rail that happened to contain it, plus THREE "No journeys match this filter
- * yet." boxes for the rails that did not. Filtering is now a single
- * consolidated results section; the rails are reserved for the unfiltered
- * browsing view they exist for.
- */
-describe('a filtered view renders ONE results section, not four near-empty rails', () => {
-  const EMPTY_RAIL_COPY = /No journeys match this filter yet\./;
-
-  it('renders exactly one results section and zero empty-rail boxes for a single-destination deep link', () => {
-    renderCatalogue({ initialDestination: 'goa' });
-
-    expect(screen.getAllByTestId('packages-filtered-results')).toHaveLength(1);
-    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
-    expect(screen.getByRole('link', { name: /Goa Beach Holiday/ })).toBeInTheDocument();
-  });
-
-  it('shows every match in that one section, and nothing else', () => {
-    renderCatalogue({ initialCategory: 'International' });
-
-    const results = screen.getByTestId('packages-filtered-results');
-    const expected = toursRenderedOnCataloguePage.filter((tour) => tour.category === 'International');
-
-    expect(within(results).getAllByRole('link')).toHaveLength(expected.length);
-    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
-  });
-
-  it('titles the section from the active filter, naming only real derived values', () => {
-    renderCatalogue({ initialDestination: 'goa' });
-    expect(screen.getByRole('heading', { name: 'Journeys in Goa' })).toBeInTheDocument();
-
-    cleanup();
-    renderCatalogue({ initialCategory: 'International' });
-    expect(screen.getByRole('heading', { name: 'International journeys' })).toBeInTheDocument();
-
-    cleanup();
-    renderCatalogue({ initialCategory: 'International', initialDestination: 'dubai' });
-    expect(screen.getByRole('heading', { name: 'International journeys in Dubai' })).toBeInTheDocument();
-  });
-
-  it('sizes the results grid to the number of matches, so one card does not sit in a five-column row', () => {
-    renderCatalogue({ initialDestination: 'goa' });
-
-    const grid = screen.getByTestId('filtered-results-grid');
-    expect(grid.className).toContain(gridColumnsForCount(1));
-    expect(grid.className).not.toMatch(/grid-cols-[2-9]/);
-  });
-
-  it('keeps the four rails for the unfiltered default view', () => {
-    renderCatalogue();
-
-    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /View All Packages/ })).toHaveLength(publiclyListedRails.length);
-  });
-
-  it('switches to the consolidated view when the visitor clicks a chip, not only on deep links', async () => {
-    const user = userEvent.setup();
-    renderCatalogue();
-
-    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
-
-    // Clicking "Beach" used to produce 1 card and 3 empty-state boxes — the
-    // same defect as the deep link, reached a different way.
-    expect(screen.getAllByTestId('packages-filtered-results')).toHaveLength(1);
-    expect(screen.queryAllByText(EMPTY_RAIL_COPY)).toHaveLength(0);
-  });
-
-  it('returns to the four-rail view when the filters are cleared', async () => {
-    const user = userEvent.setup();
-    renderCatalogue({ initialCategory: 'International' });
-
-    await user.click(screen.getByRole('button', { name: /View All Packages/ }));
-
-    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /View All Packages/ })).toHaveLength(publiclyListedRails.length);
-  });
-
-  it('still shows the single catalogue-level empty state when nothing matches at all', async () => {
-    const user = userEvent.setup();
-    renderCatalogue();
-
-    await user.click(screen.getByRole('button', { name: /^Beach$/ }));
-    await user.selectOptions(screen.getByLabelText('Destination'), 'maldives');
-
-    expect(screen.queryByTestId('packages-filtered-results')).not.toBeInTheDocument();
-    expect(screen.getAllByText(EMPTY_RAIL_COPY)).toHaveLength(1);
-  });
-});
-
-describe('price readout tracks what is on screen', () => {
-  it('reports the filtered range once a filter narrows the list', async () => {
-    const user = userEvent.setup();
-    renderCatalogue();
-
-    expect(within(screen.getByTestId('filter-price-range')).getByText('₹12,800 — ₹78,500')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /^International$/ }));
-
-    expect(within(screen.getByTestId('filter-price-range')).getByText('₹54,800 — ₹78,500')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Next/ }));
+    expect(push).toHaveBeenCalledWith('/tour-packages?page=2');
   });
 });
