@@ -50,9 +50,9 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     /**
-     * No `sitemap` entry: this app has no `sitemap.ts` yet. Pointing at a
-     * `/sitemap.xml` that 404s is worse than omitting the line, and inventing one
-     * here would be guessing at a route nobody has built.
+     * CRM-migration Step 2 added `src/app/sitemap.ts`, reading
+     * `GET /public/sitemap` — so this now points at a real, working route.
      */
+    sitemap: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/sitemap.xml`,
   };
 }

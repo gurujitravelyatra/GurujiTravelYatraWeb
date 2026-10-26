@@ -2,7 +2,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { Navbar } from '../Navbar';
+import { resolveSiteContact } from '@/lib/site-contact';
 
+const contact = resolveSiteContact(null);
 const openEnquiry = jest.fn();
 
 jest.mock('@/components/modals/modal-context', () => ({
@@ -15,7 +17,7 @@ describe('Navbar', () => {
   });
 
   it('renders the specified 4-item nav link list', () => {
-    render(<Navbar activePath="/" pageLabel="Home" />);
+    render(<Navbar activePath="/" pageLabel="Home" contact={contact} />);
 
     const nav = screen.getByRole('link', { name: 'Home' });
     expect(nav).toBeInTheDocument();
@@ -25,7 +27,7 @@ describe('Navbar', () => {
   });
 
   it('marks the active page link current', () => {
-    render(<Navbar activePath="/tour-packages" pageLabel="Tour Packages" />);
+    render(<Navbar activePath="/tour-packages" pageLabel="Tour Packages" contact={contact} />);
 
     expect(screen.getByRole('link', { name: 'Tour Packages' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
@@ -33,7 +35,7 @@ describe('Navbar', () => {
 
   it('burger toggles the MobileMenu open and closed', async () => {
     const user = userEvent.setup();
-    render(<Navbar activePath="/" pageLabel="Home" />);
+    render(<Navbar activePath="/" pageLabel="Home" contact={contact} />);
 
     // MobileMenu renders null while closed — none of its 5 items exist yet.
     expect(screen.queryByRole('link', { name: 'About Us' })).not.toBeInTheDocument();
@@ -50,7 +52,7 @@ describe('Navbar', () => {
 
   it('CTA click calls openEnquiry with the current page context', async () => {
     const user = userEvent.setup();
-    render(<Navbar activePath="/tour-packages" pageLabel="Tour Packages" />);
+    render(<Navbar activePath="/tour-packages" pageLabel="Tour Packages" contact={contact} />);
 
     await user.click(screen.getByRole('button', { name: /Enquire/ }));
 

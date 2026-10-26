@@ -79,10 +79,7 @@ describe('robots.txt', () => {
     }
   });
 
-  it('does not advertise a sitemap that does not exist', () => {
-    // There is no `src/app/sitemap.ts`. Pointing crawlers at a 404 is worse than
-    // saying nothing — and this test is what will prompt updating robots.ts on
-    // the day a sitemap is actually added.
-    expect(robots().sitemap).toBeUndefined();
+  it('advertises the real sitemap (CRM-migration Step 2 added src/app/sitemap.ts)', () => {
+    expect(robots().sitemap).toBe('http://localhost:3000/sitemap.xml');
   });
 });

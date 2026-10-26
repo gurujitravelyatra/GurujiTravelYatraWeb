@@ -1,4 +1,9 @@
-import { GTY_PHONE_DISPLAY, GTY_PHONE_TEL, GTY_WHATSAPP_URL } from '@/lib/gty-contact';
+import type { SiteContact } from '@/lib/site-contact';
+
+export interface BottomContactStripProps {
+  /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  contact: SiteContact;
+}
 
 const BENEFITS = [
   {
@@ -38,20 +43,13 @@ const BENEFITS = [
  * exactly. (Not wired into `src/app/layout.tsx` in this pass — pages/layout
  * composition is out of scope here; see handoff notes.)
  */
-export function BottomContactStrip() {
+export function BottomContactStrip({ contact }: BottomContactStripProps) {
   return (
     <div className="absolute left-1/2 top-[60px] z-[3] w-[92%] -translate-x-1/2 rounded-18 bg-gty-white p-[18px] shadow-gty-wacard 860:top-[44px] 860:p-4 860:px-5 1300:top-[74px] 1300:w-[min(860px,70%)]">
       <div className="flex flex-wrap items-center gap-[18px]">
         <div className="flex min-w-[250px] flex-[1.15] items-center gap-[14px]">
-          {/*
-            The WhatsApp icon was a plain <span>: this card invited the visitor
-            to "Chat with us on WhatsApp" and gave desktop users no way to do
-            it — only `MobileActionBar` (hidden ≥760px) carried a real wa.me
-            link. Same URL, from the same shared constant, so the two can't
-            drift apart again.
-          */}
           <a
-            href={GTY_WHATSAPP_URL}
+            href={contact.whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Chat with Guruji Travel Yatra on WhatsApp"
@@ -64,15 +62,15 @@ export function BottomContactStrip() {
           <div className="flex flex-col items-start gap-[6px]">
             <p className="text-16-5 font-extrabold leading-[1.15] text-gty-ink">Let&#39;s Plan Your Next Journey!</p>
             <a
-              href={GTY_WHATSAPP_URL}
+              href={contact.whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-12-5 text-gty-body underline-offset-2 hover:underline"
             >
               Chat with us on WhatsApp
             </a>
-            <a href={`tel:${GTY_PHONE_TEL}`} className="pt-px text-22 font-extrabold leading-[1.1] text-gty-ink">
-              {GTY_PHONE_DISPLAY}
+            <a href={`tel:${contact.phoneTel}`} className="pt-px text-22 font-extrabold leading-[1.1] text-gty-ink">
+              {contact.phoneDisplay}
             </a>
           </div>
         </div>

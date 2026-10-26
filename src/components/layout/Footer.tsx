@@ -2,14 +2,15 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { getDestinationOptions, toursRenderedOnCataloguePage } from '@/content/public-listing';
-import {
-  GTY_ADDRESS,
-  GTY_EMAIL,
-  GTY_INSTAGRAM_URL,
-  GTY_PHONE_DISPLAY,
-  GTY_PHONE_TEL,
-} from '@/lib/gty-contact';
+import type { CrmPlace } from '@/server/crm/types';
+import type { SiteContact } from '@/lib/site-contact';
+
+export interface FooterProps {
+  /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  contact: SiteContact;
+  /** `GET /public/places`, fetched once by `SiteShell` — feeds the "Top Destinations" column. */
+  places: CrmPlace[];
+}
 
 const QUICK_LINKS = [
   { label: 'Home', href: '/' },
@@ -19,47 +20,29 @@ const QUICK_LINKS = [
   { label: 'About Us', href: '/about-us' },
 ] as const;
 
-/**
- * The export's own ordering preference for this column. It is a PREFERENCE,
- * not the list: names are kept only if a publicly-listed journey actually goes
- * there, and the column is topped up from the real destination data if fewer
- * than `TOP_DESTINATIONS_LIMIT` survive.
- *
- * Two things were wrong before. Every entry linked to the bare
- * `/tour-packages`, so the column was seven links to one identical page. And
- * the list named Kedarnath, Badrinath and Varanasi — destinations whose only
- * tours are the `pricingUnverified` ones now withheld from every public
- * listing, so those links advertised journeys the catalogue cannot show.
- */
-const PREFERRED_TOP_DESTINATIONS = [
-  'Kedarnath',
-  'Badrinath',
-  'Spiti Valley',
-  'Varanasi',
-  'Rameshwaram',
-  'Vaishnodevi',
-  'Leh Ladakh',
-] as const;
-
 const TOP_DESTINATIONS_LIMIT = 7;
 
-const LISTED_DESTINATIONS = getDestinationOptions(toursRenderedOnCataloguePage);
+/**
+ * CRM-migration Step 2: `GET /public/places` returns active places in the
+ * CRM's own saved display order, each with a real `liveTourCount` — so
+ * "only advertise a destination with at least one journey" is now a filter
+ * on real data rather than a derivation from the old fixture catalogue.
+ */
+function topDestinations(places: CrmPlace[]): CrmPlace[] {
+  return places.filter((place) => place.liveTourCount > 0).slice(0, TOP_DESTINATIONS_LIMIT);
+}
 
-const TOP_DESTINATIONS = (() => {
-  const byName = new Map(LISTED_DESTINATIONS.map((destination) => [destination.name, destination]));
-  const preferred = PREFERRED_TOP_DESTINATIONS.map((name) => byName.get(name)).filter(
-    (destination): destination is NonNullable<typeof destination> => destination !== undefined
-  );
-  const chosen = new Set(preferred.map((destination) => destination.slug));
-  const remainder = LISTED_DESTINATIONS.filter((destination) => !chosen.has(destination.slug));
-  return [...preferred, ...remainder].slice(0, TOP_DESTINATIONS_LIMIT);
-})();
-
-// The export renders these as no-op buttons with no route at all. Tech spec
-// §4.3 directs building them as real `<Link>`s to future slugs instead
-// (Decision G: dead links ship as designed, backed by a branded 404).
+/**
+ * The export rendered these as no-op buttons with no route at all; most are
+ * built as real `<Link>`s to deliberately-404 pages instead (Decision G:
+ * dead links ship as designed, backed by a branded 404).
+ *
+ * `FAQs` is REMOVED from this list (not merely re-pointed): per the CRM
+ * migration's own decision, `/legal/faqs` stays a deliberate 404 (no real
+ * FAQ content exists to build it from), so the footer no longer advertises
+ * a link to it at all. The page itself is untouched.
+ */
 const SUPPORT_LINKS = [
-  { label: 'FAQs', href: '/legal/faqs' },
   { label: 'Travel Tips', href: '/legal/travel-tips' },
   { label: 'Cancellation Policy', href: '/legal/cancellation-policy' },
   { label: 'Terms & Conditions', href: '/legal/terms-and-conditions' },
@@ -75,11 +58,11 @@ const SUPPORT_LINKS = [
  * component's file header for the exact wiring contract it needs from
  * whatever renders both (root layout / page, out of scope in this pass).
  */
-export function Footer() {
+export function Footer({ contact, places }: FooterProps) {
   return (
     <footer className="relative overflow-hidden bg-gty-white">
       <MountainBand />
-      <RedBand />
+      <RedBand contact={contact} destinations={topDestinations(places)} />
       <CopyrightBar />
     </footer>
   );
@@ -147,7 +130,7 @@ function MountainBand() {
 }
 
 /** `.ftrred` — export lines 752-823. Red band with the wave-divider SVG and the 4 `.ftcol` columns plus the wide Brand column. */
-function RedBand() {
+function RedBand({ contact, destinations }: { contact: SiteContact; destinations: CrmPlace[] }) {
   return (
     <div className="relative bg-gty-primary px-gx pb-7 pt-11">
       <svg
@@ -186,7 +169,7 @@ function RedBand() {
             <br />
             and memories that last a lifetime.
           </p>
-          <SocialRow />
+          <SocialRow instagramUrl={contact.instagramUrl} />
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap font-script text-24 rotate-[-4deg] text-gty-white">
               Follow Our Journey
@@ -206,10 +189,10 @@ function RedBand() {
         </FooterColumn>
 
         <FooterColumn title="Top Destinations">
-          {TOP_DESTINATIONS.map((destination) => (
+          {destinations.map((destination) => (
             <Link
               key={destination.slug}
-              href={`/tour-packages?destination=${encodeURIComponent(destination.slug)}`}
+              href={`/tour-packages?place=${encodeURIComponent(destination.slug)}`}
               className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline"
             >
               {destination.name}
@@ -231,13 +214,13 @@ function RedBand() {
           </h3>
           <span aria-hidden="true" className="my-[7px] mb-4 block h-[2px] w-[38px] bg-gty-white/50" />
           <div className="flex flex-col items-start gap-[13px]">
-            <ContactRow label={GTY_PHONE_DISPLAY} href={`tel:${GTY_PHONE_TEL}`}>
+            <ContactRow label={contact.phoneDisplay} href={`tel:${contact.phoneTel}`}>
               <path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z" />
             </ContactRow>
-            <ContactRow label={GTY_EMAIL} href={`mailto:${GTY_EMAIL}`}>
+            <ContactRow label={contact.email} href={`mailto:${contact.email}`}>
               <path d="M3 5h18a1 1 0 0 1 1 1v.4l-10 6.1L2 6.4V6a1 1 0 0 1 1-1zm-1 3.9 10 6.1 10-6.1V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
             </ContactRow>
-            <ContactRow label={GTY_ADDRESS}>
+            <ContactRow label={contact.address}>
               <path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" />
             </ContactRow>
           </div>
@@ -286,21 +269,12 @@ function ContactRow({ label, href, children }: { label: string; href?: string; c
   );
 }
 
-const SOCIAL_LINKS = [
-  {
-    label: 'Instagram',
-    // The ONE confirmed account (see `@/lib/gty-contact`). Every other handle
-    // below is still unconfirmed — TODO(social-links).
-    href: GTY_INSTAGRAM_URL,
-    className: 'bg-[linear-gradient(135deg,#f9ce34,#ee2a7b_48%,#6228d7)]',
-    icon: (
-      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="4" />
-        <circle cx="17.2" cy="6.8" r="1.2" fill="#fff" stroke="none" />
-      </svg>
-    ),
-  },
+/**
+ * Instagram's `href` is passed in per-render (`contact.instagramUrl`, from
+ * `GET /public/site` with a static fallback); every other handle below is
+ * still unconfirmed — TODO(social-links).
+ */
+const OTHER_SOCIAL_LINKS = [
   {
     label: 'YouTube',
     href: '#',
@@ -343,17 +317,36 @@ const SOCIAL_LINKS = [
   },
 ] as const;
 
-function SocialRow() {
+const INSTAGRAM_ICON = (
+  <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="17.2" cy="6.8" r="1.2" fill="#fff" stroke="none" />
+  </svg>
+);
+
+function SocialRow({ instagramUrl }: { instagramUrl: string }) {
+  const socials = [
+    {
+      label: 'Instagram',
+      href: instagramUrl,
+      className: 'bg-[linear-gradient(135deg,#f9ce34,#ee2a7b_48%,#6228d7)]',
+      icon: INSTAGRAM_ICON,
+    },
+    ...OTHER_SOCIAL_LINKS,
+  ];
+
   return (
     <div className="flex flex-nowrap gap-[10px] pt-[2px]">
-      {SOCIAL_LINKS.map((social) => {
-        // Only the confirmed profile is a real outbound link; the unconfirmed
+      {socials.map((social) => {
+        // Only a confirmed profile is a real outbound link; the unconfirmed
         // `#` stubs must not open a blank tab.
-        const isExternal = social.href.startsWith('http');
+        const href = social.href;
+        const isExternal = href.startsWith('http');
         return (
           <a
             key={social.label}
-            href={social.href}
+            href={href}
             aria-label={social.label}
             target={isExternal ? '_blank' : undefined}
             rel={isExternal ? 'noopener noreferrer' : undefined}

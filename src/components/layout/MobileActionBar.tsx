@@ -2,10 +2,12 @@
 
 import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
-import { GTY_PHONE_TEL, GTY_WHATSAPP_URL } from '@/lib/gty-contact';
+import type { SiteContact } from '@/lib/site-contact';
 
 export interface MobileActionBarProps {
   pageLabel: string;
+  /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  contact: SiteContact;
 }
 
 /**
@@ -14,20 +16,20 @@ export interface MobileActionBarProps {
  * plain CSS breakpoint (`760:hidden`) to avoid SSR/hydration mismatches —
  * visible only below 760px, sticky to the viewport bottom.
  */
-export function MobileActionBar({ pageLabel }: MobileActionBarProps) {
+export function MobileActionBar({ pageLabel, contact }: MobileActionBarProps) {
   const { openEnquiry } = useModal();
 
   return (
     <div className="sticky bottom-0 z-40 flex border-t border-gty-border-6 bg-gty-white 760:hidden">
       <a
-        href={`tel:${GTY_PHONE_TEL}`}
+        href={`tel:${contact.phoneTel}`}
         onClick={() => trackEvent('call_click', { location: 'mobile-action-bar' })}
         className="flex flex-1 items-center justify-center gap-[9px] py-[15px] text-11-5 font-bold text-gty-ink"
       >
         <span aria-hidden="true">✆</span> Call
       </a>
       <a
-        href={GTY_WHATSAPP_URL}
+        href={contact.whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => trackEvent('whatsapp_click', { location: 'mobile-action-bar' })}

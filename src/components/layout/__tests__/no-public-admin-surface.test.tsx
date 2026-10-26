@@ -7,6 +7,9 @@ import { MobileMenu } from '../MobileMenu';
 import { MobileActionBar } from '../MobileActionBar';
 import { BottomContactStrip } from '../BottomContactStrip';
 import { MobileMenuProvider, useMobileMenu } from '../mobile-menu-context';
+import { resolveSiteContact } from '@/lib/site-contact';
+
+const contact = resolveSiteContact(null);
 
 /**
  * The admin area must remain UNADVERTISED on the public site.
@@ -77,22 +80,22 @@ function OpenerButton() {
 
 describe('no public navigation surface links to /admin', () => {
   it('Navbar', () => {
-    const { container } = render(<Navbar activePath="/" pageLabel="Home" />);
+    const { container } = render(<Navbar activePath="/" pageLabel="Home" contact={contact} />);
     assertNoAdminSurface(container);
   });
 
   it('Footer', () => {
-    const { container } = render(<Footer />);
+    const { container } = render(<Footer contact={contact} places={[]} />);
     assertNoAdminSurface(container);
   });
 
   it('MobileActionBar', () => {
-    const { container } = render(<MobileActionBar pageLabel="Home" />);
+    const { container } = render(<MobileActionBar pageLabel="Home" contact={contact} />);
     assertNoAdminSurface(container);
   });
 
   it('BottomContactStrip', () => {
-    const { container } = render(<BottomContactStrip />);
+    const { container } = render(<BottomContactStrip contact={contact} />);
     assertNoAdminSurface(container);
   });
 
@@ -102,7 +105,7 @@ describe('no public navigation surface links to /admin', () => {
     const { container } = render(
       <MobileMenuProvider>
         <OpenerButton />
-        <MobileMenu pageLabel="Home" />
+        <MobileMenu pageLabel="Home" phoneTel={contact.phoneTel} />
       </MobileMenuProvider>
     );
 

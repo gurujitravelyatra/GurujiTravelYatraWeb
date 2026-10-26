@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import type { SiteContact } from '@/lib/site-contact';
 import { NavLinks } from './NavLinks';
 import { HeaderControls } from './HeaderControls';
 import { MobileMenu } from './MobileMenu';
@@ -11,6 +12,8 @@ export interface NavbarProps {
   activePath: string;
   /** e.g. "Home" | "Tour Packages" — the Enquire CTA's context-chip value when opened from the header (BLOCKERS.md Decision F: real page label, never a fabricated fallback). */
   pageLabel: string;
+  /** Resolved once by `SiteShell` from `GET /public/site`, threaded down so every contact consumer agrees. */
+  contact: SiteContact;
 }
 
 /**
@@ -23,7 +26,7 @@ export interface NavbarProps {
  * `MobileMenuProvider` lets the burger (inside the pill bar) and the panel
  * (a sibling below it) share open/close state without lifting it further.
  */
-export function Navbar({ activePath, pageLabel }: NavbarProps) {
+export function Navbar({ activePath, pageLabel, contact }: NavbarProps) {
   return (
     <MobileMenuProvider>
       <div
@@ -38,10 +41,10 @@ export function Navbar({ activePath, pageLabel }: NavbarProps) {
           <DecorativeHeaderArt />
           <Logo />
           <NavLinks activePath={activePath} />
-          <HeaderControls pageLabel={pageLabel} />
+          <HeaderControls pageLabel={pageLabel} phoneTel={contact.phoneTel} />
         </div>
       </div>
-      <MobileMenu pageLabel={pageLabel} />
+      <MobileMenu pageLabel={pageLabel} phoneTel={contact.phoneTel} />
     </MobileMenuProvider>
   );
 }

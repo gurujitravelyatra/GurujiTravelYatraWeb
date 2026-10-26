@@ -20,11 +20,13 @@ function OpenerButton() {
   );
 }
 
+const PHONE_TEL = '+919099957658';
+
 function renderOpenMenu(pageLabel = 'Home') {
   render(
     <MobileMenuProvider>
       <OpenerButton />
-      <MobileMenu pageLabel={pageLabel} />
+      <MobileMenu pageLabel={pageLabel} phoneTel={PHONE_TEL} />
     </MobileMenuProvider>
   );
 }
@@ -37,7 +39,7 @@ describe('MobileMenu', () => {
   it('renders nothing while closed', () => {
     render(
       <MobileMenuProvider>
-        <MobileMenu pageLabel="Home" />
+        <MobileMenu pageLabel="Home" phoneTel={PHONE_TEL} />
       </MobileMenuProvider>
     );
     expect(screen.queryByRole('link')).not.toBeInTheDocument();

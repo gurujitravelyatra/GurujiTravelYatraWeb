@@ -4,24 +4,24 @@ import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
 import { useMobileMenu } from './mobile-menu-context';
 
-const GTY_PHONE_TEL = '+919099957658';
-
 export interface HeaderControlsProps {
   pageLabel: string;
+  /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  phoneTel: string;
 }
 
 /**
  * Right-hand cluster of the header pill bar — export lines 131-142. Call
  * button + divider are ≥760px only; the burger is <1180px only.
  */
-export function HeaderControls({ pageLabel }: HeaderControlsProps) {
+export function HeaderControls({ pageLabel, phoneTel }: HeaderControlsProps) {
   const { openEnquiry } = useModal();
   const { open, toggle } = useMobileMenu();
 
   return (
     <div className="relative z-[2] ml-auto flex flex-none items-center gap-[14px]">
       <a
-        href={`tel:${GTY_PHONE_TEL}`}
+        href={`tel:${phoneTel}`}
         onClick={() => trackEvent('call_click', { location: 'header' })}
         aria-label="Call Guruji Travel Yatra"
         className="relative hidden h-10 w-10 flex-none items-center justify-center rounded-pill bg-gty-primary text-gty-white shadow-gty-red-lg transition-colors duration-gty-fast ease-gty hover:bg-gty-primary-deep 760:flex"

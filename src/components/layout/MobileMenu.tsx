@@ -4,7 +4,6 @@ import Link from 'next/link';
 
 import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
-import { GTY_PHONE_TEL } from '@/lib/gty-contact';
 import { useMobileMenu } from './mobile-menu-context';
 
 const MENU_ITEMS = [
@@ -17,10 +16,12 @@ const MENU_ITEMS = [
 
 export interface MobileMenuProps {
   pageLabel: string;
+  /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  phoneTel: string;
 }
 
 /** Slide-down panel below the header bar — export lines 145-155, tech spec §4.3. Rendered as a sibling of `.hdrwrap`, below it. */
-export function MobileMenu({ pageLabel }: MobileMenuProps) {
+export function MobileMenu({ pageLabel, phoneTel }: MobileMenuProps) {
   const { open, close } = useMobileMenu();
   const { openEnquiry } = useModal();
 
@@ -45,7 +46,7 @@ export function MobileMenu({ pageLabel }: MobileMenuProps) {
       ))}
       <div className="flex gap-[10px] bg-gty-surface-3 p-4">
         <a
-          href={`tel:${GTY_PHONE_TEL}`}
+          href={`tel:${phoneTel}`}
           onClick={() => {
             trackEvent('call_click', { location: 'mobile-menu' });
             close();

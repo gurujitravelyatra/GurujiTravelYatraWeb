@@ -1,11 +1,15 @@
 import { render, screen } from '@testing-library/react';
 
 import { BottomContactStrip } from '../BottomContactStrip';
-import { GTY_WHATSAPP_URL } from '@/lib/gty-contact';
+import { resolveSiteContact } from '@/lib/site-contact';
+
+/** CRM-migration Step 2: contact info now comes from a resolved `SiteContact`, not static imports. Here, `resolveSiteContact(null)` falls back to the same real, confirmed constants the old test asserted directly. */
+const contact = resolveSiteContact(null);
+const GTY_WHATSAPP_URL = contact.whatsappUrl;
 
 describe('BottomContactStrip', () => {
   it('renders the WhatsApp headline and subtitle copy from the export', () => {
-    render(<BottomContactStrip />);
+    render(<BottomContactStrip contact={contact} />);
 
     expect(screen.getByText("Let's Plan Your Next Journey!")).toBeInTheDocument();
     expect(screen.getByText('Chat with us on WhatsApp')).toBeInTheDocument();
@@ -18,7 +22,7 @@ describe('BottomContactStrip', () => {
    * route at all.
    */
   it('makes the WhatsApp invitation actionable on desktop, not just on mobile', () => {
-    render(<BottomContactStrip />);
+    render(<BottomContactStrip contact={contact} />);
 
     const iconLink = screen.getByRole('link', { name: 'Chat with Guruji Travel Yatra on WhatsApp' });
     expect(iconLink).toHaveAttribute('href', GTY_WHATSAPP_URL);
@@ -30,7 +34,7 @@ describe('BottomContactStrip', () => {
   });
 
   it('uses the same wa.me number the mobile action bar uses', () => {
-    render(<BottomContactStrip />);
+    render(<BottomContactStrip contact={contact} />);
 
     for (const link of screen.getAllByRole('link')) {
       const href = link.getAttribute('href') ?? '';
@@ -39,14 +43,14 @@ describe('BottomContactStrip', () => {
   });
 
   it('renders the real GTY phone number as a tel: link', () => {
-    render(<BottomContactStrip />);
+    render(<BottomContactStrip contact={contact} />);
 
     const phone = screen.getByRole('link', { name: '+91 90999 57658' });
     expect(phone).toHaveAttribute('href', 'tel:+919099957658');
   });
 
   it('renders exactly the four benefit labels, in export order', () => {
-    render(<BottomContactStrip />);
+    render(<BottomContactStrip contact={contact} />);
 
     for (const label of [
       'Quick Response',
@@ -59,7 +63,7 @@ describe('BottomContactStrip', () => {
   });
 
   it('marks every icon as decorative so the labels are the only announced text', () => {
-    const { container } = render(<BottomContactStrip />);
+    const { container } = render(<BottomContactStrip contact={contact} />);
 
     const svgs = Array.from(container.querySelectorAll('svg'));
     expect(svgs.length).toBeGreaterThan(0);
@@ -69,7 +73,7 @@ describe('BottomContactStrip', () => {
   });
 
   it('is absolutely positioned, per its documented overlap-the-footer composition contract', () => {
-    const { container } = render(<BottomContactStrip />);
+    const { container } = render(<BottomContactStrip contact={contact} />);
 
     // The card deliberately takes no layout space so it can overlap Footer's
     // mountain band — see the file header in BottomContactStrip.tsx. If this
@@ -78,7 +82,7 @@ describe('BottomContactStrip', () => {
   });
 
   it('exposes no admin, login or CMS surface', () => {
-    const { container } = render(<BottomContactStrip />);
+    const { container } = render(<BottomContactStrip contact={contact} />);
 
     for (const link of Array.from(container.querySelectorAll('a'))) {
       expect(link.getAttribute('href')).not.toMatch(/admin|login|sign-?in|dashboard|cms/i);

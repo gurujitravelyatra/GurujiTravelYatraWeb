@@ -11,6 +11,26 @@ jest.mock('@/components/modals/modal-context', () => ({
 }));
 
 /**
+ * CRM-migration Step 2: `SiteShell` is now an ASYNC Server Component (it
+ * fetches `GET /public/site` / `GET /public/places` for the chrome).
+ * `@testing-library/react`'s `render()` cannot await a nested async
+ * component the way Next's own RSC renderer does, so it is stubbed here
+ * with a synchronous stand-in that still provides the two landmarks this
+ * file actually asserts on (a `<footer>` so `getByRole('contentinfo')`
+ * resolves) — this file is about the legal pages' own content, not about
+ * site-chrome wiring, which has its own tests (`Navbar.test.tsx`,
+ * `Footer.test.tsx`, etc.) against real CRM-shaped props.
+ */
+jest.mock('@/components/layout/SiteShell', () => ({
+  SiteShell: ({ children }: { children: React.ReactNode }) => (
+    <div>
+      <main>{children}</main>
+      <footer>stub footer</footer>
+    </div>
+  ),
+}));
+
+/**
  * The Footer's Support column has always linked to these two routes; until now
  * both 404'd while the Enquiry/Brochure modals collected name, mobile and
  * email. These tests lock in that the pages exist, render inside the normal
