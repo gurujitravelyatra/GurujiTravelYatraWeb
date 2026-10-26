@@ -50,3 +50,24 @@ export function getWebsiteApiKey(): string | undefined {
   const key = process.env.WEBSITE_API_KEY;
   return key && key.trim().length > 0 ? key.trim() : undefined;
 }
+
+/**
+ * CRM-migration Step 4 — verifies the `x-revalidate-secret` header on
+ * `POST /api/revalidate` (`src/app/api/revalidate/route.ts`). The CRM backend
+ * sends this value, read from ITS OWN `WEBSITE_REVALIDATE_SECRET`, after a
+ * save that changes anything the public site reads (contract's "Website
+ * revalidation hook" §) — this is the matching half of that same shared
+ * secret, configured independently on each side.
+ *
+ * A server secret, same rules as `getWebsiteApiKey()`: never a `NEXT_PUBLIC_`
+ * name, never logged, never echoed in a response body or thrown error.
+ *
+ * UNSET IS A SUPPORTED MODE: the route answers `503 NOT_CONFIGURED` for
+ * every call rather than comparing against an empty string (which would
+ * make an EMPTY incoming header "match"), the same reasoning
+ * `submitEnquiry()` already applies to a missing `WEBSITE_API_KEY`.
+ */
+export function getRevalidateSecret(): string | undefined {
+  const secret = process.env.WEBSITE_REVALIDATE_SECRET;
+  return secret && secret.trim().length > 0 ? secret.trim() : undefined;
+}
