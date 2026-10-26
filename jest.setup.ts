@@ -23,6 +23,21 @@ import '@testing-library/jest-dom';
 delete process.env.DATABASE_URL;
 
 /**
+ * CRM-migration Step 3: `LeadModal.tsx` reads
+ * `NEXT_PUBLIC_TURNSTILE_SITE_KEY` at module load to decide whether to
+ * render `TurnstileWidget` at all (unset is a supported production mode —
+ * see that module's own comment). Every `LeadModal` test mocks
+ * `TurnstileWidget` itself (`src/components/modals/__mocks__/
+ * TurnstileWidget.tsx`) rather than loading the real Cloudflare script, so
+ * this only needs to be NON-EMPTY to take the "render the widget" branch —
+ * its value is never sent anywhere in a test. Forced to a fixed value for
+ * the same hermetic-suite reason `DATABASE_URL` is deleted above: a real
+ * `.env` setting it (or not) must never change which branch these tests
+ * exercise.
+ */
+process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'test-turnstile-site-key';
+
+/**
  * ⚠️ THIS DELETE IS NOT AIRTIGHT, AND THE HOLE IS NOT THEORETICAL.
  *
  * Importing `@prisma/client` RE-LOADS `.env` as a side effect, putting

@@ -12,11 +12,26 @@ import { buildLeadRequest } from './build-lead-request';
 import { submitLeadRequest } from '@/lib/leads/lead-api-client';
 import type { LeadSubmissionInput } from '@/server/leads/lead-schema';
 import { leadFormDefaultValues, leadFormSchema, type LeadFormValues } from './lead-form-schema';
+import { TurnstileWidget } from './TurnstileWidget';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+
+/**
+ * CRM-migration Step 3: the public half of the Turnstile key pair — see
+ * `TurnstileWidget.tsx`'s own header for why this is safe as a build-time
+ * `NEXT_PUBLIC_` value. UNSET IS A SUPPORTED MODE, like
+ * `NEXT_PUBLIC_MEDIA_HOST`: the widget is not rendered at all, and the
+ * "Please complete the verification challenge." message on
+ * `turnstileToken` — which no input ever sets without the widget — is what
+ * a visitor sees if they try to submit anyway. This is honest, not a bug:
+ * `POST /public/enquiries` would reject an empty token regardless, so there
+ * is no configuration in which omitting the key quietly lets a submission
+ * through.
+ */
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export type LeadModalVariant = 'enquiry' | 'brochure';
 
@@ -41,13 +56,15 @@ type Step = 'form' | 'sending' | 'done';
  * All modal copy. Nothing here may assert a backend capability that does not
  * exist yet.
  *
- * The submit path is now REAL — `POST /api/leads` — but what that route does is
- * still narrower than it sounds: it validates the submission and writes it to
- * the server log, and there is no CRM behind it (`submitLeadToCrm` reports
- * `logged-only` on every call, BLOCKERS.md §6). So a lead genuinely reaches
- * GTY's server and genuinely survives, and the done-step's "GTY has your
- * details" is finally true — but the form step still may not claim server-side
- * validation, rate limiting, encryption, or CRM storage, none of which exist.
+ * CRM-migration Step 3: `POST /api/leads` now validates the submission,
+ * writes it to the server log (the safety net — see `lead-log.ts`), maps it
+ * onto `CrmEnquiryRequest` (`src/server/leads/crm-enquiry-mapper.ts`) and
+ * calls the CRM's real `POST /public/enquiries` via `submitEnquiry()`
+ * (`src/server/crm/client.ts`) — there genuinely is a CRM behind it now. A
+ * CRM failure still never becomes the visitor's problem (the route still
+ * returns 200 off the log line alone if the CRM call throws/rejects — see
+ * `route.ts`'s own header), so the form step still may not claim guaranteed
+ * delivery, just as before.
  *
  * The disclaimers used to promise, BEFORE submit, that "our team will review
  * your enquiry and get back to you shortly", on a path that could not succeed.
@@ -95,8 +112,8 @@ function noop() {}
  */
 function detailsForVariant(variant: LeadModalVariant, context?: ModalContext): LeadDetails {
   return variant === 'brochure'
-    ? { formType: 'brochure', packageName: context?.value }
-    : { formType: 'enquiry', pageName: context?.value };
+    ? { formType: 'brochure', packageName: context?.value, tourSlug: context?.tourSlug }
+    : { formType: 'enquiry', pageName: context?.value, tourSlug: context?.tourSlug };
 }
 
 /**
@@ -107,7 +124,17 @@ function detailsForVariant(variant: LeadModalVariant, context?: ModalContext): L
  * the banner instead, because a validation message with nowhere to render is
  * how a form becomes un-submittable with no explanation.
  */
-const FORM_FIELD_NAMES = ['name', 'mobile', 'email', 'travelDate', 'travellers', 'city', 'message'] as const;
+const FORM_FIELD_NAMES = [
+  'name',
+  'mobile',
+  'email',
+  'travelDate',
+  'travellers',
+  'city',
+  'message',
+  'consent',
+  'turnstileToken',
+] as const;
 
 function isFormFieldName(key: string): key is (typeof FORM_FIELD_NAMES)[number] {
   return (FORM_FIELD_NAMES as readonly string[]).includes(key);
@@ -190,6 +217,12 @@ export function LeadModal({ variant, open, context, details, onClose }: LeadModa
           city: values.city,
           message: values.message,
         },
+        // `leadFormSchema`'s resolver only lets `runSubmit` be called once
+        // `consent` has validated to `true` — the cast documents that
+        // guarantee rather than re-deriving it, since the form models
+        // `consent` as a plain `boolean` so an unchecked box has a
+        // representable default (see `lead-form-schema.ts`).
+        security: { consent: true, turnstileToken: values.turnstileToken, honeypot: values.honeypot },
         interestedIn: context?.value,
         // sourcePageUrl / utm are read ONLY here, inside the submit event
         // handler — never during render (no useSearchParams()), so no
@@ -270,6 +303,7 @@ interface FormStepProps {
 function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit, onClose }: FormStepProps) {
   const {
     register,
+    setValue,
     formState: { errors },
   } = form;
 
@@ -355,6 +389,61 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         <Field label="Optional message" htmlFor="lead-message" error={errors.message?.message}>
           <Textarea id="lead-message" rows={3} {...register('message')} />
         </Field>
+
+        {/*
+          Honeypot: a decoy field a real visitor never sees (off-screen, not
+          `display:none`/`hidden` — some bots skip those two specifically —
+          and `tabIndex={-1}`/`aria-hidden` so it is unreachable by keyboard
+          or a screen reader) or fills in. `name="company"` is a plausible-
+          looking label for a scraping bot that fills every input it finds;
+          a real visitor's browser autofill has no reason to touch it either,
+          since it matches no real autofill token. `POST /api/leads` forwards
+          whatever this holds to the CRM untouched — see
+          `crm-enquiry-mapper.ts`'s own comment on why it is not validated to
+          be empty HERE.
+        */}
+        <div aria-hidden="true" className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden">
+          <label htmlFor="lead-company">Company</label>
+          <input id="lead-company" type="text" tabIndex={-1} autoComplete="off" {...register('honeypot')} />
+        </div>
+
+        <div className="flex flex-col gap-[6px]">
+          <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-11-5 leading-relaxed text-gty-body">
+            <input
+              id="lead-consent"
+              type="checkbox"
+              className="mt-[2px]"
+              aria-invalid={!!errors.consent}
+              aria-describedby={errors.consent ? 'lead-consent-error' : undefined}
+              {...register('consent')}
+            />
+            <span>I agree to be contacted by Guruji Travel Yatra about this enquiry. *</span>
+          </label>
+          {errors.consent && (
+            <p id="lead-consent-error" role="alert" className="text-11 text-gty-primary">
+              {errors.consent.message}
+            </p>
+          )}
+        </div>
+
+        {TURNSTILE_SITE_KEY ? (
+          <TurnstileWidget
+            siteKey={TURNSTILE_SITE_KEY}
+            onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
+            onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
+          />
+        ) : (
+          // UNSET IS SUPPORTED (see the module-level comment on
+          // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
+          // not a loading flicker, so it says so rather than rendering
+          // nothing with no explanation for why submit never succeeds.
+          <p className="text-10 text-gty-faint-2">Verification is not configured in this environment.</p>
+        )}
+        {errors.turnstileToken && (
+          <p role="alert" className="text-11 text-gty-primary">
+            {errors.turnstileToken.message}
+          </p>
+        )}
 
         <Button type="submit" variant="primary" className="justify-center">
           {copy.cta} <span aria-hidden="true">→</span>

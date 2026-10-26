@@ -32,8 +32,11 @@ const values: LeadContactValues = {
 
 const BASE_URL = 'https://gurujitravelyatra.com/customize-tours';
 
+/** CRM-migration Step 3: every request needs these three — see `lead-schema.ts`'s `commonFields`. */
+const security = { consent: true as const, turnstileToken: 'test-turnstile-token' };
+
 function build(details: LeadDetails, overrides: Partial<Parameters<typeof buildLeadRequest>[0]> = {}) {
-  return buildLeadRequest({ details, values, sourcePageUrl: BASE_URL, ...overrides });
+  return buildLeadRequest({ details, values, security, sourcePageUrl: BASE_URL, ...overrides });
 }
 
 /** Fails loudly WITH the field paths, rather than a bare `false`. */
@@ -95,6 +98,19 @@ describe('buildLeadRequest — common fields', () => {
     expect(request).not.toHaveProperty('source');
     expect(request).not.toHaveProperty('timestamp');
   });
+
+  /**
+   * CRM-migration Step 3: `POST /public/enquiries` itself requires
+   * `consent`/`turnstileToken` — `buildLeadRequest` is the one place that
+   * merges the modal's security fields into every `formType`, so a future
+   * fifth member added to the union cannot forget them.
+   */
+  it('carries consent/turnstileToken/honeypot through on every formType', () => {
+    const request = build({ formType: 'enquiry' }, { security: { ...security, honeypot: '' } });
+
+    expect(request).toMatchObject({ consent: true, turnstileToken: 'test-turnstile-token', honeypot: '' });
+    expectServerAccepts(request);
+  });
 });
 
 describe('buildLeadRequest — enquiry', () => {
@@ -114,6 +130,15 @@ describe('buildLeadRequest — enquiry', () => {
     expect(request.pageName).toBeUndefined();
     expect(request.interestedIn).toBeUndefined();
     expect(buildSourceTag(expectServerAccepts(request))).toBe('Enquire Now – General enquiry');
+  });
+
+  /** CRM-migration Step 3: the detail page's CTAs have a real tour behind them now — see `PackageDetailCtas.tsx`. */
+  it('carries tourSlug through when the trigger has a real tour behind it', () => {
+    const request = build({ formType: 'enquiry', pageName: 'Spiti Valley Circuit', tourSlug: 'spiti-valley-circuit' });
+
+    if (request.formType !== 'enquiry') throw new Error(`expected an enquiry, got ${request.formType}`);
+    expect(request.tourSlug).toBe('spiti-valley-circuit');
+    expectServerAccepts(request);
   });
 });
 

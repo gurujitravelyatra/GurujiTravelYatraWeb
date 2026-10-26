@@ -14,6 +14,8 @@ const request: LeadSubmissionInput = {
   mobile: '9876543210',
   sourcePageUrl: 'https://gurujitravelyatra.com/',
   pageName: 'Home',
+  consent: true,
+  turnstileToken: 'test-turnstile-token',
 };
 
 const fetchMock = jest.fn();

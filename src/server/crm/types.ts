@@ -189,8 +189,15 @@ export interface CrmEnquiryRequest {
   travelStyle?: string;
   consent: true;
   turnstileToken: string;
-  /** Must be empty/absent. Never set this from real user input. */
-  honeypot?: '';
+  /**
+   * Should be empty/absent for a real visitor. Typed as a general `string`,
+   * not the literal `''`: CRM-migration Step 3's honeypot is a real hidden
+   * form field a BOT can fill with anything, and the whole point is to
+   * forward whatever it typed untouched (contract's own wording: "a filled
+   * value is treated as a bot") rather than rejecting it before the CRM
+   * ever sees it. Never populate this from a REAL visitor's input.
+   */
+  honeypot?: string;
 }
 
 /** Always `{ ok: true }` — whether a lead was created, noted, or the honeypot caught a bot. */

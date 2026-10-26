@@ -14,6 +14,14 @@ import { EMPTY_TRIP_LABEL, tripRouteSummary, type LeadDetails, type LeadTripStop
 export interface ModalContext {
   label: string;
   value: string;
+  /**
+   * CRM-migration Step 3 — the CRM tour this context describes, when there
+   * is one (the detail page's "Enquire Now"/"Download Brochure"). Carried
+   * ONLY so `LeadModal`'s `detailsForVariant` fallback can set
+   * `CrmEnquiryRequest.tourSlug`; never rendered — the chip still shows
+   * only `label`/`value`.
+   */
+  tourSlug?: string;
 }
 
 /**
@@ -50,6 +58,8 @@ export interface GroupReservationContext {
   departureName: string;
   /** `GroupDeparture.dateRangeLabel` — required; the server's tag is built from it. */
   batchDate: string;
+  /** CRM-migration Step 3 — `CrmDeparturesTourCard.slug`, for `CrmEnquiryRequest.tourSlug`. */
+  tourSlug?: string;
 }
 
 interface ModalContextApi {
@@ -110,11 +120,11 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
       // Both of these open the `'enquiry'` VARIANT deliberately: variant picks
       // the modal's copy and field set, `formType` picks the payload. The two
       // were the same thing only because there were only ever two of each.
-      openGroupReservation: ({ departureName, batchDate }) =>
+      openGroupReservation: ({ departureName, batchDate, tourSlug }) =>
         openModal(
           'enquiry',
           { label: 'Group Tour', value: departureName },
-          { formType: 'group-tour-reservation', batchDate, departureName }
+          { formType: 'group-tour-reservation', batchDate, departureName, tourSlug }
         ),
       openCustomTrip: ({ stops, travelStyle, travelMonth, adults, childrenCount, notes }) =>
         openModal(

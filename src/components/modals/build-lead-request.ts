@@ -43,9 +43,22 @@ export interface LeadContactValues {
   message?: string;
 }
 
+/**
+ * CRM-migration Step 3 — the three fields `POST /public/enquiries` itself
+ * requires, collected outside the visible contact fields: `consent` by a
+ * checkbox, `turnstileToken` by `TurnstileWidget`'s callback, `honeypot` by
+ * a hidden decoy input a real visitor never sees or fills.
+ */
+export interface LeadSecurityValues {
+  consent: true;
+  turnstileToken: string;
+  honeypot?: string;
+}
+
 export interface BuildLeadRequestArgs {
   details: LeadDetails;
   values: LeadContactValues;
+  security: LeadSecurityValues;
   /**
    * The display string the context chip shows, e.g.
    * `"Spiti Valley Circuit"` — resolved from the page, never re-asked of the
@@ -66,6 +79,7 @@ function blankToUndefined(value: string | undefined): string | undefined {
 export function buildLeadRequest({
   details,
   values,
+  security,
   interestedIn,
   sourcePageUrl,
   utm,
@@ -81,14 +95,27 @@ export function buildLeadRequest({
     message: blankToUndefined(values.message),
     sourcePageUrl,
     utm,
+    consent: security.consent,
+    turnstileToken: security.turnstileToken,
+    honeypot: security.honeypot,
   };
 
   switch (details.formType) {
     case 'enquiry':
-      return { formType: 'enquiry', ...common, pageName: blankToUndefined(details.pageName) };
+      return {
+        formType: 'enquiry',
+        ...common,
+        pageName: blankToUndefined(details.pageName),
+        tourSlug: blankToUndefined(details.tourSlug),
+      };
 
     case 'brochure':
-      return { formType: 'brochure', ...common, packageName: blankToUndefined(details.packageName) };
+      return {
+        formType: 'brochure',
+        ...common,
+        packageName: blankToUndefined(details.packageName),
+        tourSlug: blankToUndefined(details.tourSlug),
+      };
 
     case 'group-tour-reservation':
       return {
@@ -99,6 +126,7 @@ export function buildLeadRequest({
         // an unroutable lead. If it is empty the server says so, by name.
         batchDate: details.batchDate,
         departureName: blankToUndefined(details.departureName),
+        tourSlug: blankToUndefined(details.tourSlug),
       };
 
     case 'custom-trip':

@@ -25,7 +25,7 @@ export interface GroupDepartureCardProps {
  */
 export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
   const { openGroupReservation, openBrochure } = useModal();
-  const brochureContext = { label: 'Group Tour', value: departure.name };
+  const brochureContext = { label: 'Group Tour', value: departure.name, tourSlug: departure.slug };
   const priceLabel = formatCrmPrice(departure.price);
   const soldOut = departure.nextDeparture ? departure.nextDeparture.seatsLeft <= 0 : false;
 
@@ -84,7 +84,11 @@ export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
                   type="button"
                   variant="primary"
                   onClick={() =>
-                    openGroupReservation({ departureName: departure.name, batchDate: departure.departureDate })
+                    openGroupReservation({
+                      departureName: departure.name,
+                      batchDate: departure.departureDate,
+                      tourSlug: departure.slug,
+                    })
                   }
                 >
                   Reserve a Seat <span aria-hidden="true">→</span>

@@ -9,6 +9,10 @@ jest.mock('@/lib/leads/lead-api-client', () => ({
   submitLeadRequest: jest.fn(),
 }));
 
+// CRM-migration Step 3: never load the real Cloudflare script in a test —
+// see `src/components/modals/__mocks__/TurnstileWidget.tsx`'s own header.
+jest.mock('../TurnstileWidget');
+
 const submitLead = submitLeadRequest as jest.Mock;
 
 const context = { label: 'Package', value: 'Spiti Valley Circuit' };
@@ -33,6 +37,7 @@ async function submitWith(result: unknown, options: { variant?: 'enquiry' | 'bro
   render(<LeadModal variant={options.variant ?? 'enquiry'} open context={context} onClose={jest.fn()} />);
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
+  await user.click(screen.getByLabelText(/I agree to be contacted/));
   await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
   return user;
@@ -87,6 +92,7 @@ describe('LeadModal — field-level 400s', () => {
     await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
     await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
     await user.type(screen.getByLabelText('City'), 'Ahmedabad');
+    await user.click(screen.getByLabelText(/I agree to be contacted/));
     await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
     expect(await screen.findByText('Please keep this under 120 characters.')).toBeInTheDocument();

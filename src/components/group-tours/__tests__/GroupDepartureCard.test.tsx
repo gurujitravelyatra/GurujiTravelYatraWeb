@@ -82,9 +82,13 @@ describe('GroupDepartureCard', () => {
       await user.click(screen.getByRole('button', { name: /Reserve a Seat/ }));
 
       expect(openGroupReservation).toHaveBeenCalledTimes(1);
+      // CRM-migration Step 3: `tourSlug` rides along too, so
+      // `CrmEnquiryRequest.tourSlug` can name the actual tour rather than
+      // only a display string — see `PackageDetailCtas`/`modal-context.tsx`.
       expect(openGroupReservation).toHaveBeenCalledWith({
         departureName: bookable.name,
         batchDate: bookable.departureDate,
+        tourSlug: bookable.slug,
       });
       expect(openEnquiry).not.toHaveBeenCalled();
     });
@@ -95,7 +99,7 @@ describe('GroupDepartureCard', () => {
 
       await user.click(screen.getByRole('button', { name: /Get Brochure/ }));
 
-      expect(openBrochure).toHaveBeenCalledWith({ label: 'Group Tour', value: bookable.name });
+      expect(openBrochure).toHaveBeenCalledWith({ label: 'Group Tour', value: bookable.name, tourSlug: bookable.slug });
       expect(openGroupReservation).not.toHaveBeenCalled();
     });
   });

@@ -5,16 +5,20 @@ import type { LeadSubmissionRecord } from './lead-schema';
  *
  * ## Why this file is load-bearing
  *
- * `POST /api/leads` writes NOTHING to a database. `prisma/schema.prisma` holds
- * content only and says so in a comment at the top ("It holds NO LEADS"), and
- * that boundary was reaffirmed, not overridden, when this route was built — see
- * `BLOCKERS.md` §6. The CRM endpoint does not exist yet either
- * (`BLOCKERS.md` §1a), so `submitLeadToCrm` delivers nowhere.
+ * `POST /api/leads` writes NOTHING to a database of its own. `prisma/
+ * schema.prisma` holds site content only and says so in a comment at the top
+ * ("It holds NO LEADS") — that boundary is unchanged. The CRM (`POST
+ * /public/enquiries`) is the real system of record for a lead now
+ * (CRM-migration Step 3), but a CRM call can still fail — misconfiguration,
+ * rate limiting, a transient outage — and `route.ts` never lets that become
+ * the visitor's problem. This log is what makes that safe: it is the one
+ * place a lead that the CRM never received is still fully recoverable from.
  *
- * Which means: **a log line is the only trace a lead ever leaves.** There is no
- * table to query, no dead-letter queue, no retry. If someone has to follow up
- * with a visitor by hand, they will do it by reading these lines. So these logs
- * are written to be recovered from, not merely to be noticed.
+ * Which means: **this log line is the ONLY trace of a lead the CRM did not
+ * end up storing.** There is no table to query for those, no dead-letter
+ * queue, no retry. If someone has to follow up with such a visitor by hand,
+ * they will do it by reading these lines. So these logs are written to be
+ * recovered from, not merely to be noticed.
  *
  * ## Three rules that follow from that
  *
@@ -64,17 +68,16 @@ export function logLeadReceived(record: LeadSubmissionRecord): void {
 }
 
 /**
- * Call when the CRM reported `logged-only` — i.e. it is not configured and no
- * delivery was attempted.
+ * Call when the CRM hand-off was deliberately NOT attempted or did not
+ * result in a lead — `WEBSITE_API_KEY` unset, or a non-2xx the route treats
+ * as "known, not actionable by the visitor" (`route.ts`'s own comment lists
+ * which codes).
  *
- * CONCISE on purpose, unlike `logLeadDeliveryFailure` below. Until the CRM
- * endpoint exists this outcome happens on every single submission, so dumping
- * the full record here would mean two identical PII blocks per lead forever.
- * That is worse on both counts that matter: whoever greps these logs to follow
- * leads up by hand has to de-duplicate every hit, and the site spreads personal
- * data over more lines than it needs to. The `received` line immediately above
- * it already holds everything; this one only has to say "and it went nowhere",
- * with the `leadId` to join on.
+ * CONCISE on purpose, unlike `logLeadDeliveryFailure` below. The `received`
+ * line immediately above it already holds the full PII record; dumping it a
+ * second time here would put two identical blocks in the log for every such
+ * lead, which makes the log harder to recover leads from, not easier. This
+ * one only has to say "and it went nowhere", with the `leadId` to join on.
  */
 export function logLeadDeliverySkipped(record: LeadSubmissionRecord, reason: string): void {
   console.info(
@@ -105,9 +108,11 @@ export function logLeadDeliveryFailure(record: LeadSubmissionRecord, reason: unk
 }
 
 /**
- * Call when a real CRM call succeeds. Unreachable until the stub is replaced.
- * Concise for the same reason as `delivery-skipped`: on the happy path the CRM
- * holds the lead, so this server's log no longer has to be its only copy.
+ * Call when `POST /public/enquiries` accepts the enquiry (always `{ok:
+ * true}` — see `submitEnquiry()`'s own doc comment for why `reference` is
+ * not a real CRM lead id). Concise for the same reason as
+ * `delivery-skipped`: on the happy path the CRM holds the lead, so this
+ * server's log no longer has to be its only copy.
  */
 export function logLeadDelivered(record: LeadSubmissionRecord, reference: string): void {
   console.info(

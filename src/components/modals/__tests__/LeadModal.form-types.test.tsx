@@ -5,6 +5,10 @@ import { LeadModal } from '../LeadModal';
 import type { LeadDetails } from '../lead-details';
 import { leadSubmissionSchema } from '@/server/leads/lead-schema';
 
+// CRM-migration Step 3: never load the real Cloudflare script in a test —
+// see `src/components/modals/__mocks__/TurnstileWidget.tsx`'s own header.
+jest.mock('../TurnstileWidget');
+
 /**
  * The full client path for the two `formType`s that previously had NO producer
  * at all (BLOCKERS.md item 0): fill the modal, submit, and read the JSON that
@@ -35,6 +39,7 @@ async function submitModal(details: LeadDetails, context: { label: string; value
 
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
+  await user.click(screen.getByLabelText(/I agree to be contacted/));
   await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
   await screen.findByText(/Your journey/);

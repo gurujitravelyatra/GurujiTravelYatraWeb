@@ -43,8 +43,8 @@ export interface LeadTripStop {
 }
 
 export type LeadDetails =
-  | { formType: 'enquiry'; pageName?: string }
-  | { formType: 'brochure'; packageName?: string }
+  | { formType: 'enquiry'; pageName?: string; tourSlug?: string }
+  | { formType: 'brochure'; packageName?: string; tourSlug?: string }
   | {
       formType: 'group-tour-reservation';
       /**
@@ -54,6 +54,15 @@ export type LeadDetails =
        */
       batchDate: string;
       departureName?: string;
+      /**
+       * CRM-migration Step 3: `CrmDeparturesTourCard.slug` — the same tour
+       * `GET /public/departures` named. Lets `CrmEnquiryRequest.tourSlug`
+       * (and so `Lead.interest`) name the actual tour, not just a display
+       * string. Absent only if a future caller of `openGroupReservation`
+       * genuinely has no CRM tour behind it; today's one caller
+       * (`GroupDepartureCard`) always has one.
+       */
+      tourSlug?: string;
     }
   | {
       formType: 'custom-trip';

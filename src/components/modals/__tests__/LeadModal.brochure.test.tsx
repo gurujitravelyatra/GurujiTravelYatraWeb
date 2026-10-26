@@ -9,6 +9,10 @@ jest.mock('@/lib/leads/lead-api-client', () => ({
   submitLeadRequest: jest.fn(),
 }));
 
+// CRM-migration Step 3: never load the real Cloudflare script in a test —
+// see `src/components/modals/__mocks__/TurnstileWidget.tsx`'s own header.
+jest.mock('../TurnstileWidget');
+
 const submitLead = submitLeadRequest as jest.Mock;
 
 const context = { label: 'Package', value: 'Spiti Valley Circuit' };
@@ -16,6 +20,7 @@ const context = { label: 'Package', value: 'Spiti Valley Circuit' };
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
+  await user.click(screen.getByLabelText(/I agree to be contacted/));
 }
 
 describe('LeadModal variant="brochure"', () => {

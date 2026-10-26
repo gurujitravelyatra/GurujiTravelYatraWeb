@@ -13,6 +13,10 @@ jest.mock('@/lib/leads/lead-api-client', () => ({
   submitLeadRequest: jest.fn(),
 }));
 
+// CRM-migration Step 3: never load the real Cloudflare script in a test —
+// see `src/components/modals/__mocks__/TurnstileWidget.tsx`'s own header.
+jest.mock('../TurnstileWidget');
+
 const submitLead = submitLeadRequest as jest.Mock;
 
 const context = { label: 'Package', value: 'Spiti Valley Circuit' };
@@ -28,6 +32,10 @@ function deferred<T>() {
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
+  // CRM-migration Step 3: consent is the one other REQUIRED field — the
+  // mocked `TurnstileWidget` above already supplies `turnstileToken` the
+  // instant it mounts, so this is the only extra step every test needs.
+  await user.click(screen.getByLabelText(/I agree to be contacted/));
 }
 
 describe('LeadModal variant="enquiry"', () => {
@@ -158,10 +166,12 @@ describe('LeadModal variant="enquiry"', () => {
     expect(screen.getByText(/Your journey/)).toBeInTheDocument();
   });
 
-  // The submit path is now real (`POST /api/leads`), but that route validates
-  // and LOGS — there is still no CRM behind it, no rate limiter and no
-  // encryption. Copy claiming otherwise is a false statement to the visitor,
-  // not a cosmetic issue.
+  // CRM-migration Step 3: the submit path now genuinely reaches a CRM
+  // (`POST /api/leads` -> `POST /public/enquiries`), but the visitor-facing
+  // copy still should not say so in those words — "CRM" is internal jargon
+  // a visitor has no use for — and still may not claim guaranteed delivery,
+  // a specific rate limit, or encryption, none of which this form step
+  // promises anywhere in its own copy.
   describe('claims no capability the submit path does not have', () => {
     const FALSE_CLAIMS = [/server-side/i, /rate.?limit/i, /\bCRM\b/, /encrypted/i];
 

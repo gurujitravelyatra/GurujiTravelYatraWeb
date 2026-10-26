@@ -61,6 +61,10 @@ const MAX_URL = 2048;
 const MIN_NIGHTS = 1;
 const MAX_NIGHTS = 9;
 const MAX_STOPS = 20;
+/** A slug is a URL path segment — generous but not unbounded. */
+const MAX_SLUG = 200;
+/** Cloudflare Turnstile response tokens run long; this is a safety cap, not a real-world limit. */
+const MAX_TURNSTILE_TOKEN = 4096;
 
 /** Mirrors `lead-form-schema.ts` exactly — the client blocks anything else. */
 const mobileRegex = /^[+]?[\d\s-]{10,15}$/;
@@ -116,6 +120,30 @@ const commonFields = {
       term: optionalText(MAX_SHORT_TEXT),
     })
     .optional(),
+  /**
+   * CRM-migration Step 3 — the three fields `POST /public/enquiries` itself
+   * requires (documentation/technical-specification/public-website.md's
+   * `POST /public/enquiries` §), collected by the modal alongside the
+   * visitor's own fields rather than injected by the server, because only
+   * the browser can solve a Turnstile challenge or know whether its hidden
+   * honeypot input was filled.
+   */
+  consent: z.literal(true, { message: 'Please agree to be contacted to continue.' }),
+  turnstileToken: z
+    .string()
+    .trim()
+    .min(1, 'Please complete the verification challenge.')
+    .max(MAX_TURNSTILE_TOKEN, 'Verification token is unexpectedly long — please retry.'),
+  /**
+   * Deliberately NOT constrained to be empty here. A bot that filled it in
+   * is exactly the submission this field exists to catch — rejecting it at
+   * THIS layer with a 400 would tip the bot off that something noticed;
+   * forwarding it untouched lets the CRM's own honeypot check (contract
+   * §`POST /public/enquiries`, step 2: "short-circuits to `{ok:true}` with
+   * nothing checked or created") handle it the same way a real CRM caller
+   * would see it.
+   */
+  honeypot: optionalText(MAX_SHORT_TEXT),
 };
 
 /**
@@ -143,16 +171,20 @@ export const leadSubmissionSchema = z.discriminatedUnion('formType', [
     ...commonFields,
     /** Page/context label → `Enquire Now – [Page]`. */
     pageName: optionalText(MAX_SHORT_TEXT),
+    /** CRM-migration Step 3 — `CrmEnquiryRequest.tourSlug`, when the trigger has a real tour behind it (the detail page); absent for page-level context (Navbar, Home, About Us). */
+    tourSlug: optionalText(MAX_SLUG),
   }),
   z.object({
     formType: z.literal('brochure'),
     ...commonFields,
     /** → `Brochure Download – [Package Name]`. */
     packageName: optionalText(MAX_SHORT_TEXT),
+    tourSlug: optionalText(MAX_SLUG),
   }),
   z.object({
     formType: z.literal('group-tour-reservation'),
     ...commonFields,
+    tourSlug: optionalText(MAX_SLUG),
     /**
      * REQUIRED, unlike the other context fields. The tag is
      * `Group Tour Reservation – [Batch Date]`; without the date it degrades to

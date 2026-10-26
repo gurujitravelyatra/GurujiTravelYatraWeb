@@ -22,6 +22,22 @@ export const leadFormSchema = z.object({
     .optional(),
   city: z.string().trim().optional(),
   message: z.string().trim().optional(),
+  /**
+   * CRM-migration Step 3 — `POST /public/enquiries` requires all three
+   * (documentation/technical-specification/public-website.md). `consent` is
+   * a visible, required checkbox; `turnstileToken` is set by
+   * `TurnstileWidget`'s `onVerify` callback via `form.setValue`, never typed
+   * — it has no visible input of its own, so the empty-string default below
+   * is what a submit attempt sees before the widget resolves, and the
+   * message below is what the visitor sees for it. `honeypot` is a hidden
+   * decoy input a real visitor's browser never touches.
+   */
+  // Modelled as `boolean` (not `z.literal(true)`) so an unchecked checkbox
+  // is a representable, default-able form VALUE (`false`) rather than a
+  // type error — the refinement is what actually enforces "must be true".
+  consent: z.boolean().refine((value) => value === true, { message: 'Please agree to be contacted to continue.' }),
+  turnstileToken: z.string().min(1, 'Please complete the verification challenge.'),
+  honeypot: z.string().optional(),
 });
 
 export type LeadFormValues = z.infer<typeof leadFormSchema>;
@@ -34,4 +50,7 @@ export const leadFormDefaultValues: LeadFormValues = {
   travellers: '',
   city: '',
   message: '',
+  consent: false,
+  turnstileToken: '',
+  honeypot: '',
 };

@@ -237,7 +237,7 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
           </section>
         )}
 
-        <PackageDetailCtas packageName={tour.name} hasBrochure={tour.hasBrochure} />
+        <PackageDetailCtas packageName={tour.name} slug={tour.slug} hasBrochure={tour.hasBrochure} />
       </div>
     </SiteShell>
   );
