@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { TripBuilder } from '../TripBuilder';
-import { tripPlaceOptions } from '@/content/fixtures/places.fixture';
+import type { CrmPlace } from '@/server/crm/types';
 
 const openCustomTrip = jest.fn();
 const openEnquiry = jest.fn();
@@ -21,7 +21,37 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-const [placeA, placeB] = tripPlaceOptions;
+/** CRM-migration Step 2: place options now come from `GET /public/places`. */
+const placeOptions: CrmPlace[] = [
+  {
+    name: 'Rishikesh',
+    slug: 'rishikesh',
+    region: 'Uttarakhand',
+    description: 'The yoga capital on the Ganges.',
+    imageUrl: 'https://res.cloudinary.com/place-images/rishikesh.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 2,
+  },
+  {
+    name: 'Manali',
+    slug: 'manali',
+    region: 'Himachal Pradesh',
+    description: 'Mountain town in the Beas valley.',
+    imageUrl: 'https://res.cloudinary.com/place-images/manali.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 3,
+  },
+];
+const [placeA, placeB] = placeOptions;
+const WHATSAPP_URL = 'https://wa.me/919099957658';
+
+function renderBuilder(children?: React.ReactNode) {
+  return render(
+    <TripBuilder placeOptions={placeOptions} whatsappUrl={WHATSAPP_URL}>
+      {children}
+    </TripBuilder>
+  );
+}
 
 function addPlace(name: string) {
   return screen.getByRole('button', { name: `Add ${name} to your trip` });
@@ -29,7 +59,7 @@ function addPlace(name: string) {
 
 describe('TripBuilder interaction', () => {
   it('renders the empty state when no places are selected', () => {
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     expect(screen.getByText('No places added yet')).toBeInTheDocument();
     expect(screen.getByText('Empty Trip')).toBeInTheDocument();
@@ -37,7 +67,7 @@ describe('TripBuilder interaction', () => {
 
   it('adding a place puts it in the route with a default of 2 nights', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
 
@@ -48,7 +78,7 @@ describe('TripBuilder interaction', () => {
 
   it('+ night increases the count, capped at 9', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     const moreButton = () => screen.getByRole('button', { name: `Add one night to ${placeA.name}` });
@@ -65,7 +95,7 @@ describe('TripBuilder interaction', () => {
 
   it('− night decreases the count, floored at 1', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     const lessButton = () => screen.getByRole('button', { name: `Remove one night from ${placeA.name}` });
@@ -82,7 +112,7 @@ describe('TripBuilder interaction', () => {
 
   it('Remove removes a single place from the route, leaving the other intact', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     await user.click(addPlace(placeB.name));
@@ -102,7 +132,7 @@ describe('TripBuilder interaction', () => {
 
   it('Clear All empties the route and restores the empty state', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     await user.click(addPlace(placeB.name));
@@ -131,7 +161,7 @@ function summaryRow(label: string) {
 describe('TripBuilder — preferences flow into the summary card', () => {
   it('toggling a travel style chip updates aria-pressed and the summary "Travel Style" row', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     const styleGroup = screen.getByRole('group', { name: 'Travel style' });
     expect(within(styleGroup).getByRole('button', { name: 'Comfort' })).toHaveAttribute('aria-pressed', 'true');
@@ -146,7 +176,7 @@ describe('TripBuilder — preferences flow into the summary card', () => {
 
   it('selecting a travel month updates the summary "Travel Month" row', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     expect(within(summaryRow('Travel Month')).getByText('Any month')).toBeInTheDocument();
 
@@ -157,7 +187,7 @@ describe('TripBuilder — preferences flow into the summary card', () => {
 
   it('changing traveller counts updates the summary "Travellers" row', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     expect(within(summaryRow('Travellers')).getByText('2 Adults')).toBeInTheDocument();
 
@@ -172,7 +202,7 @@ describe('TripBuilder — preferences flow into the summary card', () => {
 describe('TripBuilder — special-requests textarea', () => {
   it('caps at 500 characters (maxLength attribute) and its live counter updates', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     const textarea = screen.getByLabelText('Any special requests?');
     expect(textarea).toHaveAttribute('maxLength', '500');
@@ -196,7 +226,7 @@ describe('TripBuilder — special-requests textarea', () => {
 describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
   it('passes every piece of builder state, including nights PER STOP', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     // placeA -> 3 nights (added at 2, +1), placeB stays at the default 2.
@@ -228,7 +258,7 @@ describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
 
   it('no longer routes a custom quote through the generic enquiry opener', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
@@ -243,7 +273,7 @@ describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
    */
   it('still submits on an empty route, with the untouched defaults', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
 
@@ -261,7 +291,7 @@ describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
 
   it('sends no budget — the builder has no budget input to read one from', async () => {
     const user = userEvent.setup();
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     await user.click(addPlace(placeA.name));
     await user.click(screen.getByRole('button', { name: 'Get My Custom Quote' }));
@@ -272,7 +302,7 @@ describe('TripBuilder — "Get My Custom Quote" carries the real trip', () => {
 
 describe('TripBuilder — Budget control and step-4 preference chips are inert', () => {
   it('marks the Budget (Per Person) field aria-disabled with a visible "coming soon"', () => {
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     const budgetField = screen.getByTestId('ct-budget-field');
     expect(budgetField).toHaveAttribute('aria-disabled', 'true');
@@ -280,7 +310,7 @@ describe('TripBuilder — Budget control and step-4 preference chips are inert',
   });
 
   it('renders all four step-4 preference chips disabled', () => {
-    render(<TripBuilder placeOptions={tripPlaceOptions} />);
+    renderBuilder();
 
     const group = screen.getByRole('group', { name: 'Additional preferences (coming soon)' });
     const chipLabels = ['Hotel Type', 'Food Preference', 'Vehicle Type', 'Special Requests'];

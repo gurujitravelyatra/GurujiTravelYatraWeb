@@ -1,6 +1,6 @@
 'use client';
 
-import type { TripPlaceOption } from '@/content/types';
+import type { CrmPlace } from '@/server/crm/types';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import { cn } from '@/lib/utils';
 
@@ -8,9 +8,9 @@ import type { TripStop } from './TripBuilder';
 import { StepHeader } from './StepHeader';
 
 export interface TripPlacesStepProps {
-  placeOptions: TripPlaceOption[];
+  placeOptions: CrmPlace[];
   trip: TripStop[];
-  onAdd: (place: TripPlaceOption) => void;
+  onAdd: (place: CrmPlace) => void;
 }
 
 /**
@@ -73,7 +73,7 @@ export function TripPlacesStep({ placeOptions, trip, onAdd }: TripPlacesStepProp
               className="flex flex-col overflow-hidden rounded-12 border border-gty-border-4 bg-gty-white text-left transition-shadow duration-gty-fast ease-gty hover:shadow-gty-sm"
             >
               <span className="relative block h-[88px] w-full flex-none">
-                <PhotoPlaceholder photoKey={place.photoUrl} alt="" className="h-full w-full" />
+                <PhotoPlaceholder photoKey={place.name} imageUrl={place.imageUrl} alt="" className="h-full w-full" />
                 <span
                   aria-hidden="true"
                   className={cn(

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/content-adapter';
+import { getSite } from '@/server/crm/client';
+import { toSiteStatsSummary } from '@/lib/site-stats';
 import { SiteShell } from '@/components/layout/SiteShell';
 import { StatsBar } from '@/components/home/StatsBar';
 import { AboutStory } from '@/components/about/AboutStory';
@@ -26,19 +27,19 @@ export const metadata: Metadata = {
  * BLOCKERS.md Decision H (never fabricate content for a real travel brand).
  * See `AboutStory` for exactly how the missing brand story is disclosed.
  *
- * §5.8's "repeated trust stats" reuse the existing `StatsBar` composed from
- * `contentAdapter.getStats()` — the same source and the same `isPlaceholder`
- * flags Home's stats bar renders, not a second stats implementation.
+ * §5.8's "repeated trust stats" reuse the existing `StatsBar`, now fed by
+ * `GET /public/site`'s settings — the same source Home's stats bar reads,
+ * not a second stats implementation.
  *
  * The "Our Journey" milestone timeline that used to render here has been
  * REMOVED (placeholder-content decision, CRM migration audit): every entry
  * quoted the same unconfirmed traveller/destination figures as the stats
  * bar, and the CRM contract has no milestone/timeline equivalent to source
  * real ones from. The page's main story/traveller/CTA copy is unaffected.
- * Reinstating the timeline is a one-line revert of this commit.
  */
 export default async function AboutUsPage() {
-  const stats = await contentAdapter.getSiteStatsSummary();
+  const site = await getSite();
+  const stats = toSiteStatsSummary(site.settings);
 
   return (
     <SiteShell activePath="/about-us" pageLabel="About Us">

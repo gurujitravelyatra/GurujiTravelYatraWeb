@@ -23,3 +23,17 @@ export const TRAVEL_MONTHS: readonly string[] = [
 
 /** Special-requests textarea cap — matches the export's own "0/500" counter (line 660). */
 export const SPECIAL_REQUESTS_MAX_LENGTH = 500;
+
+/**
+ * Travel-style options for the trip builder's step 3 — matches the CRM
+ * contract's `POST /public/enquiries` `travelStyle` field exactly
+ * (`CrmEnquiryRequest`), so a selection here needs no mapping before it is
+ * sent. These are labels only — no estimated per-night cost is derived from
+ * them (an earlier prototype's `nights × 3200/5400/8600` was fabricated
+ * filler with no source anywhere, and is deliberately not reproduced).
+ */
+export const travelStyles = ['Budget', 'Comfort', 'Premium', 'Luxury'] as const;
+
+export type TravelStyle = (typeof travelStyles)[number];
+
+export const defaultTravelStyle: TravelStyle = 'Comfort';

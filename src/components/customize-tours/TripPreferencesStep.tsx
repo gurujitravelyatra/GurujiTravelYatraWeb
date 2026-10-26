@@ -1,6 +1,6 @@
 'use client';
 
-import { travelStyles, type TravelStyle } from '@/content/fixtures/places.fixture';
+import { travelStyles, type TravelStyle } from './trip-constants';
 import { cn } from '@/lib/utils';
 
 import { StepHeader } from './StepHeader';

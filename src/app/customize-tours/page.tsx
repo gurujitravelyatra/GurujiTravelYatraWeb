@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
-import { contentAdapter } from '@/content/content-adapter';
+import { getPlaces, getSite } from '@/server/crm/client';
+import { resolveSiteContact } from '@/lib/site-contact';
 
 import { SiteShell } from '@/components/layout/SiteShell';
 import { CustomizeToursHero } from '@/components/customize-tours/CustomizeToursHero';
@@ -19,23 +20,28 @@ export const metadata: Metadata = {
 };
 
 /**
- * `/customize-tours` — Server Component, product-spec §5.5, design export
- * `isCustom` screen (`.dc.html` lines 561-722).
+ * `/customize-tours` — Server Component.
+ *
+ * CRM-migration Step 2: place options are `GET /public/places` filtered by
+ * `showInCustomBuilder` — the field the contract added specifically to
+ * answer "is this place offered in the Customize Tours builder", replacing
+ * the old fixture's implicit "every place in this one array is offered".
  *
  * `NeedHelpCard` and `ExploreDestinationsCard` are passed as `children` into
  * the client `TripBuilder` rather than imported by it, so they stay Server
  * Components even though they render inside the same right-hand column as
- * the (necessarily client) trip summary — Next.js keeps Server Component
- * children server-rendered when composed this way.
+ * the (necessarily client) trip summary.
  */
 export default async function CustomizeToursPage() {
-  const placeOptions = await contentAdapter.getTripPlaceOptions();
+  const [places, site] = await Promise.all([getPlaces(), getSite()]);
+  const placeOptions = places.filter((place) => place.showInCustomBuilder);
+  const contact = resolveSiteContact(site.settings);
 
   return (
     <SiteShell activePath="/customize-tours" pageLabel="Customized Tours">
       <CustomizeToursHero />
-      <TripBuilder placeOptions={placeOptions}>
-        <NeedHelpCard />
+      <TripBuilder placeOptions={placeOptions} whatsappUrl={contact.whatsappUrl}>
+        <NeedHelpCard contact={contact} />
         <ExploreDestinationsCard />
       </TripBuilder>
       <WhyPlanBand />

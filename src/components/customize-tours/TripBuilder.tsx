@@ -2,17 +2,16 @@
 
 import { useMemo, useState } from 'react';
 
-import type { TripPlaceOption } from '@/content/types';
-import { defaultTravelStyle, type TravelStyle } from '@/content/fixtures/places.fixture';
+import type { CrmPlace } from '@/server/crm/types';
 import { useModal } from '@/components/modals/modal-context';
 import { tripRouteSummary, type LeadTripStop } from '@/components/modals/lead-details';
-import { GTY_WHATSAPP_URL } from '@/lib/gty-contact';
 
 import { TripPlacesStep } from './TripPlacesStep';
 import { TripRouteStep } from './TripRouteStep';
 import { TripPreferencesStep } from './TripPreferencesStep';
 import { AdditionalPreferencesStep } from './AdditionalPreferencesStep';
 import { TripSummaryCard } from './TripSummaryCard';
+import { defaultTravelStyle, type TravelStyle } from './trip-constants';
 
 /**
  * Aliased to the lead payload's own stop type rather than re-declared, so the
@@ -23,7 +22,9 @@ import { TripSummaryCard } from './TripSummaryCard';
 export type TripStop = LeadTripStop;
 
 export interface TripBuilderProps {
-  placeOptions: TripPlaceOption[];
+  placeOptions: CrmPlace[];
+  /** Resolved by the page from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  whatsappUrl: string;
   /** Server-rendered cards for the rest of the right column (Need Help / Explore Destinations) — kept as Server Components by passing them in as children rather than importing them into this client module. */
   children?: React.ReactNode;
 }
@@ -52,7 +53,7 @@ function travellersLabel(adults: number, childrenCount: number): string {
  * Dedupe is by `slug` (the export dedupes by `name`; slug is the same
  * uniqueness guarantee and is what the rest of the codebase keys places by).
  */
-export function TripBuilder({ placeOptions, children }: TripBuilderProps) {
+export function TripBuilder({ placeOptions, whatsappUrl, children }: TripBuilderProps) {
   const [trip, setTrip] = useState<TripStop[]>([]);
   const [travelStyle, setTravelStyle] = useState<TravelStyle>(defaultTravelStyle);
   const [travelMonth, setTravelMonth] = useState('');
@@ -61,7 +62,7 @@ export function TripBuilder({ placeOptions, children }: TripBuilderProps) {
   const [notes, setNotes] = useState('');
   const { openCustomTrip } = useModal();
 
-  const addPlace = (place: TripPlaceOption) => {
+  const addPlace = (place: CrmPlace) => {
     setTrip((current) =>
       current.some((stop) => stop.slug === place.slug)
         ? current
@@ -127,8 +128,8 @@ export function TripBuilder({ placeOptions, children }: TripBuilderProps) {
     const message = trip.length
       ? `Hi Guruji Travel Yatra, I'd like a custom trip quote.\nRoute: ${routeSummary}\nDuration: ${tripHeadline}\nTravel style: ${travelStyle}\nTravel month: ${travelMonthLabel}\nTravellers: ${travellersText}`
       : "Hi Guruji Travel Yatra, I'd like help planning a custom trip.";
-    return `${GTY_WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
-  }, [trip.length, routeSummary, tripHeadline, travelStyle, travelMonthLabel, travellersText]);
+    return `${whatsappUrl}?text=${encodeURIComponent(message)}`;
+  }, [trip.length, routeSummary, tripHeadline, travelStyle, travelMonthLabel, travellersText, whatsappUrl]);
 
   return (
     <div className="flex flex-wrap items-start gap-[22px] px-gx pb-[26px] pt-[18px]">

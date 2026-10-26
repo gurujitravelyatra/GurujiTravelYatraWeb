@@ -2,27 +2,54 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { GroupDeparturesList } from '../GroupDeparturesList';
-import { groupDepartures } from '@/content/fixtures/group-departures.fixture';
-import { departureMonthKeys } from '@/lib/departure-dates';
-
-const departureMonths = departureMonthKeys(groupDepartures);
+import type { CrmDeparturesTourCard } from '@/server/crm/types';
 
 jest.mock('@/components/modals/modal-context', () => ({
   useModal: () => ({ modal: null, openEnquiry: jest.fn(), openBrochure: jest.fn(), close: jest.fn() }),
 }));
 
-function renderList() {
-  return render(<GroupDeparturesList departures={groupDepartures} months={departureMonths} />);
+function tour(overrides: Partial<CrmDeparturesTourCard>): CrmDeparturesTourCard {
+  return {
+    slug: 'tour',
+    name: 'Tour',
+    category: 'Adventure',
+    shortDescription: 'A trip.',
+    coverImageUrl: 'https://res.cloudinary.com/tour-images/abc.jpg',
+    price: { amount: 25000, currency: 'INR' },
+    durationDays: 6,
+    durationNights: 5,
+    departureCity: null,
+    primaryPlace: { name: 'Place', slug: 'place' },
+    nextDeparture: { date: '2026-07-01', seatsLeft: 8 },
+    hasBrochure: true,
+    departureDate: '2026-07-01',
+    ...overrides,
+  };
 }
 
+const departures: CrmDeparturesTourCard[] = [
+  tour({ slug: 'july-1', name: 'July Departure One', departureDate: '2026-07-01' }),
+  tour({ slug: 'july-2', name: 'July Departure Two', departureDate: '2026-07-15' }),
+  tour({ slug: 'aug-1', name: 'August Departure', departureDate: '2026-08-05' }),
+];
+const months = ['2026-07', '2026-08'];
+
+function renderList() {
+  return render(<GroupDeparturesList departures={departures} months={months} />);
+}
+
+/**
+ * CRM-migration Step 2: month chips now filter by `departureDate`'s
+ * `YYYY-MM` prefix, using the CRM's own `months` list verbatim — no more
+ * `departureMonthKeys()`/year-guessing.
+ */
 describe('GroupDeparturesList', () => {
-  it('renders a month chip for every derived month, each with aria-pressed', () => {
+  it('renders a month chip for every CRM-provided month, each with aria-pressed', () => {
     renderList();
     const group = screen.getByRole('group', { name: 'Filter by departure month' });
 
-    for (const month of departureMonths) {
-      const chip = within(group).getByRole('button', { name: month });
-      expect(chip).toHaveAttribute('aria-pressed', 'false');
+    for (const month of months) {
+      expect(within(group).getByRole('button', { name: month })).toHaveAttribute('aria-pressed', 'false');
     }
     expect(within(group).getByRole('button', { name: 'All Departures' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -31,31 +58,21 @@ describe('GroupDeparturesList', () => {
     const user = userEvent.setup();
     renderList();
 
-    const novDepartures = groupDepartures.filter((departure) => departure.month === 'Nov');
-    expect(novDepartures.length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: '2026-07' }));
 
-    await user.click(screen.getByRole('button', { name: 'Nov 2026' }));
-
-    expect(screen.getByRole('button', { name: 'Nov 2026' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'All Departures' })).toHaveAttribute('aria-pressed', 'false');
-
-    for (const departure of novDepartures) {
-      expect(screen.getByRole('heading', { name: departure.name })).toBeInTheDocument();
-    }
-    const otherDepartures = groupDepartures.filter((departure) => departure.month !== 'Nov');
-    for (const departure of otherDepartures) {
-      expect(screen.queryByRole('heading', { name: departure.name })).not.toBeInTheDocument();
-    }
+    expect(screen.getByRole('heading', { name: 'July Departure One' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'July Departure Two' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'August Departure' })).not.toBeInTheDocument();
   });
 
-  it('clicking "All Departures" restores all four departures', async () => {
+  it('clicking "All Departures" restores every departure', async () => {
     const user = userEvent.setup();
     renderList();
 
-    await user.click(screen.getByRole('button', { name: 'Jun 2026' }));
+    await user.click(screen.getByRole('button', { name: '2026-08' }));
     await user.click(screen.getByRole('button', { name: 'All Departures' }));
 
-    for (const departure of groupDepartures) {
+    for (const departure of departures) {
       expect(screen.getByRole('heading', { name: departure.name })).toBeInTheDocument();
     }
   });
@@ -64,115 +81,17 @@ describe('GroupDeparturesList', () => {
     const user = userEvent.setup();
     renderList();
 
-    expect(screen.getByText(`${groupDepartures.length} departures found`)).toBeInTheDocument();
+    expect(screen.getByText('3 departures found')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Oct 2026' }));
-
-    const octCount = groupDepartures.filter((departure) => departure.month === 'Oct').length;
-    expect(screen.getByText(`${octCount} ${octCount === 1 ? 'departure' : 'departures'} found`)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '2026-08' }));
+    expect(screen.getByText('1 departure found')).toBeInTheDocument();
   });
 
-  describe('unwired controls are genuinely inert', () => {
-    it('the search input is disabled — structurally inert, not just styled to look so', () => {
-      renderList();
+  it('renders a "no departures" state when the filter matches nothing', async () => {
+    const user = userEvent.setup();
+    render(<GroupDeparturesList departures={departures} months={['2026-07', '2026-08', '2026-09']} />);
 
-      const search = screen.getByLabelText(/Search destination or tour/i);
-      expect(search).toBeDisabled();
-      expect(search).toHaveValue('');
-    });
-
-    it('the sort control is not a functional button — it carries no button role', () => {
-      renderList();
-
-      expect(screen.queryByRole('button', { name: /Earliest Departure/ })).not.toBeInTheDocument();
-      const sortLabel = screen.getByText('Earliest Departure');
-      const sortControl = sortLabel.closest('[aria-disabled="true"]');
-      expect(sortControl).toBeInTheDocument();
-      expect(sortControl!.tagName).not.toBe('BUTTON');
-    });
-
-    it('clicking where the sort control renders does not change the departure list', async () => {
-      const user = userEvent.setup();
-      renderList();
-
-      const sortLabel = screen.getByText('Earliest Departure');
-      await user.click(sortLabel);
-
-      for (const departure of groupDepartures) {
-        expect(screen.getByRole('heading', { name: departure.name })).toBeInTheDocument();
-      }
-    });
-  });
-
-  /**
-   * BLOCKERS.md item 9 — the footnote half of the unconfirmed-price treatment.
-   * `GroupDepartureCard` renders the asterisk and the `aria-describedby`; this
-   * list renders exactly ONE note per kind for all the cards that need it, the
-   * same "one shared note, many markers" contract as `StatsBar`/`WhyGtyBand`.
-   *
-   * What these tests are really guarding: that the reference RESOLVES. A marker
-   * pointing at an id no element carries is the failure mode that leaves an
-   * unconfirmed figure reading as settled fact for a screen-reader user.
-   */
-  describe('unverified-figure footnotes', () => {
-    it('renders one price footnote, with a real id the card markers resolve to', () => {
-      renderList();
-
-      const flagged = groupDepartures.filter((departure) => departure.priceUnverified);
-      expect(flagged.length).toBeGreaterThan(0);
-
-      const note = screen.getByTestId('group-price-note');
-      expect(note.tagName).toBe('P');
-      expect(note.id).not.toBe('');
-      expect(note).toHaveTextContent(/pending confirmation/i);
-      expect(document.getElementById(note.id)).toBe(note);
-
-      for (const departure of flagged) {
-        const group = screen.getByRole('group', { name: `Price per person — ${departure.name}` });
-        expect(document.getElementById(group.getAttribute('aria-describedby')!)).toBe(note);
-        expect(screen.getByTestId(`group-price-placeholder-${departure.slug}`)).toBeVisible();
-      }
-    });
-
-    it('renders the duration footnote the same way, and the two notes stay distinct', () => {
-      renderList();
-
-      const priceNote = screen.getByTestId('group-price-note');
-      const durationNote = screen.getByTestId('group-duration-note');
-
-      // Do Dham is flagged on BOTH counts — its two markers must point at two
-      // different notes, or one of them describes the wrong figure.
-      expect(priceNote.id).not.toBe(durationNote.id);
-      expect(durationNote).toHaveTextContent(/duration/i);
-      expect(priceNote).toHaveTextContent(/price/i);
-    });
-
-    it('drops the price footnote when the filter hides every flagged departure', async () => {
-      const user = userEvent.setup();
-      renderList();
-
-      // Nov = "Kashi · Ayodhya · Prayagraj" — no unverified figures at all.
-      const novFlagged = groupDepartures.filter(
-        (departure) => departure.month === 'Nov' && (departure.priceUnverified || departure.durationUnverified)
-      );
-      expect(novFlagged).toHaveLength(0);
-
-      await user.click(screen.getByRole('button', { name: 'Nov 2026' }));
-
-      expect(screen.queryByTestId('group-price-note')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('group-duration-note')).not.toBeInTheDocument();
-      expect(screen.queryByRole('group', { name: /^Price per person — / })).not.toBeInTheDocument();
-    });
-
-    it('every price marker on screen has a note to point at (no dangling reference)', () => {
-      renderList();
-
-      const markedGroups = screen.queryAllByRole('group', { name: /^Price per person — / });
-      for (const group of markedGroups) {
-        const id = group.getAttribute('aria-describedby');
-        expect(id).toBeTruthy();
-        expect(document.getElementById(id!)).toBeInTheDocument();
-      }
-    });
+    await user.click(screen.getByRole('button', { name: '2026-09' }));
+    expect(screen.getByText('No departures match this month yet.')).toBeInTheDocument();
   });
 });

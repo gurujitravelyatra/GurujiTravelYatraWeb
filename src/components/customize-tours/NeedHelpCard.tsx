@@ -1,11 +1,16 @@
-import { GTY_PHONE_DISPLAY, GTY_PHONE_TEL, GTY_WHATSAPP_URL } from '@/lib/gty-contact';
+import type { SiteContact } from '@/lib/site-contact';
+
+export interface NeedHelpCardProps {
+  /** Resolved by the page from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
+  contact: SiteContact;
+}
 
 /**
  * Export lines 688-699. Server Component — plain `tel:`/`https://wa.me` links,
  * no client state needed, so it stays out of the trip-builder's client
- * boundary. Real contact details only, from `gty-contact.ts` (never re-typed).
+ * boundary.
  */
-export function NeedHelpCard() {
+export function NeedHelpCard({ contact }: NeedHelpCardProps) {
   return (
     <div className="flex flex-wrap items-start gap-4 rounded-18 bg-gty-white p-[22px] shadow-gty-md">
       <span
@@ -24,16 +29,16 @@ export function NeedHelpCard() {
         </p>
         <div className="flex flex-wrap gap-[11px] pt-2">
           <a
-            href={`tel:${GTY_PHONE_TEL}`}
+            href={`tel:${contact.phoneTel}`}
             className="inline-flex items-center gap-[9px] rounded-pill border border-gty-red-300 bg-gty-white px-[18px] py-[11px] text-13 font-semibold text-gty-ink transition-colors duration-gty-fast ease-gty hover:bg-gty-red-150"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" className="flex-none text-gty-primary">
               <path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z" />
             </svg>
-            {GTY_PHONE_DISPLAY}
+            {contact.phoneDisplay}
           </a>
           <a
-            href={GTY_WHATSAPP_URL}
+            href={contact.whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-[9px] rounded-pill border border-gty-green-border bg-gty-white px-[18px] py-[11px] text-13 font-semibold text-gty-ink transition-colors duration-gty-fast ease-gty hover:bg-gty-green-bg"
