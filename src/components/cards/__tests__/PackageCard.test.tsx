@@ -1,102 +1,76 @@
 import { render, screen } from '@testing-library/react';
 
 import { PackageCard } from '../PackageCard';
-import type { Package } from '@/content/types';
+import type { CrmTourCard } from '@/server/crm/types';
 
-const basePackage: Package = {
+const baseTour: CrmTourCard = {
   slug: 'spiti-valley-circuit',
   name: 'Spiti Valley Circuit',
-  destinationSlug: 'spiti-valley',
-  destinationName: 'Spiti Valley',
   category: 'Adventure',
-  durationLabel: '9 Days 8 Nights',
-  subtitle: 'Shimla - Kaza - Chandratal',
-  photoUrl: 'Spiti Valley',
-  photosCount: 14,
-  priceFrom: '₹42,500',
-  priceWas: '₹47,700',
-  savingsLabel: '5,200',
-  // Required on `Package` (see the note on the field). A card only ever renders
-  // a tour that already passed the public-listing gate, so PUBLISHED is the only
-  // state this component is ever handed.
-  status: 'PUBLISHED',
+  shortDescription: 'Shimla - Kaza - Chandratal',
+  coverImageUrl: 'https://res.cloudinary.com/tour-images/spiti.jpg',
+  price: { amount: 42500, currency: 'INR' },
+  durationDays: 9,
+  durationNights: 8,
+  departureCity: null,
+  primaryPlace: { name: 'Spiti Valley', slug: 'spiti-valley' },
+  nextDeparture: { date: '2026-07-01', seatsLeft: 8 },
+  hasBrochure: true,
 };
 
 describe('PackageCard', () => {
-  it('renders name, price, duration and savings from the Package fixture', () => {
-    render(<PackageCard package={basePackage} />);
+  it('renders name, price and duration from the CRM tour card', () => {
+    render(<PackageCard tour={baseTour} />);
 
     expect(screen.getByText('Spiti Valley Circuit')).toBeInTheDocument();
     expect(screen.getByText('₹42,500')).toBeInTheDocument();
-    expect(screen.getByText('₹47,700')).toBeInTheDocument();
     expect(screen.getByText('9 Days 8 Nights')).toBeInTheDocument();
-    expect(screen.getByText('Save ₹5,200')).toBeInTheDocument();
-    expect(screen.getByText('14 Photos')).toBeInTheDocument();
     expect(screen.getByText('Adventure')).toBeInTheDocument();
   });
 
-  it('omits the savings pill when the package has no savingsLabel', () => {
-    const noSavings: Package = { ...basePackage, savingsLabel: undefined };
-    render(<PackageCard package={noSavings} />);
+  it('never renders a struck-through "was" price or a "Save ₹X" badge — the CRM has no such fields', () => {
+    render(<PackageCard tour={baseTour} />);
 
     expect(screen.queryByText(/^Save ₹/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/line-through/)).not.toBeInTheDocument();
   });
 
-  it('links to the /tour-packages/{slug} detail route (BLOCKERS.md Decision D)', () => {
-    render(<PackageCard package={basePackage} />);
+  it('shows remaining seats when a next departure exists', () => {
+    render(<PackageCard tour={baseTour} />);
+    expect(screen.getByText('8 seats left')).toBeInTheDocument();
+  });
 
-    const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/tour-packages/spiti-valley-circuit');
+  it('shows nothing extra when there is no next departure', () => {
+    render(<PackageCard tour={{ ...baseTour, nextDeparture: null }} />);
+    expect(screen.queryByText(/seats left/)).not.toBeInTheDocument();
   });
 
   /**
-   * CRM-migration decision 1: the public-listing gate no longer withholds a
-   * tour for an unconfirmed price, so a card may now reach this component
-   * with a missing/zero `priceFrom` (today only via a hand-edited row;
-   * tomorrow via a CRM response with `price: null`/`{amount: 0}`). It must
-   * render "Price on request" with a real call-to-action, never "₹0" or a
-   * blank figure, and it must not pair a "Save ₹X" badge with no real price.
+   * CRM-migration decision 1's rider, still true under the CRM shape: a
+   * price that is missing or reads as zero must render "Price on request",
+   * never "₹0" or a blank figure.
    */
   it.each([
-    ['a missing price', undefined],
-    ['an empty price', ''],
-    ['a price that reads as zero', '₹0'],
-  ])('renders "Price on request" instead of "₹0"/blank for %s', (_label, priceFrom) => {
-    const unpriced: Package = { ...basePackage, priceFrom: priceFrom as string };
-    render(<PackageCard package={unpriced} />);
+    ['a zero amount', { amount: 0, currency: 'INR' }],
+    ['a negative amount', { amount: -100, currency: 'INR' }],
+  ])('renders "Price on request" for %s', (_label, price) => {
+    render(<PackageCard tour={{ ...baseTour, price }} />);
 
     expect(screen.getByText('Price on request')).toBeInTheDocument();
     expect(screen.queryByText('₹0')).not.toBeInTheDocument();
-    expect(screen.queryByText('Spiti Valley Circuit')).toBeInTheDocument(); // the rest of the card still renders
-    // No fabricated saving beside a price the card is not showing.
-    expect(screen.queryByText(/^Save ₹/)).not.toBeInTheDocument();
-    // The phone/WhatsApp facts are still there, as plain text — never a
-    // SECOND link nested inside the card's own outer <Link> (BLOCKERS.md
-    // Decision E: every element in this card but the outer link is
-    // non-interactive, by construction).
-    expect(screen.getByText(/Call \+91 90999 57658/)).toBeInTheDocument();
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(1); // no nested <a> inside the card's own link
   });
 
-  it('still renders the real price and savings badge once a confirmed price exists', () => {
-    render(<PackageCard package={basePackage} />);
-
-    expect(screen.queryByText('Price on request')).not.toBeInTheDocument();
-    expect(screen.getByText('₹42,500')).toBeInTheDocument();
-    expect(screen.getByText('Save ₹5,200')).toBeInTheDocument();
+  it('links to the /tour-packages/{slug} detail route (BLOCKERS.md Decision D)', () => {
+    render(<PackageCard tour={baseTour} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/tour-packages/spiti-valley-circuit');
   });
 
-  it('contains no nested interactive element — heart, category pill and photo-count badge are not buttons or links (BLOCKERS.md Decision E)', () => {
-    const { container } = render(<PackageCard package={basePackage} />);
+  it('contains no nested interactive element (BLOCKERS.md Decision E)', () => {
+    const { container } = render(<PackageCard tour={baseTour} />);
 
-    // Exactly one focusable/interactive element in the whole card: the
-    // outer <Link>. If the heart/pill/badge were buttons or links, this
-    // would find more than one.
     expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(screen.queryAllByRole('button')).toHaveLength(0);
-
-    // Belt-and-suspenders: assert directly that no <button> element exists
-    // anywhere inside the rendered card.
     expect(container.querySelectorAll('button')).toHaveLength(0);
   });
 });

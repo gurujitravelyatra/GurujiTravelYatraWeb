@@ -1,39 +1,22 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
-import type { FeaturedVideo } from '@/content/types';
-import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { safeVideoEmbedUrl } from '@/lib/video-embed';
 
 export interface JourneyVideoBlockProps {
-  videos: FeaturedVideo[];
+  /** `site.settings.profileVideoUrl` from `GET /public/site` — a single embeddable URL, or `null` until the Owner sets one. */
+  profileVideoUrl: string | null;
 }
 
-/** Motion, verbatim from globals.css tokens — never a spring, never another duration. */
-const FADE_TRANSITION = { duration: 0.18, ease: [0.25, 0.1, 0.25, 1] as const };
-
 /**
- * Export lines 240-257, tech spec §4.4 row 5 — merges product-spec steps 5
- * ("Featured Video section") and 8 ("Every Journey Tells a Story") into one
- * block, exactly as the export does. `use client` for the play button's
- * local video-index state (§4.5).
+ * CRM-migration Step 2: this used to cycle through several fixture-only trip
+ * captions with no real video behind any of them. The CRM contract offers
+ * exactly one video — `site.settings.profileVideoUrl`, a single embed URL —
+ * so this is now a single embed block, not a carousel. `null` renders the
+ * same honest "coming soon" state the old empty-videos-array case did,
+ * rather than fabricating a caption for a video that may not exist yet.
  */
-export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
-  const [index, setIndex] = useState(0);
-  const shouldReduceMotion = useReducedMotion();
-
-  // `videos` is legitimately allowed to be empty — the fixture captions are
-  // placeholders (BLOCKERS.md Decision H) and are expected to be emptied out
-  // rather than shipped with invented dates. Guard the divisor: `% 0` is NaN,
-  // so `videos[NaN]` was undefined and `current.thumbnailKey` threw, taking
-  // the whole Home page down. The left-hand copy column stands on its own, so
-  // only the film panel degrades.
-  const count = videos.length;
-  const current = count > 0 ? videos[index % count] : undefined;
-
-  const cycleVideo = () => setIndex((previous) => (previous + 1) % count);
+export function JourneyVideoBlock({ profileVideoUrl }: JourneyVideoBlockProps) {
+  const embedUrl = safeVideoEmbedUrl(profileVideoUrl);
 
   return (
     <section
@@ -59,75 +42,25 @@ export function JourneyVideoBlock({ videos }: JourneyVideoBlockProps) {
         >
           Explore All Journeys <span aria-hidden="true">→</span>
         </Link>
-        {/*
-          No video file, stream URL or embed exists anywhere in this project —
-          the "▶ Watch Full Video" label promised playback that nothing could
-          deliver, and the panel's play button only cycles placeholder images.
-          Both now describe what is actually there.
-        */}
-        <div className="flex items-center gap-2 rounded-16 border border-gty-border bg-gty-white p-[6px]">
-          <PhotoPlaceholder photoKey="Spiti_Valley" alt="Spiti Valley journey" className="h-11 w-[60px] flex-none rounded-10" />
-          <span className="text-9 leading-[1.3]">
-            <b className="font-bold text-gty-ink">Spiti Valley Journey</b>
-            <br />
-            <span className="text-gty-subtle">Trip films coming soon</span>
-          </span>
-        </div>
       </div>
 
       <div className="min-w-[280px] flex-1">
-        {!current ? (
+        {!embedUrl ? (
           <div
             data-testid="journey-video-empty"
             className="flex h-[230px] items-center justify-center overflow-hidden rounded-18 border-[1.5px] border-dashed border-gty-border-8 bg-gty-surface-3 px-6 text-center text-12 leading-relaxed text-gty-subtle 760:h-[420px]"
           >
-            Trip films are coming soon.
+            Our journey video is coming soon.
           </div>
         ) : (
           <div className="relative h-[230px] overflow-hidden rounded-18 bg-[#151312] shadow-gty-lift 760:h-[420px]">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={current.thumbnailKey}
-                className="absolute inset-0"
-                initial={shouldReduceMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-                transition={FADE_TRANSITION}
-              >
-                <PhotoPlaceholder photoKey={current.thumbnailKey} alt={current.title} className="absolute inset-0 h-full w-full items-end p-0" />
-              </motion.div>
-            </AnimatePresence>
-            <span
-              aria-hidden="true"
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,.05) 40%,rgba(0,0,0,.62) 100%)',
-              }}
+            <iframe
+              src={embedUrl}
+              title="Guruji Travel Yatra — our journey"
+              className="absolute inset-0 h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
-            {/*
-              Cycles to the next placeholder, which is all it has ever done —
-              so it is labelled and drawn as a "next" control, not as a play
-              button. A ▶ glyph on a page with no video is a promise the
-              product cannot keep.
-            */}
-            <button
-              type="button"
-              onClick={cycleVideo}
-              aria-label="Show the next trip preview"
-              className="absolute left-1/2 top-1/2 flex h-[76px] w-[76px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-pill bg-gty-white/94 text-24 text-gty-primary shadow-[0_10px_30px_rgba(0,0,0,.35)] transition-colors duration-gty-fast ease-gty hover:bg-gty-white"
-            >
-              <span aria-hidden="true">›</span>
-            </button>
-            <div className="absolute inset-x-5 bottom-[18px] flex flex-col gap-[5px]">
-              <p className="text-10 font-bold uppercase tracking-label text-gty-white/85">Trip Preview</p>
-              <p className="text-22 font-extrabold text-gty-white" style={{ textShadow: '0 2px 12px rgba(0,0,0,.5)' }}>
-                {current.title}
-              </p>
-              <p className="text-12 text-gty-white/82">{current.whenLabel}</p>
-            </div>
-            <span className="absolute right-4 top-4 rounded-pill bg-gty-white/92 px-3 py-[6px] text-[10.5px] font-bold uppercase tracking-img">
-              Trip film coming soon
-            </span>
           </div>
         )}
       </div>

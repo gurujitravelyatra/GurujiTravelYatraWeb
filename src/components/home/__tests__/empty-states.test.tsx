@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 
 import { TestimonialsCarousel } from '../TestimonialsCarousel';
 import { JourneyVideoBlock } from '../JourneyVideoBlock';
-import type { FeaturedVideo, Review } from '@/content/types';
+import type { Review } from '@/content/types';
 
 /**
  * Both sections are fed placeholder fixtures (BLOCKERS.md Decision H) that are
@@ -52,35 +52,42 @@ describe('TestimonialsCarousel with no testimonials', () => {
   });
 });
 
-describe('JourneyVideoBlock with no videos', () => {
+/**
+ * CRM-migration Step 2: `JourneyVideoBlock` now renders a single embed from
+ * `site.settings.profileVideoUrl` instead of cycling through fixture
+ * captions — see the component for why (the CRM has exactly one video
+ * field, not a list).
+ */
+describe('JourneyVideoBlock with no video configured', () => {
   it('renders a graceful empty state instead of throwing', () => {
-    expect(() => render(<JourneyVideoBlock videos={[]} />)).not.toThrow();
+    expect(() => render(<JourneyVideoBlock profileVideoUrl={null} />)).not.toThrow();
 
     expect(screen.getByTestId('journey-video-empty')).toBeInTheDocument();
-    expect(screen.getByText('Trip films are coming soon.')).toBeInTheDocument();
+    expect(screen.getByText('Our journey video is coming soon.')).toBeInTheDocument();
   });
 
   it('keeps the standalone copy column and its CTA, which do not depend on video data', () => {
-    render(<JourneyVideoBlock videos={[]} />);
+    render(<JourneyVideoBlock profileVideoUrl={null} />);
 
     expect(screen.getByTestId('section-5-8-journey-video')).toBeInTheDocument();
     expect(screen.getByText('Explore Journeys')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Explore All Journeys/ })).toHaveAttribute('href', '/tour-packages');
   });
+});
 
-  it('renders no preview-cycling button when there is nothing to preview', () => {
-    render(<JourneyVideoBlock videos={[]} />);
-    expect(screen.queryByRole('button', { name: 'Show the next trip preview' })).not.toBeInTheDocument();
+describe('JourneyVideoBlock with a configured video', () => {
+  it('renders the embed for a recognised host', () => {
+    render(<JourneyVideoBlock profileVideoUrl="https://www.youtube.com/embed/example" />);
+
+    const iframe = screen.getByTitle('Guruji Travel Yatra — our journey');
+    expect(iframe).toHaveAttribute('src', 'https://www.youtube.com/embed/example');
+    expect(screen.queryByTestId('journey-video-empty')).not.toBeInTheDocument();
   });
 
-  it('still cycles correctly with a single video', async () => {
-    const user = userEvent.setup();
-    const only: FeaturedVideo[] = [{ title: 'Only Film', whenLabel: 'Trip details pending', thumbnailKey: 'k1' }];
+  it('falls back to the empty state for an unrecognised/untrusted URL, rather than rendering it', () => {
+    render(<JourneyVideoBlock profileVideoUrl="javascript:alert(1)" />);
 
-    render(<JourneyVideoBlock videos={only} />);
-    expect(screen.getByText('Only Film')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Show the next trip preview' }));
-    expect(screen.getByText('Only Film')).toBeInTheDocument();
+    expect(screen.getByTestId('journey-video-empty')).toBeInTheDocument();
+    expect(screen.queryByTitle('Guruji Travel Yatra — our journey')).not.toBeInTheDocument();
   });
 });

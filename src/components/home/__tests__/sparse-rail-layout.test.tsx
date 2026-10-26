@@ -1,29 +1,22 @@
 import { render, screen, within } from '@testing-library/react';
 
 import { PopularDestinationsSection } from '../PopularDestinationsSection';
-import { InternationalDestinationsRail } from '../InternationalDestinationsRail';
-import { PackageRail } from '@/components/tour-packages/PackageRail';
-import { publiclyListedPopular, publiclyListedRails } from '@/content/public-listing';
-import { internationalDestinations } from '@/content/fixtures/international.fixture';
+import { DestinationsRail } from '../InternationalDestinationsRail';
 import { gridColumnsForCount } from '@/lib/card-grid';
-import type { Package } from '@/content/types';
+import type { CrmPlace, CrmTourCard } from '@/server/crm/types';
 
 /**
  * F4 — the rails render fewer cards than the design assumed, and the layout
  * never noticed.
  *
- * Originally found via the `pricingUnverified` withholding gate, which used
- * to take Popular Destinations from 5 cards to 2: the grid still declared
- * five columns, the dot indicator still drew five dots, and `PackageRail`'s
- * scroll arrow still appeared for a row with nothing to scroll. Each of
- * those is a piece of UI asserting there is more content than there is.
- *
- * CRM-migration decision 1 removed that withholding gate, so the live
- * fixture's Popular Destinations rail is back to all 5 cards and no longer
- * exercises the sparse case on its own. The adaptive-layout rule this suite
- * guards is independent of WHY a rail might be short, so the tests that need
- * a genuinely sparse list now build one explicitly (a slice of the real,
- * confirmed data) rather than relying on the fixture to happen to be sparse.
+ * CRM-migration Step 2: `PackageRail` (the old 4-themed-rails component) is
+ * gone — `/tour-packages` is now one server-filtered grid, not a rail
+ * layout, so its own scroll-arrow behaviour has nothing left to test here.
+ * What remains is `PopularDestinationsSection`'s adaptive grid/dots (Home)
+ * and `DestinationsRail`'s measured-overflow scroll arrow (also Home,
+ * renamed from "International Destinations" — CRM-migration Step 2 removed
+ * the fixture-only `isInternational` curation flag this rail used to filter
+ * by, since `GET /public/places` has no such field).
  */
 
 /** jsdom reports 0 for every layout measurement, so overflow must be simulated. */
@@ -46,99 +39,94 @@ function withRowOverflow(scrollWidth: number, clientWidth: number, body: () => v
   }
 }
 
-const TRENDING = publiclyListedRails.find((rail) => rail.title.includes('Trending'));
-/**
- * A genuinely sparse 2-item slice for the arrow tests below. `TRENDING!.items`
- * itself is back to 5 items since CRM-migration decision 1 removed the
- * pricingUnverified withholding gate — these tests build their own sparse
- * sample rather than relying on the fixture to stay naturally short.
- */
-const SPARSE_TRENDING_ITEMS = TRENDING!.items.slice(0, 2);
+function tour(slug: string): CrmTourCard {
+  return {
+    slug,
+    name: `Tour ${slug}`,
+    category: 'Adventure',
+    shortDescription: 'A trip.',
+    coverImageUrl: 'https://res.cloudinary.com/tour-images/abc.jpg',
+    price: { amount: 25000, currency: 'INR' },
+    durationDays: 6,
+    durationNights: 5,
+    departureCity: null,
+    primaryPlace: { name: 'Place', slug: 'place' },
+    nextDeparture: null,
+    hasBrochure: false,
+  };
+}
+
+const fiveTours: CrmTourCard[] = ['a', 'b', 'c', 'd', 'e'].map(tour);
+
+function place(slug: string): CrmPlace {
+  return {
+    name: `Place ${slug}`,
+    slug,
+    region: 'Region',
+    description: 'A place.',
+    imageUrl: 'https://res.cloudinary.com/place-images/abc.jpg',
+    showInCustomBuilder: true,
+    liveTourCount: 1,
+  };
+}
 
 describe('Popular Destinations adapts to how many cards there actually are', () => {
   it('declares exactly as many grid columns as it has cards', () => {
-    render(<PopularDestinationsSection packages={publiclyListedPopular} />);
+    render(<PopularDestinationsSection tours={fiveTours} />);
     const grid = screen.getByTestId('popular-destinations-grid');
 
-    expect(grid.className).toContain(gridColumnsForCount(publiclyListedPopular.length));
+    expect(grid.className).toContain(gridColumnsForCount(fiveTours.length));
     for (const match of grid.className.matchAll(/grid-cols-(\d+)/g)) {
-      expect(Number(match[1])).toBeLessThanOrEqual(publiclyListedPopular.length);
+      expect(Number(match[1])).toBeLessThanOrEqual(fiveTours.length);
     }
   });
 
-  it('no longer hardcodes the five-column ladder the design was drawn against', () => {
-    // A synthetic sparse sample — the real fixture is back to 5 cards since
-    // CRM-migration decision 1 removed the pricingUnverified withholding
-    // gate, so it no longer exercises this case on its own. The point is
-    // that the grid tracks WHATEVER count it is given, not a fixed five.
-    const sparse = publiclyListedPopular.slice(0, 2);
-    expect(sparse.length).toBeLessThan(5);
-
-    render(<PopularDestinationsSection packages={sparse} />);
+  it('does not hardcode the five-column ladder the design was drawn against', () => {
+    const sparse = fiveTours.slice(0, 2);
+    render(<PopularDestinationsSection tours={sparse} />);
     expect(screen.getByTestId('popular-destinations-grid').className).not.toMatch(/grid-cols-5/);
   });
 
   it('draws one dot per card, not a fixed five', () => {
-    render(<PopularDestinationsSection packages={publiclyListedPopular} />);
+    render(<PopularDestinationsSection tours={fiveTours} />);
 
     const dots = screen.getByTestId('popular-destinations-dots');
     const cards = within(screen.getByTestId('popular-destinations-grid')).getAllByRole('link');
 
-    expect(dots.children).toHaveLength(publiclyListedPopular.length);
+    expect(dots.children).toHaveLength(fiveTours.length);
     expect(dots.children).toHaveLength(cards.length);
   });
 
   it('keeps grid and dots in step at any count', () => {
-    const sample: Package[] = publiclyListedPopular.slice(0, 1);
-    render(<PopularDestinationsSection packages={sample} />);
+    render(<PopularDestinationsSection tours={fiveTours.slice(0, 1)} />);
 
     expect(screen.getByTestId('popular-destinations-dots').children).toHaveLength(1);
     expect(screen.getByTestId('popular-destinations-grid').className).not.toMatch(/grid-cols-[2-9]/);
   });
 
   it('renders no dots at all for an empty list rather than a lone orphan dot', () => {
-    render(<PopularDestinationsSection packages={[]} />);
+    render(<PopularDestinationsSection tours={[]} />);
     expect(screen.getByTestId('popular-destinations-dots').children).toHaveLength(0);
   });
 });
 
-describe('a rail offers a scroll arrow only when there is somewhere to scroll', () => {
-  it('hides the arrow on a short 2-card rail, which fits on screen', () => {
-    expect(TRENDING).toBeDefined();
+describe('DestinationsRail offers a scroll arrow only when there is somewhere to scroll', () => {
+  const places = [place('a'), place('b')];
 
-    render(<PackageRail title={TRENDING!.title} items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
-
-    expect(screen.queryByRole('button', { name: `Scroll ${TRENDING!.title}` })).not.toBeInTheDocument();
+  it('hides the arrow when the row fits on screen', () => {
+    render(<DestinationsRail places={places} />);
+    expect(screen.queryByRole('button', { name: /scroll destinations/i })).not.toBeInTheDocument();
   });
 
-  it('shows it again once the row genuinely overflows', () => {
-    withRowOverflow(1200, 400, () => {
-      render(<PackageRail title="Trending" items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
-      expect(screen.getByRole('button', { name: 'Scroll Trending' })).toBeInTheDocument();
-    });
-  });
-
-  it('treats a sub-pixel rounding difference as "fits", not as overflow', () => {
-    withRowOverflow(400.5, 400, () => {
-      render(<PackageRail title="Trending" items={SPARSE_TRENDING_ITEMS} background="white" onViewAll={jest.fn()} />);
-      expect(screen.queryByRole('button', { name: 'Scroll Trending' })).not.toBeInTheDocument();
-    });
-  });
-
-  it('never offers the arrow for an empty rail', () => {
-    withRowOverflow(1200, 400, () => {
-      render(<PackageRail title="Trending" items={[]} background="white" onViewAll={jest.fn()} />);
-      expect(screen.queryByRole('button', { name: 'Scroll Trending' })).not.toBeInTheDocument();
-    });
-  });
-
-  it('applies the same rule to the International rail, which shrank for the same reason', () => {
-    render(<InternationalDestinationsRail destinations={internationalDestinations} />);
-    expect(screen.queryByRole('button', { name: /scroll international destinations/i })).not.toBeInTheDocument();
-
+  it('shows it once the row genuinely overflows', () => {
     withRowOverflow(1400, 500, () => {
-      render(<InternationalDestinationsRail destinations={internationalDestinations} />);
-      expect(screen.getAllByRole('button', { name: /scroll international destinations/i })[0]).toBeInTheDocument();
+      render(<DestinationsRail places={places} />);
+      expect(screen.getByRole('button', { name: /scroll destinations/i })).toBeInTheDocument();
     });
+  });
+
+  it('renders nothing at all for an empty place list', () => {
+    const { container } = render(<DestinationsRail places={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

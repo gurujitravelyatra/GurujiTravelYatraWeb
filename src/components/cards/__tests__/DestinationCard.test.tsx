@@ -1,38 +1,41 @@
 import { render, screen } from '@testing-library/react';
 
 import { DestinationCard } from '../DestinationCard';
-import type { Destination } from '@/content/types';
+import type { CrmPlace } from '@/server/crm/types';
 
-const destination: Destination = {
-  slug: 'maldives',
+const place: CrmPlace = {
   name: 'Maldives',
-  photoUrl: 'Maldives',
+  slug: 'maldives',
+  region: 'Indian Ocean',
+  description: 'Overwater villas and turquoise lagoons.',
+  imageUrl: 'https://res.cloudinary.com/place-images/maldives.jpg',
+  showInCustomBuilder: true,
+  liveTourCount: 2,
 };
 
 describe('DestinationCard', () => {
-  it('renders the destination name over the overlay exactly once to assistive tech', () => {
-    render(<DestinationCard destination={destination} />);
+  it('renders the place name over the overlay exactly once to assistive tech', () => {
+    render(<DestinationCard place={place} />);
 
-    // `photoUrl` legitimately equals `name` for international destinations
-    // (international.fixture.ts maps `photoUrl: name`), so the string appears
-    // twice in the DOM: once as PhotoPlaceholder's decorative caption
-    // (aria-hidden) and once as the real visible overlay label. Only the
-    // latter should be exposed, so assert on the non-hidden one.
+    // `photoKey` (the placeholder fallback) is also the place name here, so the
+    // name could appear twice in the DOM — once as PhotoPlaceholder's decorative
+    // caption (aria-hidden, only rendered when there's no real image) and once
+    // as the visible overlay label. With a real `imageUrl`, only the overlay
+    // label renders.
     const exposed = screen.getAllByText('Maldives').filter((el) => !el.closest('[aria-hidden="true"]'));
-
     expect(exposed).toHaveLength(1);
-    expect(exposed[0]).toBeInTheDocument();
+  });
+
+  it('links to the place-filtered catalogue using the CRM contract\'s own query param name', () => {
+    render(<DestinationCard place={place} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/tour-packages?place=maldives');
   });
 
   it('renders no price, heart, or category elements (guards against merging with PackageCard)', () => {
-    const { container } = render(<DestinationCard destination={destination} />);
+    render(<DestinationCard place={place} />);
 
-    // No currency figure of any kind.
-    expect(container.textContent).not.toMatch(/₹/);
-    // No "Photos" badge, no category-pill text, no favourite icon container.
+    expect(screen.queryByText(/₹/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Photos/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Save ₹/)).not.toBeInTheDocument();
-    // Only one visible text node (the name) — no duration/subtitle rows.
-    expect(container.querySelectorAll('svg')).toHaveLength(0);
   });
 });

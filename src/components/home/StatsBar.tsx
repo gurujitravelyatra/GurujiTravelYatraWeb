@@ -1,4 +1,4 @@
-import type { SiteStatsSummary } from '@/content/types';
+import type { SiteStatsSummary } from '@/lib/site-stats';
 
 export interface StatsBarProps {
   stats: SiteStatsSummary;

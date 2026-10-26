@@ -107,3 +107,25 @@ export function deriveSavingsLabel(priceFrom: string | undefined, priceWas: stri
 export function hasConfirmedTourPrice(priceFrom: string | undefined): boolean {
   return readStoredRupeeAmount(priceFrom) !== undefined;
 }
+
+/**
+ * The CRM's `price`/`pricingOptions[].price` shape is `{amount, currency}` —
+ * a real number, not a pre-formatted string. This is the one place that
+ * turns it into display text, so every card/detail page renders the SAME
+ * formatting rule.
+ *
+ * `amount <= 0` is treated as "no price to show" (`undefined`) — the same
+ * boundary `hasConfirmedTourPrice`/`readStoredRupeeAmount` already draw for
+ * a stored string, extended to the CRM's numeric shape. Callers render
+ * `PriceOnRequest` instead.
+ *
+ * Only `INR` is formatted with Indian digit grouping (`formatRupees`); any
+ * other currency falls back to a plain `<CODE> <amount>` rather than
+ * guessing a locale-specific format for a currency this site has never
+ * actually been sent.
+ */
+export function formatCrmPrice(money: { amount: number; currency: string } | null | undefined): string | undefined {
+  if (!money || !Number.isFinite(money.amount) || money.amount <= 0) return undefined;
+  if (money.currency === 'INR') return formatRupees(money.amount);
+  return `${money.currency} ${money.amount.toLocaleString('en-US')}`;
+}
