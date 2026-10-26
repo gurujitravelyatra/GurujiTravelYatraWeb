@@ -5,8 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { leadAdapter } from '@/content/adapters/not-implemented-lead-adapter';
-import type { LeadPayload } from '@/content/ports';
+import { submitNewsletterSignup } from '@/lib/newsletter-adapter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -19,12 +18,11 @@ type NewsletterValues = z.infer<typeof newsletterSchema>;
 type SubmitState = { status: 'idle' | 'sending' } | { status: 'success'; message: string } | { status: 'error'; message: string };
 
 /**
- * [TOKENS] — no design reference exists for this section (tech spec §4.4
- * row 13); flagged for design QA before merge (Open Question Q1). Unlike
- * Recent Trips/Instagram, this section IS real functionality per the tech
- * spec: submits through `LeadSubmissionPort` with `source: 'Newsletter
- * Signup'` and only `{ email }` populated — everything else in
- * `LeadPayload` stays undefined, matching §6.2/§4.4.
+ * [TOKENS] — no design reference exists for this section; flagged for
+ * design QA before merge. Submits through `submitNewsletterSignup`
+ * (`src/lib/newsletter-adapter.ts`), which is honest that nothing is
+ * connected on the other end yet — the CRM's own enquiry contract has no
+ * newsletter-signup `kind` (see that module's header).
  */
 export function Newsletter() {
   const [state, setState] = useState<SubmitState>({ status: 'idle' });
@@ -37,14 +35,7 @@ export function Newsletter() {
   const onSubmit = async (values: NewsletterValues) => {
     setState({ status: 'sending' });
 
-    const payload: LeadPayload = {
-      email: values.email,
-      source: 'Newsletter Signup',
-      sourcePageUrl: window.location.href,
-      timestamp: new Date().toISOString(),
-    };
-
-    const result = await leadAdapter.submitLead(payload);
+    const result = await submitNewsletterSignup({ email: values.email, sourcePageUrl: window.location.href });
     if (result.status === 'success') {
       setState({ status: 'success', message: result.confirmationMessage });
     } else {

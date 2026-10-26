@@ -56,14 +56,12 @@ const INTERNAL_ERROR_MESSAGE = 'Something went wrong while loading this content.
 /**
  * Wraps a route handler so no thrown value can escape as a stack trace.
  *
- * The `P1001 Can't reach database server` drops seen through the managed
- * Postgres proxy are intermittent and recover on retry, so this path is expected
- * to be hit in normal operation rather than only in a crisis. It is therefore
- * `console.error` and a clean 500 — NOT a swallow that returns an empty list.
- * Returning `{ data: [] }` for a failed query would render an empty catalogue
- * that is indistinguishable from a genuinely empty one, which is the same class
- * of quiet-wrong-answer the composition root's missing-`DATABASE_URL` warning
- * exists to prevent.
+ * A CRM call that times out or 5xxs is expected to be hit in normal
+ * operation, not only in a crisis, so this is `console.error` and a clean
+ * 500 — NOT a swallow that returns an empty list. Returning `{ data: [] }`
+ * for a failed CRM fetch would render an empty catalogue that is
+ * indistinguishable from a genuinely empty one, which is exactly the class
+ * of quiet-wrong-answer this route wraps itself to avoid.
  */
 export async function handleRoute(
   routeName: string,

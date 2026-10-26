@@ -1,14 +1,24 @@
 import { render, screen } from '@testing-library/react';
 
 import { AboutStory } from '../AboutStory';
-import { AboutTimeline } from '../AboutTimeline';
 import { AboutTravellers } from '../AboutTravellers';
 import { AboutCta } from '../AboutCta';
-import { aboutMilestones } from '@/content/fixtures/about.fixture';
 
 jest.mock('@/components/modals/modal-context', () => ({
   useModal: () => ({ modal: null, openEnquiry: jest.fn(), openBrochure: jest.fn(), close: jest.fn() }),
 }));
+
+/**
+ * CRM-migration Step 5: `AboutTimeline` is removed from this composition —
+ * it is deleted entirely. It had never been rewired into the live About Us
+ * page by the Step 2 CRM data-source swap in the first place (that page
+ * composes `StatsBar` + `AboutStory` + `AboutTravellers` + `AboutCta`, not
+ * a timeline at all), and by Step 5 had no live caller anywhere, only its
+ * own now-also-deleted fixture-backed test. `StatsBar` itself is left out
+ * of the composition below (unchanged from before this migration) since it
+ * needs CRM-shaped props this file has no reason to fabricate — it has its
+ * own dedicated tests.
+ */
 
 /**
  * BLOCKERS.md Decision H: product-spec §5.8's "team section (optional)" and
@@ -34,7 +44,6 @@ describe('About Us page renders no invented team or certification section', () =
     render(
       <>
         <AboutStory />
-        <AboutTimeline milestones={aboutMilestones} />
         <AboutTravellers />
         <AboutCta />
       </>

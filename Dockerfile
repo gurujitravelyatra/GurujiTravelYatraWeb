@@ -1,37 +1,27 @@
 # syntax=docker/dockerfile:1
 
-# FIXED 2026-10-10 — this file was authored with no Docker available to test
-# it, and it failed on first real build on Railway. Two bugs, found by
-# reproducing locally (removing the generated client and confirming
-# `@prisma/client` fails to load, exactly as it would here):
-#   1. `prisma generate` had nothing to run against: the `deps` stage only
-#      copied package.json/package-lock.json before `npm ci`, so
-#      `prisma/schema.prisma` didn't exist yet when @prisma/client's
-#      postinstall tried to generate the client, and nothing regenerated it
-#      afterward. Fixed: copy `prisma/` into `deps` before `npm ci`, plus an
-#      explicit `prisma generate` in `builder` so this doesn't depend on
-#      postinstall behavior at all.
-#   2. Prisma's query engine needs `openssl` on Alpine (and HTTPS calls —
-#      Cloudinary, the DB's TLS connection — need `ca-certificates`), and
-#      neither was installed anywhere. Fixed: `apk add` in every stage that
-#      installs deps or runs the app.
-# Still unverified: an actual `docker build`/`docker compose up` on this
-# machine (Docker remains unavailable here) — the fixes above are reasoned
-# from a real local reproduction of the failure, not from a successful build.
+# CRM-migration Step 5 (2026-10-26) — the `prisma generate`/`prisma/` COPY
+# steps and the `openssl` apk package this file's previous header described
+# fixing are REMOVED, not merely unused: `@prisma/client`/`prisma` are gone
+# from package.json (the content database and the admin CMS it backed are
+# deleted outright, not just disconnected — this site is now a pure
+# read/write client of the CRM's public API). `openssl` was specifically
+# for Prisma's native query-engine binary on Alpine; Node bundles its own
+# OpenSSL for the outbound HTTPS calls this app still makes (to the CRM),
+# so only `ca-certificates` remains needed, for those calls' root CA trust.
 
 # ---- deps ----
 FROM node:22-alpine AS deps
 WORKDIR /app
-RUN apk add --no-cache openssl ca-certificates
+RUN apk add --no-cache ca-certificates
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
 RUN npm ci
 
 # ---- dev ----
 # Used by docker-compose.yml for local development (hot reload).
 FROM node:22-alpine AS dev
 WORKDIR /app
-RUN apk add --no-cache openssl ca-certificates
+RUN apk add --no-cache ca-certificates
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -41,17 +31,16 @@ CMD ["npm", "run", "dev"]
 # ---- build ----
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache openssl ca-certificates
+RUN apk add --no-cache ca-certificates
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
 RUN npm run build
 
 # ---- production runner ----
 FROM node:22-alpine AS runner
 WORKDIR /app
-RUN apk add --no-cache openssl ca-certificates
+RUN apk add --no-cache ca-certificates
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs

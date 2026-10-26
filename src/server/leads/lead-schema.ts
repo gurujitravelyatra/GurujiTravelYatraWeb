@@ -1,6 +1,19 @@
 import { z } from 'zod';
 
-import type { LeadSourceTag } from '@/content/ports';
+/**
+ * CRM-migration Step 5: inlined here, narrowed to exactly the four tags this
+ * schema's own `leadSubmissionSchema` can ever produce. Used to be imported
+ * from `@/content/ports`'s wider `LeadSourceTag` (which also covered
+ * `'Newsletter Signup'`, `'Contact Page'` and `'Service Enquiry – ${string}'`
+ * — tags with no form behind them even before `src/content/**` was deleted).
+ * `src/lib/newsletter-adapter.ts` needs none of this; it has exactly one
+ * message now, not one per source tag.
+ */
+export type LeadSourceTag =
+  | `Enquire Now – ${string}`
+  | `Brochure Download – ${string}`
+  | `Group Tour Reservation – ${string}`
+  | 'Custom Trip Request';
 
 /**
  * Server-side request contract for `POST /api/leads`.
@@ -25,19 +38,15 @@ import type { LeadSourceTag } from '@/content/ports';
  * | `sourcePageUrl`  | `LeadModal.runSubmit` → `window.location.href`             |
  * | `utm`            | `LeadModal.extractUtm(window.location.search)`             |
  *
- * The shared shape is `LeadPayload` in `src/content/ports.ts`; this schema is
- * its server-side validator plus the per-form context needed to build `source`.
- *
  * ## `source` is NOT accepted from the client
  *
- * `LeadPayload` has a `source` field and `LeadModal` sends one, but it is
- * deliberately absent here. The source tag is the routing key the CRM will
- * eventually file the lead under, so a public, unauthenticated endpoint must
- * not let a caller choose it. Zod objects strip unknown keys by default, so a
- * client-sent `source` (and `timestamp`) is discarded rather than rejected —
- * the existing modal keeps working unchanged, and its `source` simply stops
- * being authoritative. The server rebuilds the tag from the structured context
- * fields below, in `buildSourceTag()`.
+ * `source`/`timestamp` are not fields any modal form sends, and would be
+ * discarded even if one did — Zod objects strip unknown keys by default.
+ * `source` is a routing/logging tag this server builds itself
+ * (`buildSourceTag()`, below) from the structured context fields the modal
+ * DOES send, precisely so a public, unauthenticated endpoint cannot be told
+ * which tag to file a lead under. `timestamp` is likewise always this
+ * server's own clock (`toLeadRecord`'s `receivedAt`), never the client's.
  *
  * ## Validation is strict on identity, permissive on everything else
  *
@@ -243,11 +252,15 @@ export type LeadSubmissionInput = z.infer<typeof leadSubmissionSchema>;
 export type LeadFormType = LeadSubmissionInput['formType'];
 
 /**
- * Builds the CRM routing tag server-side, from structured context only.
+ * Builds this server's own internal routing/logging tag, from structured
+ * context only. Returns the `LeadSourceTag` type declared at the top of this
+ * file, so a tag shape that drifts from the documented format fails to
+ * compile.
  *
- * Returns `LeadSourceTag` — the same union the client's `ports.ts` declares — so
- * a tag shape that drifts from the documented format fails to compile rather
- * than reaching the CRM.
+ * Note this tag is NOT sent to the CRM (`CrmEnquiryRequest` has no `source`
+ * field) — it exists purely for this server's own response body
+ * (`POST /api/leads`'s `data.source`) and log lines (`lead-log.ts`); the
+ * CRM-facing mapping is `crm-enquiry-mapper.ts`'s job.
  */
 export function buildSourceTag(input: LeadSubmissionInput): LeadSourceTag {
   switch (input.formType) {

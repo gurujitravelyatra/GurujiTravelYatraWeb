@@ -314,22 +314,24 @@ test.describe('architecture constraints', () => {
   }
 
   /**
-   * SUPERSEDED 2026-09-17. This test used to assert `/admin` returned 404, as the
-   * "Hard Architecture Boundary" of the original spec (§9, acceptance criterion
-   * 9). The user PERMANENTLY REVERSED that rule — see
-   * `memory/project_gty_admin_reversal.md` — and `/admin` is now a real,
-   * session-gated route.
+   * SUPERSEDED AGAIN, 2026-10-26 (CRM-migration Step 5). The 2026-09-17 note
+   * right above this one (still visible in git history) explains the first
+   * reversal: `/admin` went from a 404'd "Hard Architecture Boundary" to a
+   * real, session-gated admin CMS. The CRM migration reverses it back, for a
+   * different reason than either previous state — the admin CMS, its
+   * database and its NextAuth session layer are deleted outright (not
+   * disabled, not gated) because the CRM is now the single source of truth
+   * for both content AND leads. There is no admin area left to protect, so
+   * `/admin` 404s the same way any other nonexistent route would — no
+   * `/admin/login` to redirect to, because `src/app/admin/**` and
+   * `src/proxy.ts` no longer exist.
    *
-   * The test is rewritten rather than deleted, because the property worth
-   * guarding did not disappear, it changed: `/admin` must never be reachable by
-   * an anonymous visitor. A 404 proved that by the route not existing; a redirect
-   * to the login page proves it now. Deleting the test would have left the
-   * strongest assertion about the admin boundary as a gap.
-   *
-   * Full coverage of the auth behaviour lives in `e2e/admin-auth.spec.ts`.
+   * `e2e/admin-auth.spec.ts`/`admin-csrf.spec.ts`/`admin-tours.spec.ts` are
+   * deleted with the feature they tested, for the same reason this comment
+   * explains rather than silently vanishing from the test count.
    */
-  test('/admin is not reachable without signing in', async ({ page }) => {
-    await page.goto('/admin');
-    await expect(page).toHaveURL(/\/admin\/login/);
+  test('/admin no longer exists — the admin CMS was removed with the CRM migration', async ({ page }) => {
+    const response = await page.goto('/admin');
+    expect(response?.status()).toBe(404);
   });
 });

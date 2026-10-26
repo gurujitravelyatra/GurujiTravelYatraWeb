@@ -11,32 +11,19 @@ const createJestConfig = nextJest({
 });
 
 /**
- * `next-auth` and its `@auth/core` dependency ship ESM ONLY — there is no
- * CommonJS build. Jest skips transforming `node_modules` by default, so any test
- * that reaches the auth route handler dies on `SyntaxError: Cannot use import
- * statement outside a module` before running a single assertion.
- *
- * The list is `@auth/core`'s actual ESM-only dependency chain rather than a
- * guess: `jose` (JWT signing/encryption), `oauth4webapi`, and the `preact` pair
- * it uses to render its built-in pages. A narrow allow-list rather than
- * transforming all of `node_modules`, which would be slow and would hide the
- * next occurrence of this.
- *
- * ## The second group: `sanitize-html`'s parser chain (Phase D)
- *
- * `sanitize-html` is itself CommonJS, but the parser underneath it is not —
- * `htmlparser2` v12 and everything it pulls (`entities`, `domhandler`,
- * `domutils`, `dom-serializer`, `domelementtype`) declare `"type": "module"`
- * with no CJS build.
- *
- * This is worth a note because `require('sanitize-html')` works perfectly in a
- * plain `node -e` on this machine and fails in Jest, which looks like a Jest bug
- * and is not: Node 22 can `require()` an ES module, Jest's own module runtime
- * cannot. So "it works in node" proves nothing here, and the fix is to transform
- * the chain rather than to go looking for a CommonJS build that does not exist.
+ * CRM-migration Step 5 (2026-10-26) removed `next-auth`/`@auth/core` (and
+ * their ESM-only `jose`/`oauth4webapi`/`preact` chain) and `sanitize-html`
+ * (and its ESM-only `htmlparser2`/`entities`/`domhandler`/`domutils`/
+ * `dom-serializer`/`domelementtype` parser chain) from package.json — the
+ * admin CMS and auth layer those packages backed are deleted outright.
+ * `geist`/`next/dist/client`/`next/dist/shared/lib` remain: they are
+ * `next/jest`'s OWN default allow-list entries (unrelated to either removed
+ * package), preserved here only because this file REPLACES rather than
+ * extends `next/jest`'s `transformIgnorePatterns` (see the wrapper function
+ * below for why).
  */
 const ESM_ONLY_PACKAGES_TO_TRANSFORM = [
-  '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|preact-render-to-string|geist|htmlparser2|entities|domhandler|domutils|dom-serializer|domelementtype|next/dist/client|next/dist/shared/lib)/)',
+  '/node_modules/(?!(geist|next/dist/client|next/dist/shared/lib)/)',
 ];
 
 const customJestConfig: Config = {

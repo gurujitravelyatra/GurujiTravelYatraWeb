@@ -1,59 +1,16 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
-import { TestimonialsCarousel } from '../TestimonialsCarousel';
 import { JourneyVideoBlock } from '../JourneyVideoBlock';
-import type { Review } from '@/content/types';
 
 /**
- * Both sections are fed placeholder fixtures (BLOCKERS.md Decision H) that are
- * expected to be emptied out rather than shipped with fabricated content — so
- * an empty array is a legitimate data state, not a bug. Both used to compute
- * `% 0` = NaN, index with it, and throw on a property of `undefined`, which in
- * a Server Component tree takes the whole Home page down.
- */
-describe('TestimonialsCarousel with no testimonials', () => {
-  it('renders a graceful empty state instead of throwing', () => {
-    expect(() => render(<TestimonialsCarousel testimonials={[]} />)).not.toThrow();
-
-    expect(screen.getByTestId('testimonials-empty')).toBeInTheDocument();
-    expect(screen.getByText(/Traveller stories are on their way/)).toBeInTheDocument();
-  });
-
-  it('keeps the section heading so the page structure is unchanged', () => {
-    render(<TestimonialsCarousel testimonials={[]} />);
-
-    expect(screen.getByTestId('section-10-testimonials')).toBeInTheDocument();
-    expect(screen.getByText('What Our Travellers Say')).toBeInTheDocument();
-  });
-
-  it('renders no carousel arrows there is nothing to page through', () => {
-    render(<TestimonialsCarousel testimonials={[]} />);
-
-    expect(screen.queryByRole('button', { name: 'Previous testimonial' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Next testimonial' })).not.toBeInTheDocument();
-  });
-
-  it('still renders a single testimonial without arrows misbehaving', async () => {
-    const user = userEvent.setup();
-    const only: Review[] = [
-      { photoUrl: 'p1', quote: 'Only one.', travellerName: 'Solo Traveller', tripLabel: 'Trip', ratingOutOf5: 4 },
-    ];
-
-    render(<TestimonialsCarousel testimonials={only} />);
-    expect(screen.getByText('Solo Traveller')).toBeInTheDocument();
-
-    // Wrapping a 1-item list must land back on the same item, not on undefined.
-    await user.click(screen.getByRole('button', { name: 'Next testimonial' }));
-    expect(screen.getByText('Solo Traveller')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Previous testimonial' }));
-    expect(screen.getByText('Solo Traveller')).toBeInTheDocument();
-  });
-});
-
-/**
- * CRM-migration Step 2: `JourneyVideoBlock` now renders a single embed from
+ * CRM-migration Step 5: this file used to ALSO cover `TestimonialsCarousel`'s
+ * empty state. That component (and `ReviewCard`, its only caller) is deleted
+ * — it was never rewired to the CRM in Step 2 (the CRM contract has no
+ * reviews/testimonials concept at all) and had been orphaned, with no live
+ * caller on any page, ever since. What remains here is `JourneyVideoBlock`,
+ * which IS live.
+ *
+ * CRM-migration Step 2: `JourneyVideoBlock` renders a single embed from
  * `site.settings.profileVideoUrl` instead of cycling through fixture
  * captions — see the component for why (the CRM has exactly one video
  * field, not a list).

@@ -28,18 +28,6 @@ function expectSitewideHeaders(response: APIResponse) {
   }
 }
 
-/**
- * EXACT value, not "contains no-store". Next already sends
- * `private, no-cache, no-store, max-age=0, must-revalidate` on dynamic pages by
- * itself, so a substring check on `/admin/login` would pass with the config
- * rule deleted — measured, not assumed: that string is what `/tour-packages`
- * returns. `private, no-store` is only ever OUR value, so this proves the
- * config reached the response.
- */
-function expectNoStore(response: APIResponse) {
-  expect(response.headers()['cache-control']).toBe('private, no-store');
-}
-
 test.describe('security headers on real responses', () => {
   test('the home page carries the sitewide headers', async ({ request }) => {
     const response = await request.get('/', { maxRedirects: 0 });
@@ -47,43 +35,19 @@ test.describe('security headers on real responses', () => {
     expectSitewideHeaders(response);
   });
 
-  test('the admin rule does not leak onto the public site', async ({ request }) => {
-    // `private, no-store` on the whole site would defeat every CDN and the
-    // static prerender — the admin rule must stay scoped to admin paths.
+  /**
+   * CRM-migration Step 5: the admin CMS, its `private, no-store` rule
+   * (`next.config.ts`'s old `ADMIN_NO_STORE`) and the proxy that issued a
+   * redirect for it (`src/proxy.ts`) are all deleted — there is no admin
+   * surface left for a caching rule to leak off of, or onto. `/admin` itself
+   * is covered by `e2e/home.spec.ts`'s "no longer exists" test; this file
+   * stays scoped to headers on routes that still exist.
+   */
+  test('the sitewide headers apply uniformly — no admin-only caching rule remains to leak or to scope', async ({
+    request,
+  }) => {
     const response = await request.get('/', { maxRedirects: 0 });
     expect(response.status()).toBe(200);
     expect(response.headers()['cache-control'] ?? '').not.toMatch(/\bprivate\b/);
-  });
-
-  test('the /admin redirect issued by the proxy carries them too, and is not cacheable', async ({ request }) => {
-    // Anonymous → `src/proxy.ts` answers with a redirect to the login page
-    // before any page renders. The response most likely to miss a config header.
-    const response = await request.get('/admin', { maxRedirects: 0 });
-    expect([302, 303, 307, 308]).toContain(response.status());
-    expect(response.headers()['location'] ?? '').toMatch(/\/admin\/login/);
-
-    expectSitewideHeaders(response);
-    expectNoStore(response);
-  });
-
-  test('the admin login page carries them, and is not cacheable', async ({ request }) => {
-    const response = await request.get('/admin/login', { maxRedirects: 0 });
-    expect(response.status()).toBe(200);
-
-    expectSitewideHeaders(response);
-    expectNoStore(response);
-  });
-
-  test('the admin upload API carries them on its 401, and is not cacheable', async ({ request }) => {
-    const response = await request.post('/api/admin/uploads', {
-      multipart: { kind: 'cover' },
-      maxRedirects: 0,
-      failOnStatusCode: false,
-    });
-    // 401 JSON, not a redirect — the route gates itself with `getAdminSession()`.
-    expect(response.status()).toBe(401);
-
-    expectSitewideHeaders(response);
-    expectNoStore(response);
   });
 });

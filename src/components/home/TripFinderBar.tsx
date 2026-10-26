@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-import { tripFinderTabs, type TripFinderTab } from '@/content/fixtures/tabs.fixture';
+import { tripFinderTabs, type TripFinderTab } from '@/lib/trip-finder-tabs';
 import { cn } from '@/lib/utils';
 
 /**

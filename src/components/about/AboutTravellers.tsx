@@ -1,5 +1,5 @@
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
-import { aboutTravellerPhotoKeys } from '@/content/fixtures/about.fixture';
+import { aboutTravellerPhotoKeys } from '@/lib/about-traveller-photo-keys';
 
 /**
  * Descriptive alt text per fixture key — states the subject the real photo

@@ -55,7 +55,20 @@ export async function failLeadRequests(page: Page): Promise<void> {
   });
 }
 
-/** Fills the two required fields every lead form shares. */
+/**
+ * Fills the required fields every lead form shares.
+ *
+ * CRM-migration Step 3 added a required consent checkbox, ticked here too —
+ * omitting it would block every real submission on validation, the same as
+ * an empty Name/Mobile always has. It does NOT handle `turnstileToken`:
+ * that is set by the real Cloudflare Turnstile widget actually solving a
+ * challenge in the browser, which needs `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+ * configured for the environment this suite runs against (Cloudflare
+ * publishes a fixed always-passes test site key for exactly this use) —
+ * see this migration's final report for that gap. Jest's own `LeadModal`
+ * suite never has this problem because it mocks the widget outright; a real
+ * browser E2E run cannot.
+ */
 export async function fillContactDetails(
   page: Page,
   { name = 'Asha Patel', mobile = '9876543210' }: { name?: string; mobile?: string } = {}
@@ -63,6 +76,7 @@ export async function fillContactDetails(
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name *').fill(name);
   await dialog.getByLabel('Mobile Number *').fill(mobile);
+  await dialog.getByLabel(/I agree to be contacted/).check();
 }
 
 /**

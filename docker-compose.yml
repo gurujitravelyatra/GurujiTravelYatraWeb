@@ -1,31 +1,18 @@
 # NOTE: never executed — Docker is not installed on the authoring machine.
 # See the header comment in ./Dockerfile.
 #
-# THIS FILE USED TO SAY: "There is deliberately NO database service here… Do not
-# add a DB to this compose file; if you think you need one, that is a signal the
-# architecture boundary is being crossed."
+# CRM-migration Step 5 (2026-10-26) — the `db` Postgres service (and the
+# `DATABASE_URL`/`depends_on` wiring that pointed `web` at it) is REMOVED,
+# reversing the 2026-09-17 override recorded in this file's own prior
+# history: the content database and the admin CMS it backed are deleted
+# outright, not merely disconnected. This is the LOCAL development compose
+# file only — nothing here ever touched, and this change does not touch,
+# any deployed/live database; that system, if one still exists for an
+# unrelated purpose, is configured and managed entirely outside this repo.
 #
-# That guardrail was correct and it has been crossed KNOWINGLY, by explicit user
-# override, not worked around quietly. The reasoning, the exact CLAUDE.md line it
-# contradicts (line 56, §2), the narrow scope of the override and the plan to
-# migrate back are recorded in
-# `documentation/technical-specification/BLOCKERS.md` §5. Read that before
-# extending the `db` service below.
-#
-# The boundary that remains UNCROSSED, and must stay that way:
-#   - `db` holds site CONTENT — tours, destinations, departures, brochures —
-#     plus the `AdminUser` table behind /admin.
-#   - NO LEAD DATA. Lead submission is log-only (BLOCKERS.md §6); there is no
-#     lead table in `prisma/schema.prisma` and there must not be one. This is
-#     the part of the boundary that is still fully intact.
-#
-# AMENDED 2026-09-17 — the third bullet here used to read "NO admin/CMS service.
-# Content management belongs to the ERP (product-spec §7); this repo ships a seed
-# script, not an admin UI." That rule was PERMANENTLY REVERSED by the user; the
-# admin CMS is now built into the `web` service itself. See
-# `memory/project_gty_admin_reversal.md`. It needs no service of its own — it is
-# Next.js routes under /admin in the same app — so nothing is added below; only
-# this comment changes, because a stale guardrail is worse than none.
+# The site is now a pure client of the CRM's public API (documentation/
+# technical-specification/public-website.md) over HTTP — there is nothing
+# for a local compose service to provide.
 
 services:
   web:
@@ -37,10 +24,6 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
-      # Matches the `db` service below and `.env.example`. The host is the
-      # compose service name, not localhost, because this resolves inside the
-      # container network.
-      - DATABASE_URL=postgresql://gty:gty_local_dev_password@db:5432/gty_content?schema=public
     volumes:
       # Bind-mount source for hot reload, but keep container-side node_modules
       # and .next so host artifacts (and host-arch binaries) don't leak in.
@@ -48,42 +31,3 @@ services:
       - /app/node_modules
       - /app/.next
     command: npm run dev
-    depends_on:
-      db:
-        # Not merely `started`: Next.js reaches for content during render, and a
-        # Postgres container accepts a TCP connection well before it is ready to
-        # serve queries. Waiting on the healthcheck avoids a first-request crash
-        # that looks like an application bug.
-        condition: service_healthy
-
-  # Interim content database — BLOCKERS.md §5. LOCAL DEVELOPMENT ONLY.
-  #
-  # The credentials below are hard-coded on purpose: they are throwaway local
-  # values for a container bound to localhost, and inventing a `.env` indirection
-  # for them would imply they are secret. The DEPLOYED database uses real
-  # credentials supplied through the environment and its own schema — see
-  # `.env.example`. Never reuse these anywhere real.
-  db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=gty
-      - POSTGRES_PASSWORD=gty_local_dev_password
-      - POSTGRES_DB=gty_content
-    ports:
-      # Exposed so `npx prisma migrate dev` / `npx prisma db seed` can run from
-      # the host against the containerised database.
-      - "5432:5432"
-    volumes:
-      - gty-content-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gty -d gty_content"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      # Postgres briefly accepts connections during its own init before the real
-      # server starts; without a start_period the first probe can pass against
-      # that temporary server.
-      start_period: 10s
-
-volumes:
-  gty-content-db:

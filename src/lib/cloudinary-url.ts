@@ -1,34 +1,28 @@
 /**
  * Cloudinary delivery-URL transformations, done by string surgery.
  *
- * NOT `server-only` and importing nothing: the admin editor's previews and the
- * public cards both need this, and it must not pull the Cloudinary SDK (and with
- * it the API secret's module) anywhere near a client bundle. Building a delivery
- * URL needs no credentials — that is the whole point of Cloudinary's URL-based
+ * NOT `server-only` and importing nothing: the public cards need this
+ * client-side, and it must not pull the Cloudinary SDK (and with it an API
+ * secret's module) anywhere near a client bundle. Building a delivery URL
+ * needs no credentials — that is the whole point of Cloudinary's URL-based
  * transformation API — so the SDK would buy nothing and cost a great deal.
+ * (The admin CMS that used to upload TO Cloudinary via that SDK, and the
+ * module this file's prefix used to be pinned against by a test, were both
+ * deleted in CRM-migration Step 5 — this file never depended on either.)
  *
  * ## Why every function here falls back to the input unchanged
  *
- * These run over a `Tour.coverImageUrl` read from the database, and the shape of
- * that string is not guaranteed: it could be an asset uploaded before a folder
- * convention changed, a URL pasted in by hand, or — the case that matters — a
- * perfectly valid Cloudinary URL whose path this parser does not anticipate.
- * A transformation helper that returned null or threw on an unfamiliar URL would
- * turn "the thumbnail is full-size" into "the image is missing", which is a much
- * worse outcome for a cosmetic optimisation. So the contract is: improve the URL
- * when it is recognised, return it untouched when it is not.
+ * These run over a `coverImageUrl` the CRM's public API returns, and the
+ * shape of that string is not guaranteed from this site's point of view —
+ * a perfectly valid Cloudinary URL whose path this parser does not
+ * anticipate is a real possibility. A transformation helper that returned
+ * null or threw on an unfamiliar URL would turn "the thumbnail is
+ * full-size" into "the image is missing", which is a much worse outcome
+ * for a cosmetic optimisation. So the contract is: improve the URL when it
+ * is recognised, return it untouched when it is not.
  */
 
-/**
- * The host every legitimate media URL in this project starts with.
- *
- * Duplicated deliberately from `CLOUDINARY_URL_PREFIX` in
- * `tour-form-schema.ts` rather than imported: that module lives under
- * `src/server/admin/`, and a PUBLIC page importing from the admin tree would
- * invert the one-way boundary `tour-repository.ts` documents at length. The two
- * constants are pinned to each other by a test instead, which is the cheaper
- * side of that trade.
- */
+/** The host every legitimate media URL in this project starts with. */
 const CLOUDINARY_DELIVERY_PREFIX = 'https://res.cloudinary.com/';
 
 /**
@@ -60,27 +54,16 @@ function allowedMediaPrefixes(): readonly string[] {
 }
 
 /**
- * RENDER-TIME URL REFUSAL — defence in depth, added after the 2026-09-19 review.
- *
- * ## The hole
- *
- * `/tour-packages/[slug]` rendered `<a href={url}>` straight from
- * `pkg.galleryImageUrls`, and `PhotoPlaceholder` renders `<img src>` the same
- * way. Both trusted the database.
- *
- * Every WRITE path already pins these to Cloudinary — `cloudinaryUrl` in
- * `tour-form-schema.ts` refuses anything else, which is why a `javascript:` URL
- * cannot be saved through the admin. But "cannot be saved through the admin" is
- * not "is not in the database". A direct SQL edit, a restore from a backup taken
- * before that rule existed, or any future import script puts a value in the
- * column that no validator ever saw — and the render site would have turned a
- * `javascript:` gallery URL into a live link, on a public page, for every
- * visitor.
- *
- * That is the same reasoning `sanitize-tour-text.ts` gives for cleaning at write
- * time rather than trusting a renderer; this is the other half of it. A stored
- * value is untrusted input to a renderer no matter who was supposed to have
- * written it.
+ * RENDER-TIME URL REFUSAL — defence in depth, added after the 2026-09-19 review
+ * and still load-bearing after CRM-migration Step 2: `/tour-packages/[slug]`
+ * renders `<a href={url}>`/`<img src={url}>` straight from the CRM's
+ * `gallery`/`coverImageUrl` fields, and the CRM is a separate system this
+ * site does not control the write path of. A stored or returned value is
+ * untrusted input to a renderer no matter which system was supposed to have
+ * validated it first — the CRM having its own write-side validation (which
+ * this site cannot see or verify) is not a substitute for refusing an
+ * unrecognised URL here, at the one place that actually decides what
+ * reaches a visitor's browser.
  *
  * ## Why a prefix check and not a scheme check
  *

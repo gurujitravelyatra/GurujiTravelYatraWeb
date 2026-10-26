@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import { AboutTravellers } from '../AboutTravellers';
-import { aboutTravellerPhotoKeys } from '@/content/fixtures/about.fixture';
+import { aboutTravellerPhotoKeys } from '@/lib/about-traveller-photo-keys';
 import { placeholderAriaLabel } from '@/components/ui/photo-placeholder';
 
 /**

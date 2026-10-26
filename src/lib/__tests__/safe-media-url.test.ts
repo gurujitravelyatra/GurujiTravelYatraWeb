@@ -3,22 +3,17 @@
  */
 
 import { isSafeMediaUrl, safeMediaUrl } from '../cloudinary-url';
-import { CLOUDINARY_URL_PREFIX } from '@/server/admin/tours/tour-form-schema';
 
 /**
- * RENDER-TIME MEDIA URL REFUSAL — L5 of the 2026-09-19 review.
- *
- * The write path already pins media URLs to Cloudinary (`cloudinaryUrl` in the
- * tour schema). This is the READ-side twin: `PhotoPlaceholder` and the detail
- * page's gallery links both turn a stored column into something a browser
- * fetches or follows, and "no validator would have allowed this value" is not
- * the same claim as "this value is not in the column". A direct SQL edit, a
- * restore of an older backup, or any future import script bypasses every
- * validator that has ever existed.
+ * RENDER-TIME MEDIA URL REFUSAL — L5 of the 2026-09-19 review, still
+ * load-bearing after CRM-migration Step 2: `PhotoPlaceholder` and the
+ * detail page's gallery links both turn a CRM-returned URL into something
+ * a browser fetches or follows, and the CRM's own write-side validation
+ * (a separate system this site cannot see) is not a substitute for
+ * refusing an unrecognised URL here.
  *
  * The behavioural proof is in `stored-xss-render.test.tsx`, which plants
- * hostile URLs in a rendered page. This file pins the predicate itself, and the
- * one thing that file cannot check: that the two copies of the prefix agree.
+ * hostile URLs in a rendered page. This file pins the predicate itself.
  */
 
 describe('isSafeMediaUrl', () => {
@@ -137,26 +132,13 @@ describe('isSafeMediaUrl with NEXT_PUBLIC_MEDIA_HOST configured', () => {
   });
 });
 
-describe('the read-side and write-side prefixes agree', () => {
-  /**
-   * `cloudinary-url.ts` declares its own copy of the prefix rather than
-   * importing `CLOUDINARY_URL_PREFIX`, because that constant lives under
-   * `src/server/admin/` and a PUBLIC page importing from the admin tree would
-   * invert the one-way boundary `tour-repository.ts` documents.
-   *
-   * Duplication is the right call there and the wrong thing to leave unguarded:
-   * the failure mode is someone widening one prefix (to add a second CDN, say)
-   * and leaving the renderer refusing everything the writer now accepts, which
-   * surfaces as images silently not appearing. This test is the cheap half of
-   * that trade.
-   *
-   * It is a TEST-ONLY import, which is why it is allowed to cross the boundary.
-   */
-  it('accepts exactly what the tour schema accepts', () => {
-    expect(isSafeMediaUrl(`${CLOUDINARY_URL_PREFIX}demo/image/upload/v1/x.jpg`)).toBe(true);
-
-    // And the prefix is non-trivial, so the assertion above is not satisfied by
-    // an empty string on either side.
-    expect(CLOUDINARY_URL_PREFIX).toBe('https://res.cloudinary.com/');
-  });
-});
+/**
+ * CRM-migration Step 5 removed the "read-side and write-side prefixes
+ * agree" pinning test that used to live here — it imported
+ * `CLOUDINARY_URL_PREFIX` from the admin tour-form schema to prove this
+ * file's own copy of the same prefix hadn't drifted from it. That write
+ * path (the admin CMS's own upload validation) no longer exists on this
+ * site at all; the CRM is a separate system whose write-side validation
+ * this site cannot see or pin against. The predicate itself is still
+ * covered by every `isSafeMediaUrl`/`safeMediaUrl` case above.
+ */

@@ -4,22 +4,17 @@ import { GTY_PHONE_DISPLAY } from '@/lib/gty-contact';
 /**
  * The browser's side of `POST /api/leads`.
  *
- * ## Why this is not a `LeadSubmissionPort` implementation
+ * ## Why the newsletter form does not use this
  *
- * `LeadSubmissionPort`/`LeadPayload` (`src/content/ports.ts`) model a lead as
- * one flat bag with a client-chosen `source` tag. The route models it as a
- * discriminated union on `formType` with a SERVER-chosen tag, and accepts only
- * the four tags that have a real trigger. Those are different contracts, and
- * the port's is the one that cannot be satisfied: `'Newsletter Signup'` is a
- * valid `LeadSourceTag` with no union member behind it, so widening the port to
- * point at this route would make the newsletter form start failing with a 400
- * on a `formType` it has no way to supply.
- *
- * So the port stays exactly as it is, still backed by `NotImplementedLeadAdapter`
- * and still the newsletter's submit path (that flow has no server contract yet —
- * BLOCKERS.md §6 "four source tags, not six"), and the four wired flows use
- * this instead. Two submit paths is the honest state of the system today; one
- * path that lies about covering all five forms would not be.
+ * This route's schema is a discriminated union on `formType`, accepting
+ * only the four tags that have a real trigger (enquiry/brochure/group-tour-
+ * reservation/custom-trip — all four now forward to the real CRM via
+ * `POST /public/enquiries`, CRM-migration Step 3). A newsletter signup has
+ * no `formType` to supply and no CRM `kind` to map onto (see
+ * `src/lib/newsletter-adapter.ts`'s own header) — `Newsletter.tsx` calls
+ * that module directly instead, never this one. Two submit paths is the
+ * honest state of the system: one that genuinely reaches a CRM, one that
+ * genuinely does not yet.
  *
  * ## Every failure is reported as something a visitor can act on
  *

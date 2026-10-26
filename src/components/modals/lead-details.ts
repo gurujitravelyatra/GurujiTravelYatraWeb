@@ -1,4 +1,4 @@
-import type { TravelStyle } from '@/content/fixtures/places.fixture';
+import type { TravelStyle } from '@/components/customize-tours/trip-constants';
 
 /**
  * The per-`formType` context a trigger hands to the lead modal, on top of the
