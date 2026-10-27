@@ -71,3 +71,22 @@ export function getRevalidateSecret(): string | undefined {
   const secret = process.env.WEBSITE_REVALIDATE_SECRET;
   return secret && secret.trim().length > 0 ? secret.trim() : undefined;
 }
+
+/**
+ * Post-production-build-crash fix (2026-10-27) — `NEXT_PHASE` is a Next.js-
+ * set env var, `'phase-production-build'` for exactly the duration of
+ * `next build`'s page-evaluation pass, unset (or a different phase value)
+ * once the built app is actually running. Used by `client.ts`'s
+ * `withBuildPhaseFallback()` to tell "the CRM is unreachable because
+ * Railway's private network (`gty-crm.railway.internal`) does not exist at
+ * build time" apart from "the CRM is unreachable at runtime", which are two
+ * different problems needing two different responses — see that function's
+ * own header for why.
+ *
+ * Not a `NEXT_PUBLIC_` variable, not something to set in `.env` — Next sets
+ * this itself; reading it is read-only observation of which phase is
+ * currently running.
+ */
+export function isBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === 'phase-production-build';
+}

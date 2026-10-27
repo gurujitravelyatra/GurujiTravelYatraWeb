@@ -27,6 +27,7 @@ import {
 const originalFetch = global.fetch;
 const originalApiUrl = process.env.CRM_API_URL;
 const originalApiKey = process.env.WEBSITE_API_KEY;
+const originalNextPhase = process.env.NEXT_PHASE;
 
 function mockFetchOnce(status: number, body: unknown) {
   const fetchMock = jest.fn().mockResolvedValue({
@@ -38,12 +39,21 @@ function mockFetchOnce(status: number, body: unknown) {
   return fetchMock;
 }
 
+/** Simulates exactly what broke production: `fetch()` itself rejecting (DNS/connection failure), never reaching an HTTP response at all. */
+function mockFetchNetworkFailure(message = 'getaddrinfo ENOTFOUND gty-crm.railway.internal') {
+  const fetchMock = jest.fn().mockRejectedValue(new TypeError(`fetch failed: ${message}`));
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
 afterEach(() => {
   global.fetch = originalFetch;
   if (originalApiUrl === undefined) delete process.env.CRM_API_URL;
   else process.env.CRM_API_URL = originalApiUrl;
   if (originalApiKey === undefined) delete process.env.WEBSITE_API_KEY;
   else process.env.WEBSITE_API_KEY = originalApiKey;
+  if (originalNextPhase === undefined) delete process.env.NEXT_PHASE;
+  else process.env.NEXT_PHASE = originalNextPhase;
 });
 
 describe('getTours', () => {
@@ -188,5 +198,127 @@ describe('submitEnquiry', () => {
     } catch (error) {
       expect(String(error)).not.toContain('super-secret-key');
     }
+  });
+});
+
+/**
+ * Fixes a real production incident (2026-10-27): `next build` on Railway
+ * evaluates every statically-renderable page for real, which calls these
+ * read functions for real, and Railway's private network (where the
+ * default `CRM_API_URL` resolves) does not exist at build time — the build
+ * died with `getaddrinfo ENOTFOUND gty-crm.railway.internal` straight out
+ * of `fetchCrm()`. `withBuildPhaseFallback()` (client.ts) is the fix:
+ * during `next build` specifically (`NEXT_PHASE === 'phase-production-build'`),
+ * a `fetch()` failure returns the read's own empty/"updating" shape instead
+ * of throwing; at every other time (unset `NEXT_PHASE`, i.e. a real running
+ * server), the exact same failure still propagates exactly as it always
+ * has, so a real runtime outage still gets Next's own stale-while-
+ * revalidate handling rather than silently serving an empty page forever.
+ */
+describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
+  describe('during next build (NEXT_PHASE=phase-production-build), a network failure returns the empty fallback instead of throwing', () => {
+    beforeEach(() => {
+      process.env.NEXT_PHASE = 'phase-production-build';
+    });
+
+    it('getTours() falls back to an empty, correctly-shaped page rather than throwing', async () => {
+      mockFetchNetworkFailure();
+      await expect(getTours({ page: 2, pageSize: 24 })).resolves.toEqual({
+        tours: [],
+        total: 0,
+        page: 2,
+        pageSize: 24,
+      });
+    });
+
+    it('getDepartures() falls back to {departures: [], months: []}', async () => {
+      mockFetchNetworkFailure();
+      await expect(getDepartures()).resolves.toEqual({ departures: [], months: [] });
+    });
+
+    it('getPlaces() falls back to []', async () => {
+      mockFetchNetworkFailure();
+      await expect(getPlaces()).resolves.toEqual([]);
+    });
+
+    it('getSite() falls back to the all-null settings shape every consumer already renders gracefully', async () => {
+      mockFetchNetworkFailure();
+      const result = await getSite();
+      expect(result.settings.phone).toBeNull();
+      expect(result.settings.heroHeadline).toBeNull();
+      expect(result.images.HERO_BACKGROUND).toEqual([]);
+    });
+
+    it('getCategories() falls back to []', async () => {
+      mockFetchNetworkFailure();
+      await expect(getCategories()).resolves.toEqual([]);
+    });
+
+    it('getSitemap() falls back to []', async () => {
+      mockFetchNetworkFailure();
+      await expect(getSitemap()).resolves.toEqual([]);
+    });
+
+    it('logs the failure with console.warn (expected/tolerated), not console.error (a bug)', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchNetworkFailure();
+
+      await getTours();
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('outside the build phase, the identical failure still propagates — runtime behaviour is unchanged', () => {
+    it('getTours() still rejects when NEXT_PHASE is unset (a real running server)', async () => {
+      delete process.env.NEXT_PHASE;
+      mockFetchNetworkFailure();
+      await expect(getTours()).rejects.toThrow(/ENOTFOUND/);
+    });
+
+    it('getSite() still rejects when NEXT_PHASE is some other phase value', async () => {
+      process.env.NEXT_PHASE = 'phase-production-server';
+      mockFetchNetworkFailure();
+      await expect(getSite()).rejects.toThrow(/ENOTFOUND/);
+    });
+
+    it('every other wrapped read still rejects outside the build phase too', async () => {
+      delete process.env.NEXT_PHASE;
+
+      mockFetchNetworkFailure();
+      await expect(getDepartures()).rejects.toThrow();
+      mockFetchNetworkFailure();
+      await expect(getPlaces()).rejects.toThrow();
+      mockFetchNetworkFailure();
+      await expect(getCategories()).rejects.toThrow();
+      mockFetchNetworkFailure();
+      await expect(getSitemap()).rejects.toThrow();
+    });
+  });
+
+  describe('getTourBySlug() and submitEnquiry() are deliberately NOT wrapped, in either phase', () => {
+    it('getTourBySlug() still throws on a network failure even during the build phase', async () => {
+      process.env.NEXT_PHASE = 'phase-production-build';
+      mockFetchNetworkFailure();
+
+      // Not called during `next build` at all (no generateStaticParams —
+      // see client.ts's own comment), so there is nothing to protect here;
+      // a real failure should surface exactly as it always has.
+      await expect(getTourBySlug('spiti-valley-circuit')).rejects.toThrow(/ENOTFOUND/);
+    });
+
+    it('submitEnquiry() still throws on a network failure even during the build phase — a lead must never be silently dropped', async () => {
+      process.env.NEXT_PHASE = 'phase-production-build';
+      process.env.WEBSITE_API_KEY = 'test-key';
+      mockFetchNetworkFailure();
+
+      await expect(
+        submitEnquiry({ kind: 'ENQUIRY', name: 'Jane Doe', phone: '9822041188', consent: true, turnstileToken: 'fake-token' })
+      ).rejects.toThrow(/ENOTFOUND/);
+    });
   });
 });

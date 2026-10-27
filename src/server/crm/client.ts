@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { getCrmApiUrl, getWebsiteApiKey } from './config';
+import { getCrmApiUrl, getWebsiteApiKey, isBuildPhase } from './config';
 import type {
   CrmCategory,
   CrmCategoryCount,
@@ -133,6 +133,78 @@ async function fetchCrm<T>(options: FetchCrmOptions): Promise<T> {
   return parsed as T;
 }
 
+/**
+ * Fixes a real production incident (2026-10-27): `next build` on Railway
+ * evaluates every statically-renderable page, which calls `getSite()`/
+ * `getTours()`/etc for real, during the build step — and Railway's private
+ * network (where `gty-crm.railway.internal`, the default `CRM_API_URL`,
+ * actually resolves) does not exist yet at build time. The build died with
+ * `getaddrinfo ENOTFOUND gty-crm.railway.internal` from this exact file.
+ *
+ * ## Build-time failure vs. runtime failure are different problems
+ *
+ * At RUNTIME, a `fetch()` failure during an ISR background revalidation is
+ * already safe: Next's own ISR semantics catch a thrown render error and
+ * keep serving the last successfully generated page (stale-while-
+ * revalidate), logging the error without crashing the running server or
+ * handing a visitor a 500. Nothing about that needs to change, and this
+ * function does not touch it — `isBuildPhase()` is false at runtime, so
+ * every runtime failure still propagates exactly as before.
+ *
+ * At BUILD time there IS no "last successfully generated page" yet — this
+ * may be the very first attempt — so a thrown error has nothing to fall
+ * back to and fails the whole `next build` command outright. The fix is
+ * each read function's own existing "empty" shape (`{tours: [], total: 0,
+ * ...}`, `[]`, `getSite()`'s all-`null` settings, etc.) — exactly the state
+ * the UI already renders gracefully (`PackagesCatalogue`'s "No journeys
+ * match this filter yet.", `DestinationsRail` returning `null` for an empty
+ * `places` array, `resolveSiteContact()` falling back to the static
+ * `gty-contact` constants for a `null` phone/email) — so the page the build
+ * emits is a real, intentional "we're updating" state, not an error page.
+ *
+ * ## Why this still revalidates quickly once real traffic arrives
+ *
+ * Every read already passes `revalidate: 60` (`fetchCrm`'s own default, or
+ * `getSitemap()`'s explicit one) — unchanged by this function. A page built
+ * with the empty fallback above therefore still revalidates within 60
+ * seconds of the first real request after deploy, the same window every
+ * other page already uses; nothing here widens it. Reaching for a SHORTER
+ * build-time-only `revalidate` was considered and rejected: Next determines
+ * a route's cache lifetime from the values present at BUILD time, so a
+ * page that only ever sees the fallback path at build enshrines whatever
+ * revalidate window this function used for the page's ENTIRE static
+ * lifetime, not just its first request — reusing the same 60s every other
+ * read already carries keeps that lifetime identical and predictable
+ * instead of adding a second, different number to reason about.
+ *
+ * ## Only `isBuildPhase()` narrows this — not "any network error, ever"
+ *
+ * This is deliberately NOT a general network-failure retry/fallback layer.
+ * Outside the build phase, `withBuildPhaseFallback` is a no-op passthrough
+ * that rethrows exactly as `fetchCrm` always has — a real request-time CRM
+ * outage is still a real, loud failure to whatever ISR/error-boundary
+ * machinery already handles it, by design (the migration's own "CRM is the
+ * single source of truth" decision).
+ */
+async function withBuildPhaseFallback<T>(fallback: T, fn: () => Promise<T>): Promise<T> {
+  if (!isBuildPhase()) return fn();
+
+  try {
+    return await fn();
+  } catch (error) {
+    // Expected and tolerated here — `console.warn`, not `console.error`,
+    // and the build keeps going. A human reading the build log should be
+    // able to tell this apart from a real bug at a glance.
+    console.warn(
+      '[crm] CRM unreachable during next build (expected if CRM_API_URL resolves only at runtime, ' +
+        'e.g. a Railway-internal address) — using the empty fallback for this page; it will revalidate ' +
+        'on the first real request:',
+      error instanceof Error ? error.message : error
+    );
+    return fallback;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -147,11 +219,13 @@ export interface TourListParams {
 }
 
 export async function getTours(params: TourListParams = {}): Promise<CrmTourListResponse> {
-  return fetchCrm<CrmTourListResponse>({
-    path: '/public/tours',
-    query: { ...params },
-    tags: ['crm:tours'],
-  });
+  return withBuildPhaseFallback({ tours: [], total: 0, page: params.page ?? 1, pageSize: params.pageSize ?? 12 }, () =>
+    fetchCrm<CrmTourListResponse>({
+      path: '/public/tours',
+      query: { ...params },
+      tags: ['crm:tours'],
+    })
+  );
 }
 
 export type TourBySlugResult =
@@ -163,9 +237,15 @@ export type TourBySlugResult =
  * The one method that has to tell apart THREE outcomes the contract gives
  * one HTTP status to (`200`) for two of them: a real tour, a `{redirectTo}`
  * body for a retired-but-still-existing slug, and — via a real `404` — a
- * slug that is neither. Every caller (the detail page, `generateStaticParams`,
- * any future API route) must handle all three; none of them may assume
- * `200` means "here is a tour".
+ * slug that is neither. Every caller (today, just the detail page; any
+ * future API route would too) must handle all three; none of them may
+ * assume `200` means "here is a tour".
+ *
+ * NOT wrapped in `withBuildPhaseFallback()`, unlike every other read in
+ * this file: the detail page has no `generateStaticParams()` (removed in
+ * CRM-migration Step 2 — "resolves on demand"), so this is never called
+ * during `next build` at all, only at request time, where a real failure
+ * should surface exactly as it always has.
  */
 export async function getTourBySlug(slug: string): Promise<TourBySlugResult> {
   try {
@@ -186,24 +266,49 @@ export interface DeparturesParams {
   q?: string;
 }
 
+/** The all-`null`/all-`false` shape `getSite()` falls back to during `next build` — identical to what the contract itself documents for a site the Owner has never configured ("every settings field is `null` until... saved"), so every existing consumer (`resolveSiteContact()`, `toSiteStatsSummary()`) already renders it correctly with no new code. */
+const EMPTY_SITE_RESPONSE: CrmSiteResponse = {
+  images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] },
+  settings: {
+    heroHeadline: null,
+    heroSubtext: null,
+    happyTravellersLabel: null,
+    destinationsLabel: null,
+    yearsExperienceLabel: null,
+    showFiguresNote: false,
+    phone: null,
+    whatsappNumber: null,
+    email: null,
+    instagramUrl: null,
+    address: null,
+    profileVideoUrl: null,
+  },
+};
+
 export async function getDepartures(params: DeparturesParams = {}): Promise<CrmDeparturesResponse> {
-  return fetchCrm<CrmDeparturesResponse>({
-    path: '/public/departures',
-    query: { ...params },
-    tags: ['crm:departures'],
-  });
+  return withBuildPhaseFallback({ departures: [], months: [] }, () =>
+    fetchCrm<CrmDeparturesResponse>({
+      path: '/public/departures',
+      query: { ...params },
+      tags: ['crm:departures'],
+    })
+  );
 }
 
 export async function getPlaces(): Promise<CrmPlace[]> {
-  return fetchCrm<CrmPlace[]>({ path: '/public/places', tags: ['crm:places'] });
+  return withBuildPhaseFallback([], () => fetchCrm<CrmPlace[]>({ path: '/public/places', tags: ['crm:places'] }));
 }
 
 export async function getSite(): Promise<CrmSiteResponse> {
-  return fetchCrm<CrmSiteResponse>({ path: '/public/site', tags: ['crm:site'] });
+  return withBuildPhaseFallback(EMPTY_SITE_RESPONSE, () =>
+    fetchCrm<CrmSiteResponse>({ path: '/public/site', tags: ['crm:site'] })
+  );
 }
 
 export async function getCategories(): Promise<CrmCategoryCount[]> {
-  return fetchCrm<CrmCategoryCount[]>({ path: '/public/categories', tags: ['crm:categories'] });
+  return withBuildPhaseFallback([], () =>
+    fetchCrm<CrmCategoryCount[]>({ path: '/public/categories', tags: ['crm:categories'] })
+  );
 }
 
 export async function getSitemap(): Promise<CrmSitemapEntry[]> {
@@ -211,7 +316,7 @@ export async function getSitemap(): Promise<CrmSitemapEntry[]> {
   // endpoint on its own rate-limit budget (120/min vs 600/min, per the
   // contract) and nothing revalidates it as a side effect of a tour/place
   // save; the CRM's revalidation hook does not name a `sitemap` path.
-  return fetchCrm<CrmSitemapEntry[]>({ path: '/public/sitemap', revalidate: 60 });
+  return withBuildPhaseFallback([], () => fetchCrm<CrmSitemapEntry[]>({ path: '/public/sitemap', revalidate: 60 }));
 }
 
 // ---------------------------------------------------------------------------
@@ -236,9 +341,9 @@ export class WebsiteApiKeyNotConfiguredError extends Error {
  *
  * NEVER CALL THIS FROM A TEST AGAINST THE REAL CRM. Every test in this repo
  * must point `CRM_API_URL` at a local fake server (see
- * `src/server/crm/__tests__/`) — this function has no test-mode flag of its
- * own, because a flag is one more thing that could be wired wrong and fire
- * a real enquiry.
+ * `src/server/crm/test-support/fake-crm-server.ts`) — this function has no
+ * test-mode flag of its own, because a flag is one more thing that could be
+ * wired wrong and fire a real enquiry.
  */
 export async function submitEnquiry(payload: CrmEnquiryRequest): Promise<CrmEnquiryResponse> {
   const apiKey = getWebsiteApiKey();
