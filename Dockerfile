@@ -35,6 +35,38 @@ RUN apk add --no-cache ca-certificates
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Build-time env fix (2026-10-27) — Railway only passes a variable into a
+# Docker build if the Dockerfile declares it with ARG; this stage had none,
+# so Railway's build-time CRM_API_URL (set to the public
+# https://crm.gurujitravelyatra.com/api, per .env.example's own guidance)
+# never reached `npm run build` at all — the process saw nothing, fell back
+# to CRM_API_URL's code-level default (the Railway-INTERNAL address, which
+# does not resolve during a build), and relied entirely on
+# withBuildPhaseFallback() (src/server/crm/client.ts) rather than ever
+# fetching real data at build time. That fallback still makes the build
+# succeed, but it means every NEXT_PUBLIC_* value below was ALSO silently
+# empty in the built client bundle up to this point (confirmed by rebuilding
+# locally with each one unset vs. set to a marker value, then grepping the
+# resulting .next/static bundle) — most seriously,
+# NEXT_PUBLIC_TURNSTILE_SITE_KEY baked in as empty meant the Turnstile
+# widget never rendered at all, so no enquiry/brochure/group-reservation/
+# custom-trip submission could ever pass its required verification step in
+# production. See this commit's own message for the other two.
+#
+# ONLY the four build-time values from .env.example — never
+# WEBSITE_API_KEY or WEBSITE_REVALIDATE_SECRET, which are runtime-only
+# secrets Railway injects into the RUNNING container (see the `runner`
+# stage below), never baked into this image or any layer of it.
+ARG CRM_API_URL
+ENV CRM_API_URL=$CRM_API_URL
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_MEDIA_HOST
+ENV NEXT_PUBLIC_MEDIA_HOST=$NEXT_PUBLIC_MEDIA_HOST
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
 RUN npm run build
 
 # ---- production runner ----
