@@ -41,7 +41,12 @@ export function PackageCard({ tour }: PackageCardProps) {
         <PhotoPlaceholder
           photoKey={tour.name}
           imageUrl={tour.coverImageUrl}
-          alt={`${tour.name} — ${tour.primaryPlace.name}`}
+          // Production incident 2026-10-27: `tour.primaryPlace` is really
+          // `null` for a tour the CRM has no place assigned to yet — this
+          // crashed `/` and `/tour-packages` in production with a bare
+          // `tour.primaryPlace.name` read. Falls back to just the tour
+          // name rather than inventing a place.
+          alt={tour.primaryPlace ? `${tour.name} — ${tour.primaryPlace.name}` : tour.name}
           className="h-[250px] w-full rounded-14"
         />
         <span className="absolute left-[10px] top-[10px] flex items-center gap-[6px] rounded-pill bg-gty-white/94 py-[6px] pl-[9px] pr-3 text-12-5 font-semibold text-gty-ink-soft shadow-gty-dark-sm">

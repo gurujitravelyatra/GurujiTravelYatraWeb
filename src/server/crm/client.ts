@@ -1,6 +1,17 @@
 import 'server-only';
 
+import type { z } from 'zod';
+
 import { getCrmApiUrl, getWebsiteApiKey, isBuildPhase } from './config';
+import {
+  crmCategoriesResponseSchema,
+  crmDeparturesResponseSchema,
+  crmPlacesResponseSchema,
+  crmSiteResponseSchema,
+  crmSitemapResponseSchema,
+  crmTourBySlugResponseSchema,
+  crmTourListResponseSchema,
+} from './schemas';
 import type {
   CrmCategory,
   CrmCategoryCount,
@@ -45,6 +56,50 @@ export class CrmUnexpectedResponseError extends Error {
     this.name = 'CrmUnexpectedResponseError';
     this.statusCode = statusCode;
   }
+}
+
+/**
+ * Production incident 2026-10-27 — a `200` response that parses as JSON
+ * but does not match this endpoint's documented shape (`schemas.ts`).
+ * Distinct from `CrmUnexpectedResponseError`, which is for a body that does
+ * not even look like the contract's success-or-error envelope at all; this
+ * is for "it parsed, but a field is the wrong type or a required one is
+ * missing" — e.g. a `GET /public/tours` entry whose `primaryPlace` is a
+ * string instead of an object.
+ *
+ * The message is built by `describeSchemaMismatch()` below, which names
+ * the endpoint and the exact field path(s) that failed — the generic
+ * `ZodError` dump buries that under a stack of nested issue objects with
+ * no indication of which request produced them.
+ */
+export class CrmSchemaMismatchError extends Error {
+  readonly path: string;
+
+  constructor(path: string, issues: z.ZodIssue[]) {
+    const fieldSummary = issues
+      .slice(0, 5)
+      .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('; ');
+    super(`${path} returned a response that does not match its documented shape — ${fieldSummary}`);
+    this.name = 'CrmSchemaMismatchError';
+    this.path = path;
+  }
+}
+
+/**
+ * Validates `parsed` against `schema`, logging a clear, endpoint-named
+ * message and throwing `CrmSchemaMismatchError` on a mismatch — never lets
+ * a shape error reach a component as a blind cast (`as T`) would, and
+ * never lets it surface as Zod's own unlabelled error either.
+ */
+function validateCrmResponse<Schema extends z.ZodType>(path: string, schema: Schema, parsed: unknown): z.infer<Schema> {
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    const error = new CrmSchemaMismatchError(path, result.error.issues);
+    console.error(`[crm] ${error.message}`);
+    throw error;
+  }
+  return result.data;
 }
 
 function isErrorBody(value: unknown): value is CrmErrorBody {
@@ -219,13 +274,10 @@ export interface TourListParams {
 }
 
 export async function getTours(params: TourListParams = {}): Promise<CrmTourListResponse> {
-  return withBuildPhaseFallback({ tours: [], total: 0, page: params.page ?? 1, pageSize: params.pageSize ?? 12 }, () =>
-    fetchCrm<CrmTourListResponse>({
-      path: '/public/tours',
-      query: { ...params },
-      tags: ['crm:tours'],
-    })
-  );
+  return withBuildPhaseFallback({ tours: [], total: 0, page: params.page ?? 1, pageSize: params.pageSize ?? 12 }, async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/tours', query: { ...params }, tags: ['crm:tours'] });
+    return validateCrmResponse('GET /public/tours', crmTourListResponseSchema, body);
+  });
 }
 
 export type TourBySlugResult =
@@ -249,10 +301,13 @@ export type TourBySlugResult =
  */
 export async function getTourBySlug(slug: string): Promise<TourBySlugResult> {
   try {
-    const body = await fetchCrm<CrmTourDetail | CrmTourRedirect>({
+    const raw = await fetchCrm<unknown>({
       path: `/public/tours/${encodeURIComponent(slug)}`,
       tags: ['crm:tours', `crm:tour:${slug}`],
     });
+    const body = validateCrmResponse(`GET /public/tours/${slug}`, crmTourBySlugResponseSchema, raw) as
+      | CrmTourDetail
+      | CrmTourRedirect;
     if ('redirectTo' in body) return { status: 'redirect', redirectTo: body.redirectTo };
     return { status: 'found', tour: body };
   } catch (error) {
@@ -286,29 +341,50 @@ const EMPTY_SITE_RESPONSE: CrmSiteResponse = {
 };
 
 export async function getDepartures(params: DeparturesParams = {}): Promise<CrmDeparturesResponse> {
-  return withBuildPhaseFallback({ departures: [], months: [] }, () =>
-    fetchCrm<CrmDeparturesResponse>({
-      path: '/public/departures',
-      query: { ...params },
-      tags: ['crm:departures'],
-    })
-  );
+  return withBuildPhaseFallback({ departures: [], months: [] }, async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/departures', query: { ...params }, tags: ['crm:departures'] });
+    return validateCrmResponse('GET /public/departures', crmDeparturesResponseSchema, body);
+  });
 }
 
 export async function getPlaces(): Promise<CrmPlace[]> {
-  return withBuildPhaseFallback([], () => fetchCrm<CrmPlace[]>({ path: '/public/places', tags: ['crm:places'] }));
+  return withBuildPhaseFallback([], async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/places', tags: ['crm:places'] });
+    const places = validateCrmResponse('GET /public/places', crmPlacesResponseSchema, body);
+
+    // Production incident 2026-10-27 — logged ONCE per response (not once
+    // per place) so a catalogue-wide field rename produces one line, not
+    // one per row. See `crmPlaceSchema`'s own comment in schemas.ts for
+    // why this is tolerated rather than rejected.
+    if (places.some((place) => place._usedLiveToursFallback)) {
+      console.warn(
+        '[crm] GET /public/places: at least one place has `liveTours` but no `liveTourCount` — ' +
+          "the contract document (documentation/technical-specification/public-website.md) documents " +
+          '`liveTourCount`; the real CRM is sending `liveTours`. Tolerated (normalised to `liveTourCount`), ' +
+          'but this is a genuine contract/reality drift worth reconciling on the CRM side.'
+      );
+    }
+
+    // Destructured only to OMIT it from the returned `CrmPlace` shape —
+    // the whole point is that nothing downstream of this function ever
+    // sees `_usedLiveToursFallback` at all.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return places.map(({ _usedLiveToursFallback, ...place }) => place);
+  });
 }
 
 export async function getSite(): Promise<CrmSiteResponse> {
-  return withBuildPhaseFallback(EMPTY_SITE_RESPONSE, () =>
-    fetchCrm<CrmSiteResponse>({ path: '/public/site', tags: ['crm:site'] })
-  );
+  return withBuildPhaseFallback(EMPTY_SITE_RESPONSE, async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/site', tags: ['crm:site'] });
+    return validateCrmResponse('GET /public/site', crmSiteResponseSchema, body);
+  });
 }
 
 export async function getCategories(): Promise<CrmCategoryCount[]> {
-  return withBuildPhaseFallback([], () =>
-    fetchCrm<CrmCategoryCount[]>({ path: '/public/categories', tags: ['crm:categories'] })
-  );
+  return withBuildPhaseFallback([], async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/categories', tags: ['crm:categories'] });
+    return validateCrmResponse('GET /public/categories', crmCategoriesResponseSchema, body);
+  });
 }
 
 export async function getSitemap(): Promise<CrmSitemapEntry[]> {
@@ -316,7 +392,10 @@ export async function getSitemap(): Promise<CrmSitemapEntry[]> {
   // endpoint on its own rate-limit budget (120/min vs 600/min, per the
   // contract) and nothing revalidates it as a side effect of a tour/place
   // save; the CRM's revalidation hook does not name a `sitemap` path.
-  return withBuildPhaseFallback([], () => fetchCrm<CrmSitemapEntry[]>({ path: '/public/sitemap', revalidate: 60 }));
+  return withBuildPhaseFallback([], async () => {
+    const body = await fetchCrm<unknown>({ path: '/public/sitemap', revalidate: 60 });
+    return validateCrmResponse('GET /public/sitemap', crmSitemapResponseSchema, body);
+  });
 }
 
 // ---------------------------------------------------------------------------

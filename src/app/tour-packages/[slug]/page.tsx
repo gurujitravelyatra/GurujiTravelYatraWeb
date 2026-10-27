@@ -77,7 +77,10 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
         <PhotoPlaceholder
           photoKey={tour.name}
           imageUrl={tour.coverImageUrl}
-          alt={`${tour.name} — ${tour.primaryPlace.name}`}
+          // Production incident 2026-10-27: `tour.primaryPlace` can be
+          // `null` for a tour with no place assigned yet — see
+          // `CrmTourCard.primaryPlace`'s own comment.
+          alt={tour.primaryPlace ? `${tour.name} — ${tour.primaryPlace.name}` : tour.name}
           className="h-[280px] w-full rounded-18 760:h-[380px]"
         />
 

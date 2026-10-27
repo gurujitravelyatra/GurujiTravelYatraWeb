@@ -1,3 +1,7 @@
+'use client';
+
+import * as React from 'react';
+
 import { cn } from '@/lib/utils';
 import { cloudinaryDisplayUrl, safeMediaUrl } from '@/lib/cloudinary-url';
 
@@ -90,7 +94,21 @@ export function PhotoPlaceholder({ photoKey, imageUrl, alt, className, children 
    */
   const safeImageUrl = safeMediaUrl(imageUrl);
 
-  if (safeImageUrl) {
+  /**
+   * Production incident 2026-10-27 (Bug 2d) — a URL that PASSES the prefix
+   * check above can still fail to actually load: a wrong path under an
+   * otherwise-trusted host, a deleted asset, a transient CDN error. Before
+   * this, that showed a browser's native broken-image glyph forever — the
+   * card itself never disappeared (nothing here ever unmounted the card,
+   * only this component's own inner content), but "a broken-image icon
+   * where a photo should be" reads the same as "no image" to a visitor,
+   * which is the complaint this fixes. `'use client'` above is ONLY for
+   * this `onError` handler; everything else here is exactly as
+   * presentational as before.
+   */
+  const [loadFailed, setLoadFailed] = React.useState(false);
+
+  if (safeImageUrl && !loadFailed) {
     return (
       <div className={cn('relative flex items-end overflow-hidden bg-gty-img-bg', className)}>
         {/*
@@ -111,6 +129,7 @@ export function PhotoPlaceholder({ photoKey, imageUrl, alt, className, children 
           loading="lazy"
           decoding="async"
           className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setLoadFailed(true)}
         />
         {children}
       </div>

@@ -35,6 +35,17 @@ export interface CrmNextDeparture {
  *
  * `departureCity` is ALWAYS `null` today — see the contract's own note. Do
  * not build UI around this ever being non-null.
+ *
+ * `primaryPlace` is `CrmPlaceRef | null` — production incident 2026-10-27:
+ * the contract document's own examples only ever show a populated
+ * `primaryPlace`, but the real deployed CRM returns `"primaryPlace": null`
+ * for a tour with no place assigned yet, which is a real, reachable state
+ * ("the CRM API itself is healthy" — this is not a CRM bug, just an
+ * under-documented one). `PackageCard`/the detail page/
+ * `GroupDepartureCard` all read `tour.primaryPlace.name` for an `alt` text
+ * suffix; a bare (non-optional) `CrmPlaceRef` let that reach production as
+ * `Cannot read properties of null (reading 'name')`, crashing `/` and
+ * `/tour-packages` (both render `PackageCard`) with a real HTTP 500.
  */
 export interface CrmTourCard {
   slug: string;
@@ -46,7 +57,7 @@ export interface CrmTourCard {
   durationDays: number;
   durationNights: number;
   departureCity: null;
-  primaryPlace: CrmPlaceRef;
+  primaryPlace: CrmPlaceRef | null;
   nextDeparture: CrmNextDeparture | null;
   hasBrochure: boolean;
 }

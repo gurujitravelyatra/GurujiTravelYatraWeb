@@ -37,7 +37,12 @@ export function GroupDepartureCard({ departure }: GroupDepartureCardProps) {
       <PhotoPlaceholder
         photoKey={departure.name}
         imageUrl={departure.coverImageUrl}
-        alt={`${departure.name} — ${departure.primaryPlace.name}`}
+        // Production incident 2026-10-27: `primaryPlace` can be `null` —
+        // see `CrmTourCard.primaryPlace`'s own comment. No departure has
+        // hit this yet (the real CRM's departures list was empty at the
+        // time), but it shares the exact same card shape as the tours that
+        // did crash, so it gets the same fix.
+        alt={departure.primaryPlace ? `${departure.name} — ${departure.primaryPlace.name}` : departure.name}
         className="min-h-[200px] flex-[0_1_340px] rounded-14"
       >
         <span className="absolute left-3 top-3 flex items-center gap-[7px] rounded-pill bg-gty-white/94 py-[6px] pl-2 pr-[14px] text-12-5 font-semibold text-gty-ink-soft shadow-gty-dark-xs">

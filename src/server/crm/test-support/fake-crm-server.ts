@@ -203,7 +203,7 @@ export class FakeCrmServer {
 
     let filtered = this.state.tours;
     if (category) filtered = filtered.filter((tour) => tour.category === category);
-    if (place) filtered = filtered.filter((tour) => tour.primaryPlace.slug === place);
+    if (place) filtered = filtered.filter((tour) => tour.primaryPlace?.slug === place);
     if (q) filtered = filtered.filter((tour) => tour.name.toLowerCase().includes(q.toLowerCase()));
 
     const start = (page - 1) * pageSize;

@@ -1,6 +1,33 @@
 import type { NextConfig } from "next";
 
 /**
+ * Parses `NEXT_PUBLIC_MEDIA_HOST` (an origin, e.g.
+ * `https://media.gurujitravelyatra.com`, no path) into the `remotePatterns`
+ * entries `next/image` needs — see the `images` config's own comment below
+ * for why this exists at all. Returns `[]` on anything that is not a clean
+ * `https://` origin (unset, malformed, or someone accidentally including a
+ * path) rather than throwing and failing the build over an optional,
+ * currently-unused allowlist.
+ */
+function buildMediaHostRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> {
+  const raw = process.env.NEXT_PUBLIC_MEDIA_HOST;
+  if (!raw) return [];
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return [];
+  }
+  if (url.protocol !== "https:") return [];
+
+  return [
+    { protocol: "https", hostname: url.hostname, pathname: "/place-images/**" },
+    { protocol: "https", hostname: url.hostname, pathname: "/tour-images/**" },
+  ];
+}
+
+/**
  * Security response headers — M10 of the 2026-09-19 independent review.
  *
  * Until this, the app sent none: every page could be framed by any site
@@ -77,6 +104,36 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 1,
     staticGenerationMaxConcurrency: 1,
+  },
+
+  /**
+   * Production incident 2026-10-27 (Bug 2c) — `next/image` is NOT actually
+   * used anywhere in this codebase today (`PhotoPlaceholder`, the one
+   * component every card/hero/rail routes an image through, deliberately
+   * renders a plain `<img>` — see its own long header comment on why).
+   * `isSafeMediaUrl()`/`NEXT_PUBLIC_MEDIA_HOST` (src/lib/cloudinary-url.ts)
+   * is the allowlist that actually gates whether a CRM-returned media URL
+   * renders at all, and it needs no config here to do that.
+   *
+   * Added anyway, on request, as defence-in-depth for if/when `next/image`
+   * is ever adopted for these images: without this, `next/image` would
+   * answer `400 Bad Request` for every allowed media URL regardless of
+   * what `isSafeMediaUrl()` already permits — the two allowlists are
+   * independent and both would need to agree.
+   *
+   * Derived from `NEXT_PUBLIC_MEDIA_HOST` itself (currently
+   * `https://media.gurujitravelyatra.com`, per `.env.example`) rather than
+   * a second hardcoded copy of that hostname — the two were always going
+   * to need to agree, so there is exactly one place that knows it. Unset
+   * is a supported mode: `remotePatterns` is simply empty, matching
+   * `isSafeMediaUrl()`'s own "no R2 host configured" fallback — the build
+   * does not fail either way. `pathname` covers both `/place-images/**`
+   * (`CrmPlace.imageUrl`, e.g. Kedarnath's) and `/tour-images/**`
+   * (`CrmTourCard.coverImageUrl`) — the two prefixes this host's real URLs
+   * have actually been seen under.
+   */
+  images: {
+    remotePatterns: buildMediaHostRemotePatterns(),
   },
 
   async headers() {

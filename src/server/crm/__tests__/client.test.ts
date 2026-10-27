@@ -46,6 +46,46 @@ function mockFetchNetworkFailure(message = 'getaddrinfo ENOTFOUND gty-crm.railwa
   return fetchMock;
 }
 
+/**
+ * A fully-shaped, schema-valid `CrmTourCard` — added 2026-10-27 alongside
+ * real response validation (`validateCrmResponse` in `client.ts`). The
+ * partial fixtures these tests used before (`{ slug: 'x' }`) tested URL
+ * construction, never full-response parsing, and never had to satisfy a
+ * schema because none existed; now that one does, every test that stands
+ * in for a real success body needs a real body.
+ */
+const VALID_TOUR_CARD = {
+  slug: 'x',
+  name: 'Test Tour',
+  category: 'Adventure',
+  shortDescription: 'A test tour.',
+  coverImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/x.jpg',
+  price: { amount: 10000, currency: 'INR' },
+  durationDays: 3,
+  durationNights: 2,
+  departureCity: null,
+  primaryPlace: { name: 'Test Place', slug: 'test-place' },
+  nextDeparture: null,
+  hasBrochure: false,
+};
+
+const VALID_TOUR_DETAIL = {
+  ...VALID_TOUR_CARD,
+  description: 'Full description.',
+  highlights: [],
+  itinerary: [],
+  inclusions: [],
+  exclusions: [],
+  cancellationPolicy: 'Full refund 30 days out.',
+  gallery: [],
+  brochureUrl: null,
+  places: [],
+  pricingOptions: [],
+  departures: [],
+  seoTitle: 'Test Tour',
+  seoDescription: 'A test tour.',
+};
+
 afterEach(() => {
   global.fetch = originalFetch;
   if (originalApiUrl === undefined) delete process.env.CRM_API_URL;
@@ -76,7 +116,7 @@ describe('getTours', () => {
   });
 
   it('parses a successful response', async () => {
-    mockFetchOnce(200, { tours: [{ slug: 'x' }], total: 1, page: 1, pageSize: 12 });
+    mockFetchOnce(200, { tours: [VALID_TOUR_CARD], total: 1, page: 1, pageSize: 12 });
     const result = await getTours();
     expect(result.total).toBe(1);
   });
@@ -104,7 +144,7 @@ describe('getTours', () => {
 
 describe('getTourBySlug', () => {
   it('resolves {status: "found"} for a real tour', async () => {
-    mockFetchOnce(200, { slug: 'kashmir-paradise', name: 'Kashmir Paradise' });
+    mockFetchOnce(200, { ...VALID_TOUR_DETAIL, slug: 'kashmir-paradise', name: 'Kashmir Paradise' });
     const result = await getTourBySlug('kashmir-paradise');
     expect(result).toEqual({ status: 'found', tour: expect.objectContaining({ slug: 'kashmir-paradise' }) });
   });
@@ -136,6 +176,31 @@ describe('getTourBySlug', () => {
 });
 
 describe('getDepartures / getPlaces / getSite / getCategories / getSitemap', () => {
+  /** A valid (schema-passing) empty response per endpoint — each shape is different, so `{}` alone no longer fits any of them now that responses are validated. */
+  const EMPTY_VALID_RESPONSES: Record<string, unknown> = {
+    '/public/departures': { departures: [], months: [] },
+    '/public/places': [],
+    '/public/site': {
+      images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] },
+      settings: {
+        heroHeadline: null,
+        heroSubtext: null,
+        happyTravellersLabel: null,
+        destinationsLabel: null,
+        yearsExperienceLabel: null,
+        showFiguresNote: false,
+        phone: null,
+        whatsappNumber: null,
+        email: null,
+        instagramUrl: null,
+        address: null,
+        profileVideoUrl: null,
+      },
+    },
+    '/public/categories': [],
+    '/public/sitemap': [],
+  };
+
   it('each call the documented path', async () => {
     const paths: [string, () => Promise<unknown>][] = [
       ['/public/departures', () => getDepartures()],
@@ -146,7 +211,7 @@ describe('getDepartures / getPlaces / getSite / getCategories / getSitemap', () 
     ];
 
     for (const [path, call] of paths) {
-      const fetchMock = mockFetchOnce(200, {});
+      const fetchMock = mockFetchOnce(200, EMPTY_VALID_RESPONSES[path]);
       await call();
       const [calledUrl] = fetchMock.mock.calls[0] as [string];
       expect(calledUrl).toContain(path);
