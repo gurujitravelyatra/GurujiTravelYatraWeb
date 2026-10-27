@@ -11,6 +11,21 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+/**
+ * Build-time static prerendering fix (2026-10-27) — this page's own code
+ * reads no CRM data, but it renders `<LegalPageShell>` → `<SiteShell>`,
+ * which does (`getSite()`/`getPlaces()`) — route segment config applies
+ * to the WHOLE route's render, not only this file's own fetches, so this
+ * export is what actually removes this route from `next build`'s
+ * "Generating static pages" phase. CONFIRMED TRADEOFF: `force-dynamic`
+ * also disables fetch-level (Data Cache) caching for this route, not only
+ * the static-HTML cache, so `SiteShell`'s `revalidate: 60` is not honoured
+ * here anymore — accepted deliberately. Full reasoning, re-verified
+ * against this Next version's own docs rather than assumed, lives on
+ * `src/app/page.tsx`'s identical export — read it there.
+ */
+export const dynamic = 'force-dynamic';
+
 const GTY_EMAIL = 'info@gurujitravelyatra.com';
 const GTY_PHONE_DISPLAY = '+91 90999 57658';
 const GTY_ADDRESS = 'Ahmedabad, Gujarat, India';
