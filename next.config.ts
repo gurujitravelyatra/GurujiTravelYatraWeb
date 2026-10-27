@@ -43,6 +43,42 @@ const nextConfig: NextConfig = {
    */
   output: "standalone",
 
+  /**
+   * Build-worker concurrency fix (2026-10-27) — the Railway build died
+   * silently ("Build Failed ... exit code: 1", no error text) at
+   * "Generating static pages (10/14)" after the two previous CRM-build
+   * fixes landed. A real local build's own log named the cause before
+   * this fix: `Generating static pages using 11 workers (0/14)` — 11
+   * parallel worker PROCESSES, each loading the full compiled Next.js
+   * runtime into memory, for a 14-page site. Railway's build machine is
+   * memory-constrained enough that this is a classic OOM kill: the Linux
+   * OOM killer SIGKILLs a process without writing anything Next could
+   * report as an error, which is exactly why the failure showed no error
+   * text — the same silent-worker-exit signature as this repo's earlier
+   * memory incident.
+   *
+   * `cpus: 1` caps the worker pool Next spawns for build-time parallel
+   * work (page compilation and static generation both use it) at a
+   * single process — see node_modules/next/dist/server/config-schema.js's
+   * `cpus` entry under `experimental`, confirmed present in this Next
+   * version even though it has no standalone markdown doc in
+   * node_modules/next/dist/docs. `staticGenerationMaxConcurrency: 1`
+   * (documented: node_modules/next/dist/docs/01-app/03-api-reference/
+   * 05-config/01-next-config-js/staticGeneration.md — "the maximum
+   * number of pages to be processed per worker") then ensures that even
+   * the one remaining worker generates pages one at a time rather than
+   * batching several concurrently within itself. Together these trade
+   * build WALL-CLOCK time (pages generate sequentially instead of in
+   * parallel) for a memory ceiling the build machine can actually stay
+   * under — the right trade for a small, infrequently-rebuilt marketing
+   * site, where a slower build that succeeds beats a fast one that gets
+   * OOM-killed partway through.
+   */
+  experimental: {
+    cpus: 1,
+    staticGenerationMaxConcurrency: 1,
+  },
+
   async headers() {
     return [{ source: "/:path*", headers: SITEWIDE_SECURITY_HEADERS }];
   },
