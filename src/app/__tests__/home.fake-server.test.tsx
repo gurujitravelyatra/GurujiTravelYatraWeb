@@ -115,4 +115,51 @@ describe('/ against the real-shaped (sparse) fake CRM payloads', () => {
     // correctly absent HERE without that absence being a crash.
     expect(html).not.toContain('Kedarnath');
   });
+
+  /**
+   * Production incident (2026-10-28, round 2): a tour card's real R2
+   * `coverImageUrl` (present in the page's own HTML, loads fine from R2)
+   * still rendered the `PhotoPlaceholder` placeholder box — the host check
+   * in `cloudinary-url.ts` rejected it regardless of how
+   * `NEXT_PUBLIC_MEDIA_HOST` was configured in this environment. Pinned
+   * against the real tour CARD (`PackageCard`, Popular Destinations grid),
+   * not just the predicate unit-tested in `safe-media-url.test.ts`.
+   */
+  it('renders a tour card\'s real R2 cover image as an <img>, not the placeholder box — round 2', async () => {
+    server.setState({
+      tours: [REAL_SPARSE_TOUR],
+      site: defaultFakeCrmState().site,
+    });
+
+    const element = await HomePage();
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain(`src="${REAL_SPARSE_TOUR.coverImageUrl}"`);
+    expect(html).not.toContain(`Image placeholder — ${REAL_SPARSE_TOUR.name}`);
+  });
+
+  /**
+   * Same incident, the Hero section's background — `site.images.
+   * HERO_BACKGROUND[0].url`, routed through the exact same
+   * `PhotoPlaceholder` component. The hero background and the card grid
+   * share this one component, so a fix that only covered cards without
+   * covering this would leave the hero broken.
+   */
+  it('renders the Hero background as an <img>, not the placeholder box — round 2', async () => {
+    server.setState({
+      site: {
+        ...defaultFakeCrmState().site,
+        images: {
+          ...defaultFakeCrmState().site.images,
+          HERO_BACKGROUND: [{ url: 'https://media.gurujitravelyatra.com/site-images/hero.webp', alt: '' }],
+        },
+      },
+    });
+
+    const element = await HomePage();
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain('src="https://media.gurujitravelyatra.com/site-images/hero.webp"');
+    expect(html).not.toContain('Image placeholder — Himalayan landscape');
+  });
 });

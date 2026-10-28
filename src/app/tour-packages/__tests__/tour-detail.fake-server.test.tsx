@@ -138,6 +138,37 @@ describe('the tour detail page against a real fake CRM server, end to end', () =
     expect(withoutBrochure).not.toContain('Download Brochure');
   });
 
+  /**
+   * Production incident (2026-10-28, round 2): the cover photo and gallery
+   * thumbnails for "Live to Website test tour by Mann" — real R2 URLs,
+   * present in the page's own HTML, loading fine from R2 directly — still
+   * rendered the `PhotoPlaceholder` placeholder box on both the cover slot
+   * and every gallery thumbnail. Pinned here against the real detail PAGE
+   * (both `PhotoPlaceholder` call sites in `[slug]/page.tsx`), not just the
+   * predicate unit-tested in `safe-media-url.test.ts`.
+   */
+  it('renders the real R2 cover photo and gallery as <img>s, not placeholder boxes — round 2', async () => {
+    const r2TourDetail: CrmTourDetail = {
+      ...tourDetail,
+      slug: 'live-to-website-test-tour-by-mann',
+      name: 'Live to Website test tour by Mann',
+      coverImageUrl: 'https://media.gurujitravelyatra.com/tour-images/live-to-website-test.webp',
+      gallery: [
+        { url: 'https://media.gurujitravelyatra.com/tour-images/live-to-website-test-1.webp', alt: 'Gallery photo 1' },
+        { url: 'https://media.gurujitravelyatra.com/tour-images/live-to-website-test-2.webp', alt: 'Gallery photo 2' },
+      ],
+    };
+    server.setState({ tourDetails: { 'live-to-website-test-tour-by-mann': r2TourDetail }, places, site });
+
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: 'live-to-website-test-tour-by-mann' }) });
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain(`src="${r2TourDetail.coverImageUrl}"`);
+    expect(html).toContain(`src="${r2TourDetail.gallery[0].url}"`);
+    expect(html).toContain(`src="${r2TourDetail.gallery[1].url}"`);
+    expect(html).not.toContain('Image placeholder');
+  });
+
   it('a slug the fake CRM genuinely does not have calls notFound() rather than rendering garbage', async () => {
     server.setState({ places, site });
 

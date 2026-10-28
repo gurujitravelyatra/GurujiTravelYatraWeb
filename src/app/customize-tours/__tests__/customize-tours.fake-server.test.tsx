@@ -122,4 +122,26 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
     const element = await CustomizeToursPage();
     expect(() => renderToStaticMarkup(element)).not.toThrow();
   });
+
+  /**
+   * Production incident (2026-10-28, round 2): Kedarnath's real `imageUrl`
+   * (an R2 URL, present in the page's own HTML) still rendered the
+   * `PhotoPlaceholder` placeholder box instead of the real `<img>` —
+   * `cloudinary-url.ts`'s render-time host check rejected it. Pinned here
+   * against the real place CARD (`DestinationCard`, via `TripPlacesStep`),
+   * not just the predicate unit-tested in `safe-media-url.test.ts`.
+   */
+  it('renders Kedarnath\'s real card photo as an <img>, not the placeholder box — round 2', async () => {
+    server.setState({ places: [KEDARNATH_REAL_PAYLOAD], site: defaultFakeCrmState().site });
+
+    const element = await CustomizeToursPage();
+    const html = renderToStaticMarkup(element);
+
+    // The real <img> for Kedarnath's card specifically — proving the
+    // PhotoPlaceholder branch on THIS card took the real-photo path, not
+    // the placeholder-box path. (The page's own hero still renders its own
+    // placeholder here, because this test's fake site state sets no hero
+    // image — an unrelated, correct placeholder, not asserted against.)
+    expect(html).toContain(`<img src="${KEDARNATH_REAL_PAYLOAD.imageUrl}" alt=""`);
+  });
 });

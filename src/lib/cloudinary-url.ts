@@ -22,35 +22,48 @@
  * is recognised, return it untouched when it is not.
  */
 
+import { getAllowedMediaHostnames } from './media-host';
+
 /** The host every legitimate media URL in this project starts with. */
 const CLOUDINARY_DELIVERY_PREFIX = 'https://res.cloudinary.com/';
 
 /**
- * The R2 media host, for the CRM migration — CRM-migration decision 4.
+ * The R2 media host(s), for the CRM migration — CRM-migration decision 4.
  *
- * Read from `NEXT_PUBLIC_MEDIA_HOST`, an env var rather than a hard-coded
- * string, because the final R2 address is not confirmed yet. `NEXT_PUBLIC_`
- * on purpose: this is a public CDN domain, not a credential, so inlining it
- * into the browser bundle is the correct and intended behaviour, not a leak.
+ * `NEXT_PUBLIC_MEDIA_HOST` on purpose: this is a public CDN domain, not a
+ * credential, so inlining it into the browser bundle is the correct and
+ * intended behaviour, not a leak.
  *
  * EXACT HOST ONLY, no wildcard — the same allowlist reasoning
  * `CLOUDINARY_DELIVERY_PREFIX` already uses, and for the same reason the test
  * below pins: a wildcard/suffix match is exactly what lets
  * `res.cloudinary.com.evil.example` through.
  *
+ * Production incident (2026-10-28, round 2): this file used to parse
+ * `NEXT_PUBLIC_MEDIA_HOST` itself (`rawMediaHost.replace(/\/+$/, '') + '/'`),
+ * which REQUIRED the env var to already include `https://` — a bare host
+ * (e.g. `media.gurujitravelyatra.com`, exactly the shape Railway's own
+ * dashboard invites someone to type) silently produced a prefix with no
+ * scheme, which could never match a real `https://...` URL, so every real
+ * R2 image fell back to the placeholder even though `next.config.ts`'s
+ * SEPARATE, more lenient parser had already started allowing the same host
+ * through `next/image`. `getAllowedMediaHostnames` (`media-host.ts`) is now
+ * the ONE place that parses this env var, shared by both — see that file's
+ * header.
+ *
  * UNSET IS A SUPPORTED MODE. `next build` must not fail because this is
  * missing — nothing here throws or reads the var at import time in a way
- * that could — and a URL that would have matched the R2 host simply fails
+ * that could — and a URL that doesn't match any allowed host simply fails
  * `isSafeMediaUrl` like any other unrecognised URL, which `PhotoPlaceholder`
  * already turns into its neutral placeholder box rather than a broken image
- * or a render error.
+ * or a render error. The hard-coded fallback host in `getAllowedMediaHostnames`
+ * means this allowlist is never actually empty, env var or not.
  */
-const rawMediaHost = process.env.NEXT_PUBLIC_MEDIA_HOST;
-const MEDIA_HOST_PREFIX = rawMediaHost ? `${rawMediaHost.replace(/\/+$/, '')}/` : undefined;
-
-/** Every host prefix a stored media URL may legitimately start with. */
 function allowedMediaPrefixes(): readonly string[] {
-  return MEDIA_HOST_PREFIX ? [CLOUDINARY_DELIVERY_PREFIX, MEDIA_HOST_PREFIX] : [CLOUDINARY_DELIVERY_PREFIX];
+  const hostPrefixes = getAllowedMediaHostnames(process.env.NEXT_PUBLIC_MEDIA_HOST).map(
+    (hostname) => `https://${hostname}/`
+  );
+  return [CLOUDINARY_DELIVERY_PREFIX, ...hostPrefixes];
 }
 
 /**

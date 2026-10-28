@@ -93,19 +93,25 @@ const nextConfig: NextConfig = {
    * Added anyway, on request, as defence-in-depth for if/when `next/image`
    * is ever adopted for these images: without this, `next/image` would
    * answer `400 Bad Request` for every allowed media URL regardless of
-   * what `isSafeMediaUrl()` already permits — the two allowlists are
-   * independent and both would need to agree.
+   * what `isSafeMediaUrl()` already permits.
    *
-   * Production incident (2026-10-28): a direct `/_next/image?url=<R2 URL>`
-   * test still answered `400 "url" parameter is not allowed` with
-   * `NEXT_PUBLIC_MEDIA_HOST` correctly set — the original version of this
-   * parser only accepted a full `https://` origin and only allowlisted two
-   * path prefixes. `buildMediaHostRemotePatterns` (src/lib/
-   * media-remote-patterns.ts, see its own header) now accepts a bare host
-   * too, allows every path under the host, and always includes the real
-   * production host as a hard-coded fallback so a missing/misconfigured var
-   * can never break this allowlist again — pulled out of this file so it is
-   * directly testable.
+   * Production incident (2026-10-28, two rounds):
+   *  - Round 1: a direct `/_next/image?url=<R2 URL>` test answered
+   *    `400 "url" parameter is not allowed` with `NEXT_PUBLIC_MEDIA_HOST`
+   *    correctly set — this parser only accepted a full `https://` origin
+   *    and only allowlisted two path prefixes.
+   *  - Round 2: after fixing that, `/_next/image` returned 200, but every
+   *    card still showed the placeholder — `isSafeMediaUrl()`
+   *    (src/lib/cloudinary-url.ts) had its OWN, separate, stricter parser of
+   *    the same env var that still required the `https://` form. Both now
+   *    import `getAllowedMediaHostnames()` from `src/lib/media-host.ts` —
+   *    the ONE place this env var is parsed — so they can no longer
+   *    disagree about which host is trusted.
+   *
+   * `buildMediaHostRemotePatterns` (src/lib/media-remote-patterns.ts) adds
+   * only what's specific to `next/image` (the `/**` path, allowing every
+   * folder) on top of that shared host list — pulled out of this file so
+   * it is directly testable.
    */
   images: {
     remotePatterns: buildMediaHostRemotePatterns(process.env.NEXT_PUBLIC_MEDIA_HOST),

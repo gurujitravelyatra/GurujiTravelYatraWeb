@@ -142,3 +142,54 @@ describe('isSafeMediaUrl with NEXT_PUBLIC_MEDIA_HOST configured', () => {
  * this site cannot see or pin against. The predicate itself is still
  * covered by every `isSafeMediaUrl`/`safeMediaUrl` case above.
  */
+
+/**
+ * Production incident (2026-10-28, round 2) — `cloudinary-url.ts` used to
+ * parse `NEXT_PUBLIC_MEDIA_HOST` itself and required the `https://` form;
+ * a bare host (exactly what was configured in production) silently
+ * produced a prefix that could never match, so every real R2 image fell
+ * back to the placeholder. These pin the exact production host and URL
+ * shapes from that incident against the real allowlist code
+ * (`allowedMediaPrefixes()`, via `getAllowedMediaHostnames()` in
+ * `media-host.ts`), not a fake one.
+ */
+describe('isSafeMediaUrl against the real production host', () => {
+  const originalEnv = process.env.NEXT_PUBLIC_MEDIA_HOST;
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.NEXT_PUBLIC_MEDIA_HOST;
+    else process.env.NEXT_PUBLIC_MEDIA_HOST = originalEnv;
+  });
+
+  function freshModule(): typeof import('../cloudinary-url') {
+    let mod!: typeof import('../cloudinary-url');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      mod = require('../cloudinary-url');
+    });
+    return mod;
+  }
+
+  it('accepts the real production host even when the env var is unset (hard-coded fallback)', () => {
+    delete process.env.NEXT_PUBLIC_MEDIA_HOST;
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl('https://media.gurujitravelyatra.com/place-images/kedarnath-abc123.webp')).toBe(true);
+    expect(isSafeMediaUrl('https://media.gurujitravelyatra.com/tour-images/live-to-website-test.webp')).toBe(true);
+  });
+
+  it('accepts the real production host when configured as a BARE host — the exact incident shape', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = 'media.gurujitravelyatra.com';
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl('https://media.gurujitravelyatra.com/place-images/kedarnath-abc123.webp')).toBe(true);
+    expect(isSafeMediaUrl('https://media.gurujitravelyatra.com/tour-images/live-to-website-test.webp')).toBe(true);
+  });
+
+  it('accepts the real production host when configured with the full https:// origin', () => {
+    process.env.NEXT_PUBLIC_MEDIA_HOST = 'https://media.gurujitravelyatra.com';
+    const { isSafeMediaUrl } = freshModule();
+
+    expect(isSafeMediaUrl('https://media.gurujitravelyatra.com/place-images/kedarnath-abc123.webp')).toBe(true);
+  });
+});
