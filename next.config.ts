@@ -1,31 +1,6 @@
 import type { NextConfig } from "next";
 
-/**
- * Parses `NEXT_PUBLIC_MEDIA_HOST` (an origin, e.g.
- * `https://media.gurujitravelyatra.com`, no path) into the `remotePatterns`
- * entries `next/image` needs — see the `images` config's own comment below
- * for why this exists at all. Returns `[]` on anything that is not a clean
- * `https://` origin (unset, malformed, or someone accidentally including a
- * path) rather than throwing and failing the build over an optional,
- * currently-unused allowlist.
- */
-function buildMediaHostRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> {
-  const raw = process.env.NEXT_PUBLIC_MEDIA_HOST;
-  if (!raw) return [];
-
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return [];
-  }
-  if (url.protocol !== "https:") return [];
-
-  return [
-    { protocol: "https", hostname: url.hostname, pathname: "/place-images/**" },
-    { protocol: "https", hostname: url.hostname, pathname: "/tour-images/**" },
-  ];
-}
+import { buildMediaHostRemotePatterns } from "./src/lib/media-remote-patterns";
 
 /**
  * Security response headers — M10 of the 2026-09-19 independent review.
@@ -121,19 +96,19 @@ const nextConfig: NextConfig = {
    * what `isSafeMediaUrl()` already permits — the two allowlists are
    * independent and both would need to agree.
    *
-   * Derived from `NEXT_PUBLIC_MEDIA_HOST` itself (currently
-   * `https://media.gurujitravelyatra.com`, per `.env.example`) rather than
-   * a second hardcoded copy of that hostname — the two were always going
-   * to need to agree, so there is exactly one place that knows it. Unset
-   * is a supported mode: `remotePatterns` is simply empty, matching
-   * `isSafeMediaUrl()`'s own "no R2 host configured" fallback — the build
-   * does not fail either way. `pathname` covers both `/place-images/**`
-   * (`CrmPlace.imageUrl`, e.g. Kedarnath's) and `/tour-images/**`
-   * (`CrmTourCard.coverImageUrl`) — the two prefixes this host's real URLs
-   * have actually been seen under.
+   * Production incident (2026-10-28): a direct `/_next/image?url=<R2 URL>`
+   * test still answered `400 "url" parameter is not allowed` with
+   * `NEXT_PUBLIC_MEDIA_HOST` correctly set — the original version of this
+   * parser only accepted a full `https://` origin and only allowlisted two
+   * path prefixes. `buildMediaHostRemotePatterns` (src/lib/
+   * media-remote-patterns.ts, see its own header) now accepts a bare host
+   * too, allows every path under the host, and always includes the real
+   * production host as a hard-coded fallback so a missing/misconfigured var
+   * can never break this allowlist again — pulled out of this file so it is
+   * directly testable.
    */
   images: {
-    remotePatterns: buildMediaHostRemotePatterns(),
+    remotePatterns: buildMediaHostRemotePatterns(process.env.NEXT_PUBLIC_MEDIA_HOST),
   },
 
   async headers() {
