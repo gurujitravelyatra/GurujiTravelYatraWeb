@@ -36,8 +36,8 @@ export interface CrmNextDeparture {
  * `departureCity` is ALWAYS `null` today — see the contract's own note. Do
  * not build UI around this ever being non-null.
  *
- * `primaryPlace` is `CrmPlaceRef | null` — production incident 2026-10-27:
- * the contract document's own examples only ever show a populated
+ * `primaryPlace` is `CrmPlaceRef | null` — production incident 2026-10-27
+ * (#1): the contract document's own examples only ever show a populated
  * `primaryPlace`, but the real deployed CRM returns `"primaryPlace": null`
  * for a tour with no place assigned yet, which is a real, reachable state
  * ("the CRM API itself is healthy" — this is not a CRM bug, just an
@@ -46,6 +46,19 @@ export interface CrmNextDeparture {
  * suffix; a bare (non-optional) `CrmPlaceRef` let that reach production as
  * `Cannot read properties of null (reading 'name')`, crashing `/` and
  * `/tour-packages` (both render `PackageCard`) with a real HTTP 500.
+ *
+ * `price` is `CrmMoney | null` — same incident, same-day audit after
+ * incident #2 (a different field, `alt`, took the whole site down the
+ * same way; see `CrmSiteImage`'s own comment). A tour can have no price
+ * set yet. `formatCrmPrice()` (`src/lib/rupees.ts`) already renders
+ * "Price on request" for `null`/`undefined` — read it through that
+ * helper, never `price.amount` directly.
+ *
+ * `shortDescription`/`coverImageUrl` arrive from `schemas.ts` already
+ * normalised to `''` if the CRM sent `null`/omitted them — `''` is safe
+ * everywhere these are read (renders nothing / `safeMediaUrl('')` falls
+ * through to `PhotoPlaceholder`), so they stay plain `string` here, not
+ * nullable.
  */
 export interface CrmTourCard {
   slug: string;
@@ -53,7 +66,7 @@ export interface CrmTourCard {
   category: CrmCategory;
   shortDescription: string;
   coverImageUrl: string;
-  price: CrmMoney;
+  price: CrmMoney | null;
   durationDays: number;
   durationNights: number;
   departureCity: null;
@@ -75,6 +88,16 @@ export interface CrmItineraryDay {
   detail: string;
 }
 
+/**
+ * `alt` arrives from `schemas.ts` already normalised to `''` if the CRM
+ * sent `null` — production incident 2026-10-27 (#2): the real
+ * `GET /public/site` response sends `"alt": null` for `CrmSiteImage`
+ * (see that type's own comment) and the same field exists here for a
+ * tour's own gallery. Treat `''` the same way as the rest of this
+ * codebase treats absent alt text: fall back to the tour's `name` at the
+ * call site, per that incident's point 3 ("default the alt attribute to
+ * the tour/place/site name").
+ */
 export interface CrmGalleryImage {
   url: string;
   alt: string;
@@ -142,6 +165,16 @@ export interface CrmPlace {
 
 export type CrmSiteImageSlot = 'HERO_BACKGROUND' | 'ABOUT' | 'GALLERY' | 'FOOTER';
 
+/**
+ * Production incident 2026-10-27 (#2): the real `GET /public/site`
+ * response sends `"alt": null` for images with no alt text set — real,
+ * healthy data the contract document never shows as nullable.
+ * `schemas.ts` normalises this to `''` before it reaches here (never
+ * throws on it — see `client.ts`'s `withFallback()`), so `alt` stays
+ * plain `string`, not nullable, at this type level. Fall back to the
+ * site's own name at the call site when `alt === ''`, per that
+ * incident's point 3.
+ */
 export interface CrmSiteImage {
   url: string;
   alt: string;

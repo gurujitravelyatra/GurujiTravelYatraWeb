@@ -267,21 +267,31 @@ describe('submitEnquiry', () => {
 });
 
 /**
- * Fixes a real production incident (2026-10-27): `next build` on Railway
- * evaluates every statically-renderable page for real, which calls these
- * read functions for real, and Railway's private network (where the
+ * Fixes a real production incident (2026-10-27, #1): `next build` on
+ * Railway evaluates every statically-renderable page for real, which calls
+ * these read functions for real, and Railway's private network (where the
  * default `CRM_API_URL` resolves) does not exist at build time — the build
  * died with `getaddrinfo ENOTFOUND gty-crm.railway.internal` straight out
- * of `fetchCrm()`. `withBuildPhaseFallback()` (client.ts) is the fix:
- * during `next build` specifically (`NEXT_PHASE === 'phase-production-build'`),
- * a `fetch()` failure returns the read's own empty/"updating" shape instead
- * of throwing; at every other time (unset `NEXT_PHASE`, i.e. a real running
- * server), the exact same failure still propagates exactly as it always
- * has, so a real runtime outage still gets Next's own stale-while-
- * revalidate handling rather than silently serving an empty page forever.
+ * of `fetchCrm()`. `withBuildPhaseFallback()` (client.ts) is the fix for
+ * `getTours`/`getDepartures`/`getCategories`/`getSitemap`: during
+ * `next build` specifically, a failure returns the read's own empty/
+ * "updating" shape instead of throwing; at runtime (a real running
+ * server), the exact same failure still propagates, same as always — a
+ * real CRM rejection/outage stays a real, loud failure for these, by
+ * design (the migration's own "CRM is the single source of truth"
+ * decision).
+ *
+ * `getSite()`/`getPlaces()` are the one deliberate exception —
+ * `withFallbackAlways()` — because `SiteShell` calls them from EVERY page.
+ * Incident #2, same day: a SCHEMA mismatch there (not a CRM outage — the
+ * CRM was healthy, this client's schema was just too strict) made that
+ * throw reach `SiteShell` at RUNTIME too, taking the entire site down.
+ * These two now fall back on ANY failure, in EITHER phase — see
+ * `withFallbackAlways()`'s own comment in client.ts for the full
+ * reasoning on why only these two get this treatment.
  */
-describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
-  describe('during next build (NEXT_PHASE=phase-production-build), a network failure returns the empty fallback instead of throwing', () => {
+describe('fallback behaviour — the 2026-10-27 incidents', () => {
+  describe('during next build (NEXT_PHASE=phase-production-build), a network failure returns the fallback instead of throwing, for every read', () => {
     beforeEach(() => {
       process.env.NEXT_PHASE = 'phase-production-build';
     });
@@ -296,32 +306,12 @@ describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
       });
     });
 
-    it('getDepartures() falls back to {departures: [], months: []}', async () => {
-      mockFetchNetworkFailure();
-      await expect(getDepartures()).resolves.toEqual({ departures: [], months: [] });
-    });
-
-    it('getPlaces() falls back to []', async () => {
-      mockFetchNetworkFailure();
-      await expect(getPlaces()).resolves.toEqual([]);
-    });
-
     it('getSite() falls back to the all-null settings shape every consumer already renders gracefully', async () => {
       mockFetchNetworkFailure();
       const result = await getSite();
       expect(result.settings.phone).toBeNull();
       expect(result.settings.heroHeadline).toBeNull();
       expect(result.images.HERO_BACKGROUND).toEqual([]);
-    });
-
-    it('getCategories() falls back to []', async () => {
-      mockFetchNetworkFailure();
-      await expect(getCategories()).resolves.toEqual([]);
-    });
-
-    it('getSitemap() falls back to []', async () => {
-      mockFetchNetworkFailure();
-      await expect(getSitemap()).resolves.toEqual([]);
     });
 
     it('logs the failure with console.warn (expected/tolerated), not console.error (a bug)', async () => {
@@ -338,26 +328,87 @@ describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
     });
   });
 
-  describe('outside the build phase, the identical failure still propagates — runtime behaviour is unchanged', () => {
-    it('getTours() still rejects when NEXT_PHASE is unset (a real running server)', async () => {
+  describe('AT RUNTIME (NEXT_PHASE unset, a real running server): getSite()/getPlaces() now ALSO fall back instead of throwing — the incident #2 fix, scoped to just these two', () => {
+    beforeEach(() => {
       delete process.env.NEXT_PHASE;
+    });
+
+    it('getSite() resolves to EMPTY_SITE_RESPONSE instead of rejecting on a network failure — the exact call SiteShell makes on every page', async () => {
+      mockFetchNetworkFailure();
+      const result = await getSite();
+      expect(result).toEqual({
+        images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] },
+        settings: {
+          heroHeadline: null,
+          heroSubtext: null,
+          happyTravellersLabel: null,
+          destinationsLabel: null,
+          yearsExperienceLabel: null,
+          showFiguresNote: false,
+          phone: null,
+          whatsappNumber: null,
+          email: null,
+          instagramUrl: null,
+          address: null,
+          profileVideoUrl: null,
+        },
+      });
+    });
+
+    it('getPlaces() resolves to [] instead of rejecting on a network failure', async () => {
+      mockFetchNetworkFailure();
+      await expect(getPlaces()).resolves.toEqual([]);
+    });
+
+    it('logs the failure with console.error (a real runtime problem), not console.warn', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchNetworkFailure();
+
+      await getSite();
+
+      expect(errorSpy).toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('a malformed, non-JSON response ALSO degrades gracefully instead of throwing — not just a network failure', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html>this is not JSON</html>'),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await expect(getSite()).resolves.toEqual(
+        expect.objectContaining({ images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] } })
+      );
+    });
+  });
+
+  describe('AT RUNTIME, every OTHER wrapped read still rejects on a real network/API failure — unchanged, deliberately NOT widened to match getSite()/getPlaces()', () => {
+    beforeEach(() => {
+      delete process.env.NEXT_PHASE;
+    });
+
+    it('getTours() still rejects on a network failure (its own lenient array parsing already absorbs SCHEMA issues without reaching this far)', async () => {
       mockFetchNetworkFailure();
       await expect(getTours()).rejects.toThrow(/ENOTFOUND/);
     });
 
-    it('getSite() still rejects when NEXT_PHASE is some other phase value', async () => {
-      process.env.NEXT_PHASE = 'phase-production-server';
-      mockFetchNetworkFailure();
-      await expect(getSite()).rejects.toThrow(/ENOTFOUND/);
+    it('getTours() still rejects a real CrmApiError (e.g. the CRM validating and refusing a bad query param)', async () => {
+      mockFetchOnce(400, {
+        statusCode: 400,
+        error: 'Bad Request',
+        message: { code: 'VALIDATION_FAILED', message: 'Unknown category.' },
+      });
+      await expect(getTours({ category: 'NotARealCategory' as never })).rejects.toMatchObject({ name: 'CrmApiError' });
     });
 
-    it('every other wrapped read still rejects outside the build phase too', async () => {
-      delete process.env.NEXT_PHASE;
-
+    it('every other wrapped read still rejects on a network failure too', async () => {
       mockFetchNetworkFailure();
       await expect(getDepartures()).rejects.toThrow();
-      mockFetchNetworkFailure();
-      await expect(getPlaces()).rejects.toThrow();
       mockFetchNetworkFailure();
       await expect(getCategories()).rejects.toThrow();
       mockFetchNetworkFailure();
@@ -365,7 +416,7 @@ describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
     });
   });
 
-  describe('getTourBySlug() and submitEnquiry() are deliberately NOT wrapped, in either phase', () => {
+  describe('getTourBySlug() and submitEnquiry() are deliberately NOT wrapped, in either phase — a scoped single-page failure and a write must never be silently swallowed', () => {
     it('getTourBySlug() still throws on a network failure even during the build phase', async () => {
       process.env.NEXT_PHASE = 'phase-production-build';
       mockFetchNetworkFailure();
@@ -373,6 +424,12 @@ describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
       // Not called during `next build` at all (no generateStaticParams —
       // see client.ts's own comment), so there is nothing to protect here;
       // a real failure should surface exactly as it always has.
+      await expect(getTourBySlug('spiti-valley-circuit')).rejects.toThrow(/ENOTFOUND/);
+    });
+
+    it('getTourBySlug() still throws on a network failure at runtime too — a single tour page failing stays scoped to that page, not silently swallowed into a fake result', async () => {
+      delete process.env.NEXT_PHASE;
+      mockFetchNetworkFailure();
       await expect(getTourBySlug('spiti-valley-circuit')).rejects.toThrow(/ENOTFOUND/);
     });
 
@@ -385,5 +442,219 @@ describe('build-phase fallback — the 2026-10-27 production-build fix', () => {
         submitEnquiry({ kind: 'ENQUIRY', name: 'Jane Doe', phone: '9822041188', consent: true, turnstileToken: 'fake-token' })
       ).rejects.toThrow(/ENOTFOUND/);
     });
+  });
+});
+
+/**
+ * Production incident 2026-10-27 (#2) itself: `GET /public/site` sending
+ * `alt: null` on a site image took the entire site down because the old
+ * schema required `alt` to be a string and `validateCrmResponse()` threw
+ * unconditionally on the mismatch. These tests reproduce the EXACT crash
+ * payload plus every other sparse/null shape the real CRM is now confirmed
+ * to send, across every endpoint — each must resolve successfully (never
+ * reject), per this incident's point 1 (the full nullability audit) and
+ * point 4 (tests for the audit, not just the one field from the crash
+ * log).
+ */
+describe('nullability audit — every confirmed sparse/null shape the real CRM sends must parse successfully, not throw', () => {
+  it('GET /public/site with alt: null on every single image slot, empty arrays, and all settings null — THE exact incident #2 crash payload', async () => {
+    mockFetchOnce(200, {
+      images: {
+        HERO_BACKGROUND: [{ url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg', alt: null }],
+        ABOUT: [{ url: 'https://res.cloudinary.com/demo/image/upload/v1/about.jpg', alt: null }],
+        GALLERY: [],
+        FOOTER: [{ url: 'https://res.cloudinary.com/demo/image/upload/v1/footer.jpg', alt: null }],
+      },
+      settings: {
+        heroHeadline: null,
+        heroSubtext: null,
+        happyTravellersLabel: null,
+        destinationsLabel: null,
+        yearsExperienceLabel: null,
+        showFiguresNote: false,
+        phone: null,
+        whatsappNumber: null,
+        email: null,
+        instagramUrl: null,
+        address: null,
+        profileVideoUrl: null,
+      },
+    });
+
+    const result = await getSite();
+    expect(result.images.HERO_BACKGROUND).toEqual([{ url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg', alt: '' }]);
+    expect(result.images.ABOUT[0].alt).toBe('');
+    expect(result.images.FOOTER[0].alt).toBe('');
+    expect(result.images.GALLERY).toEqual([]);
+    expect(result.settings.phone).toBeNull();
+  });
+
+  it('GET /public/tours with a bare-minimum tour: null primaryPlace, null price, null/missing shortDescription and coverImageUrl', async () => {
+    mockFetchOnce(200, {
+      tours: [
+        {
+          slug: 'bare-tour',
+          name: 'Bare Tour',
+          category: 'Adventure',
+          shortDescription: null,
+          coverImageUrl: null,
+          price: null,
+          durationDays: 1,
+          durationNights: 0,
+          departureCity: null,
+          primaryPlace: null,
+          nextDeparture: null,
+          hasBrochure: false,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 12,
+    });
+
+    const result = await getTours();
+    expect(result.tours).toHaveLength(1);
+    expect(result.tours[0].shortDescription).toBe('');
+    expect(result.tours[0].coverImageUrl).toBe('');
+    expect(result.tours[0].price).toBeNull();
+    expect(result.tours[0].primaryPlace).toBeNull();
+  });
+
+  it('GET /public/tours/:slug with every nullable tour-detail field null/missing: description, cancellationPolicy, seoTitle/seoDescription, gallery alt, brochureUrl', async () => {
+    mockFetchOnce(200, {
+      ...VALID_TOUR_CARD,
+      shortDescription: null,
+      coverImageUrl: null,
+      price: null,
+      description: null,
+      highlights: null,
+      itinerary: null,
+      inclusions: null,
+      exclusions: null,
+      cancellationPolicy: null,
+      gallery: [{ url: 'https://res.cloudinary.com/demo/image/upload/v1/g1.jpg', alt: null }],
+      brochureUrl: null,
+      places: null,
+      pricingOptions: null,
+      departures: null,
+      seoTitle: null,
+      seoDescription: null,
+    });
+
+    const result = await getTourBySlug('x');
+    expect(result.status).toBe('found');
+    if (result.status !== 'found') throw new Error('expected found');
+    expect(result.tour.description).toBe('');
+    expect(result.tour.cancellationPolicy).toBe('');
+    expect(result.tour.gallery[0].alt).toBe('');
+    expect(result.tour.brochureUrl).toBeNull();
+    // Defaults to the tour's own name/shortDescription per incident #2 point 3.
+    expect(result.tour.seoTitle).toBe(result.tour.name);
+    expect(result.tour.seoDescription).toBe(result.tour.shortDescription);
+    expect(result.tour.highlights).toEqual([]);
+    expect(result.tour.places).toEqual([]);
+  });
+
+  it('GET /public/places with null region, null imageUrl, null description, and the liveTours/liveTourCount drift, all at once', async () => {
+    mockFetchOnce(200, [
+      {
+        name: 'Kedarnath',
+        slug: 'kedarnath',
+        region: null,
+        description: null,
+        imageUrl: null,
+        showInCustomBuilder: true,
+        liveTours: 3,
+      },
+    ]);
+
+    const result = await getPlaces();
+    expect(result).toEqual([
+      {
+        name: 'Kedarnath',
+        slug: 'kedarnath',
+        region: '',
+        description: '',
+        imageUrl: '',
+        showInCustomBuilder: true,
+        liveTourCount: 3,
+      },
+    ]);
+  });
+
+  it('GET /public/departures with null returnDate/price on a departure and an entirely missing months array', async () => {
+    mockFetchOnce(200, {
+      departures: [
+        {
+          ...VALID_TOUR_CARD,
+          departureDate: '2026-12-01',
+        },
+      ],
+      months: null,
+    });
+
+    const result = await getDepartures();
+    expect(result.departures).toHaveLength(1);
+    expect(result.months).toEqual([]);
+  });
+
+  it('a single malformed tour in an otherwise-valid list is DROPPED, not fatal to the other tours — the lenient-array-parsing half of the structural fix', async () => {
+    mockFetchOnce(200, {
+      tours: [VALID_TOUR_CARD, { slug: 'broken', name: 'Broken Tour', category: 'NotARealCategory' }],
+      total: 2,
+      page: 1,
+      pageSize: 12,
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await getTours();
+
+    expect(result.tours).toHaveLength(1);
+    expect(result.tours[0].slug).toBe(VALID_TOUR_CARD.slug);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('dropped 1 of 2'));
+    errorSpy.mockRestore();
+  });
+
+  it('a deliberately malformed/unexpected GET /public/site response (completely wrong shape) degrades to EMPTY_SITE_RESPONSE instead of throwing', async () => {
+    mockFetchOnce(200, { thisIsNotWhatWeExpectedAtAll: 42 });
+
+    const result = await getSite();
+    expect(result).toEqual({
+      images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] },
+      settings: {
+        heroHeadline: null,
+        heroSubtext: null,
+        happyTravellersLabel: null,
+        destinationsLabel: null,
+        yearsExperienceLabel: null,
+        showFiguresNote: false,
+        phone: null,
+        whatsappNumber: null,
+        email: null,
+        instagramUrl: null,
+        address: null,
+        profileVideoUrl: null,
+      },
+    });
+  });
+
+  it('GET /public/site with a malformed settings object still returns the parsed images, falling back only the settings half', async () => {
+    mockFetchOnce(200, {
+      images: {
+        HERO_BACKGROUND: [{ url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg', alt: 'Hero' }],
+        ABOUT: [],
+        GALLERY: [],
+        FOOTER: [],
+      },
+      settings: { phone: 12345 }, // wrong type entirely, and missing required fields
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await getSite();
+
+    expect(result.images.HERO_BACKGROUND).toEqual([{ url: 'https://res.cloudinary.com/demo/image/upload/v1/hero.jpg', alt: 'Hero' }]);
+    expect(result.settings.phone).toBeNull(); // fell back to the default settings
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('settings'));
+    errorSpy.mockRestore();
   });
 });

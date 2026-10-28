@@ -4,13 +4,15 @@ import type { z } from 'zod';
 
 import { getCrmApiUrl, getWebsiteApiKey, isBuildPhase } from './config';
 import {
-  crmCategoriesResponseSchema,
-  crmDeparturesResponseSchema,
-  crmPlacesResponseSchema,
-  crmSiteResponseSchema,
-  crmSitemapResponseSchema,
+  crmCategoryCountSchema,
+  crmDeparturesTourCardSchema,
+  crmPlaceSchema,
+  crmSiteImageSchema,
+  crmSiteSettingsSchema,
+  crmSitemapEntrySchema,
   crmTourBySlugResponseSchema,
-  crmTourListResponseSchema,
+  crmTourCardSchema,
+  parseArrayLeniently,
 } from './schemas';
 import type {
   CrmCategory,
@@ -20,6 +22,7 @@ import type {
   CrmEnquiryResponse,
   CrmErrorBody,
   CrmPlace,
+  CrmSiteImage,
   CrmSiteResponse,
   CrmSitemapEntry,
   CrmTourDetail,
@@ -91,6 +94,11 @@ export class CrmSchemaMismatchError extends Error {
  * message and throwing `CrmSchemaMismatchError` on a mismatch — never lets
  * a shape error reach a component as a blind cast (`as T`) would, and
  * never lets it surface as Zod's own unlabelled error either.
+ *
+ * Only `getTourBySlug()` still calls this directly (see that function's own
+ * comment for why a single tour page is allowed to fail on its own, scoped
+ * failure). Every other read below has its own lenient parser instead — see
+ * `withFallback()`'s comment for why.
  */
 function validateCrmResponse<Schema extends z.ZodType>(path: string, schema: Schema, parsed: unknown): z.infer<Schema> {
   const result = schema.safeParse(parsed);
@@ -189,73 +197,107 @@ async function fetchCrm<T>(options: FetchCrmOptions): Promise<T> {
 }
 
 /**
- * Fixes a real production incident (2026-10-27): `next build` on Railway
- * evaluates every statically-renderable page, which calls `getSite()`/
- * `getTours()`/etc for real, during the build step — and Railway's private
- * network (where `gty-crm.railway.internal`, the default `CRM_API_URL`,
- * actually resolves) does not exist yet at build time. The build died with
- * `getaddrinfo ENOTFOUND gty-crm.railway.internal` from this exact file.
+ * Catches a failure from `fn()` ONLY during `next build`
+ * (`isBuildPhase()`) and returns `fallback` instead — a real runtime
+ * failure (network error, `CrmApiError`, `CrmUnexpectedResponseError`)
+ * still propagates exactly as before. Used by `getTours`/`getDepartures`/
+ * `getCategories`/`getSitemap` — NOT `getSite`/`getPlaces`, which use
+ * `withFallbackAlways()` below instead; see that function's own comment
+ * for why those two are different.
  *
- * ## Build-time failure vs. runtime failure are different problems
- *
- * At RUNTIME, a `fetch()` failure during an ISR background revalidation is
- * already safe: Next's own ISR semantics catch a thrown render error and
- * keep serving the last successfully generated page (stale-while-
- * revalidate), logging the error without crashing the running server or
- * handing a visitor a 500. Nothing about that needs to change, and this
- * function does not touch it — `isBuildPhase()` is false at runtime, so
- * every runtime failure still propagates exactly as before.
- *
- * At BUILD time there IS no "last successfully generated page" yet — this
- * may be the very first attempt — so a thrown error has nothing to fall
- * back to and fails the whole `next build` command outright. The fix is
- * each read function's own existing "empty" shape (`{tours: [], total: 0,
- * ...}`, `[]`, `getSite()`'s all-`null` settings, etc.) — exactly the state
- * the UI already renders gracefully (`PackagesCatalogue`'s "No journeys
- * match this filter yet.", `DestinationsRail` returning `null` for an empty
- * `places` array, `resolveSiteContact()` falling back to the static
- * `gty-contact` constants for a `null` phone/email) — so the page the build
- * emits is a real, intentional "we're updating" state, not an error page.
- *
- * ## Why this still revalidates quickly once real traffic arrives
- *
- * Every read already passes `revalidate: 60` (`fetchCrm`'s own default, or
- * `getSitemap()`'s explicit one) — unchanged by this function. A page built
- * with the empty fallback above therefore still revalidates within 60
- * seconds of the first real request after deploy, the same window every
- * other page already uses; nothing here widens it. Reaching for a SHORTER
- * build-time-only `revalidate` was considered and rejected: Next determines
- * a route's cache lifetime from the values present at BUILD time, so a
- * page that only ever sees the fallback path at build enshrines whatever
- * revalidate window this function used for the page's ENTIRE static
- * lifetime, not just its first request — reusing the same 60s every other
- * read already carries keeps that lifetime identical and predictable
- * instead of adding a second, different number to reason about.
- *
- * ## Only `isBuildPhase()` narrows this — not "any network error, ever"
- *
- * This is deliberately NOT a general network-failure retry/fallback layer.
- * Outside the build phase, `withBuildPhaseFallback` is a no-op passthrough
- * that rethrows exactly as `fetchCrm` always has — a real request-time CRM
- * outage is still a real, loud failure to whatever ISR/error-boundary
- * machinery already handles it, by design (the migration's own "CRM is the
- * single source of truth" decision).
+ * `next build` on Railway evaluates every statically-renderable page, which
+ * calls these read functions for real, during the build step — and
+ * Railway's private network (where `gty-crm.railway.internal`, the default
+ * `CRM_API_URL`, actually resolves) does not exist yet at build time. The
+ * build died with `getaddrinfo ENOTFOUND gty-crm.railway.internal` from
+ * this exact file (production incident 2026-10-27, #1). At RUNTIME, a real
+ * CRM outage or rejection is still a real, loud failure, by design (the
+ * migration's own "CRM is the single source of truth" decision) —
+ * unchanged from before incident #2. What DID change in incident #2: a
+ * SCHEMA mismatch (the CRM sending valid, healthy data this client's
+ * schema was too strict to accept) must never reach this function as a
+ * throw in the first place — each of these four reads now parses its own
+ * top-level array LENIENTLY (one bad row dropped, the rest kept — see
+ * `parseArrayLeniently` in schemas.ts) BEFORE calling this wrapper, so a
+ * schema issue degrades to "fewer rows, logged" without ever needing to
+ * fall back to the fully-empty shape below. This function is now the last
+ * resort for a response that is not even shaped like the right endpoint at
+ * all (not JSON, a wrong top-level key) — not the first line of defence.
  */
-async function withBuildPhaseFallback<T>(fallback: T, fn: () => Promise<T>): Promise<T> {
+async function withBuildPhaseFallback<T>(path: string, fallback: T, fn: () => Promise<T>): Promise<T> {
   if (!isBuildPhase()) return fn();
 
   try {
     return await fn();
   } catch (error) {
-    // Expected and tolerated here — `console.warn`, not `console.error`,
-    // and the build keeps going. A human reading the build log should be
-    // able to tell this apart from a real bug at a glance.
+    // Expected and tolerated here — `console.warn`, not `console.error` —
+    // and the build keeps going.
     console.warn(
-      '[crm] CRM unreachable during next build (expected if CRM_API_URL resolves only at runtime, ' +
-        'e.g. a Railway-internal address) — using the empty fallback for this page; it will revalidate ' +
-        'on the first real request:',
-      error instanceof Error ? error.message : error
+      `[crm] ${path}: unreachable during next build (expected if CRM_API_URL resolves only at runtime, ` +
+        `e.g. a Railway-internal address) — using the fallback data for this page; it will revalidate on the ` +
+        `first real request: ${error instanceof Error ? error.message : String(error)}`
     );
+    return fallback;
+  }
+}
+
+/**
+ * Catches ANY failure from `fn()` — a network error, `CrmApiError`,
+ * `CrmUnexpectedResponseError`, or `CrmSchemaMismatchError` — in EITHER
+ * phase, build or runtime, and returns `fallback` instead of letting it
+ * propagate. Used ONLY by `getSite()`/`getPlaces()`.
+ *
+ * ## Why these two, specifically, are different from every other read
+ *
+ * `SiteShell` calls `getSite()` and `getPlaces()` from EVERY single page —
+ * header, footer, contact details. Production incident 2026-10-27 (#2):
+ * `GET /public/site` sending `alt: null` on a site image (real, healthy
+ * CRM data, not an outage) made the old strict schema throw
+ * `CrmSchemaMismatchError`, and because that throw was only shielded
+ * during the build phase (`withBuildPhaseFallback`'s original design, back
+ * when it was this function too), it reached `SiteShell` at RUNTIME on
+ * every request, taking the ENTIRE site down with a real HTTP 500 — not
+ * just the one endpoint, every page that renders the header/footer, which
+ * is all of them.
+ *
+ * `force-dynamic` (added earlier the same day, for a Railway build OOM)
+ * made this worse than it would once have been: these pages have no
+ * "last successfully generated page" left to fall back to via ISR, so a
+ * thrown error here is not a stale-but-working page, it is a real 500 on
+ * every request, forever, until a human redeploys a fix. Given that,
+ * `getSite()`/`getPlaces()` specifically must ALWAYS produce something
+ * renderable — the empty/all-`null` shapes below are exactly the states
+ * the UI already renders correctly on purpose (`resolveSiteContact()`
+ * falling back to the static `gty-contact` constants for a `null` phone/
+ * email, `DestinationsRail` returning `null` for an empty `places` array)
+ * — so using them on ANY failure, including a real CRM outage, is a
+ * deliberate exception to the "CRM is the single source of truth, a real
+ * outage should be loud" decision: a real CRM outage degrading the
+ * header/footer to static defaults for a few minutes is an acceptable,
+ * recoverable trade-off; the SAME outage crashing every page on the site
+ * is not. Every OTHER read (`getTours` etc.) keeps the louder behaviour —
+ * see `withBuildPhaseFallback()`'s own comment for why those are scoped
+ * differently.
+ */
+async function withFallbackAlways<T>(path: string, fallback: T, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    const duringBuild = isBuildPhase();
+    const message = error instanceof Error ? error.message : String(error);
+    if (duringBuild) {
+      console.warn(
+        `[crm] ${path}: unreachable during next build (expected if CRM_API_URL resolves only at runtime, ` +
+          `e.g. a Railway-internal address) — using the fallback data for this page; it will revalidate on the ` +
+          `first real request: ${message}`
+      );
+    } else {
+      // A real runtime failure. Still `console.error` (worth paging on),
+      // but NEVER re-thrown — see this function's own comment for why a
+      // thrown error here is the exact failure mode that took the whole
+      // site down on 2026-10-27.
+      console.error(`[crm] ${path}: failed at runtime — serving the fallback data for this request instead of a 500: ${message}`);
+    }
     return fallback;
   }
 }
@@ -274,9 +316,18 @@ export interface TourListParams {
 }
 
 export async function getTours(params: TourListParams = {}): Promise<CrmTourListResponse> {
-  return withBuildPhaseFallback({ tours: [], total: 0, page: params.page ?? 1, pageSize: params.pageSize ?? 12 }, async () => {
+  const path = 'GET /public/tours';
+  const fallback: CrmTourListResponse = { tours: [], total: 0, page: params.page ?? 1, pageSize: params.pageSize ?? 12 };
+  return withBuildPhaseFallback(path, fallback, async () => {
     const body = await fetchCrm<unknown>({ path: '/public/tours', query: { ...params }, tags: ['crm:tours'] });
-    return validateCrmResponse('GET /public/tours', crmTourListResponseSchema, body);
+    const raw = (body ?? {}) as Record<string, unknown>;
+    const { parsed: tours } = parseArrayLeniently(path, crmTourCardSchema, Array.isArray(raw.tours) ? raw.tours : []);
+    return {
+      tours,
+      total: typeof raw.total === 'number' ? raw.total : tours.length,
+      page: typeof raw.page === 'number' ? raw.page : fallback.page,
+      pageSize: typeof raw.pageSize === 'number' ? raw.pageSize : fallback.pageSize,
+    };
   });
 }
 
@@ -293,11 +344,20 @@ export type TourBySlugResult =
  * future API route would too) must handle all three; none of them may
  * assume `200` means "here is a tour".
  *
- * NOT wrapped in `withBuildPhaseFallback()`, unlike every other read in
- * this file: the detail page has no `generateStaticParams()` (removed in
- * CRM-migration Step 2 — "resolves on demand"), so this is never called
- * during `next build` at all, only at request time, where a real failure
- * should surface exactly as it always has.
+ * NOT wrapped in `withFallback()`, unlike every other read in this file —
+ * a deliberate exception, re-confirmed during incident 2's (2026-10-27)
+ * audit: there is no sensible SAFE fallback value for "one specific tour".
+ * Returning `{status: 'not-found'}` on a schema mismatch would be actively
+ * wrong (a real, live tour wrongly 404ing — worse for SEO and for a
+ * visitor who followed a real link than a scoped error page), and there is
+ * no "empty tour" shape the detail page could render instead. A failure
+ * here is scoped to exactly one tour's page — never the whole site, since
+ * `SiteShell` never calls this — and is already caught by `src/app/error.tsx`
+ * at the page boundary, so a mismatch here degrades to one page showing a
+ * friendly error, not a 500 with no UI at all. The detail page also has no
+ * `generateStaticParams()` (removed in CRM-migration Step 2 — "resolves on
+ * demand"), so this is never called during `next build`, only at request
+ * time.
  */
 export async function getTourBySlug(slug: string): Promise<TourBySlugResult> {
   try {
@@ -321,7 +381,7 @@ export interface DeparturesParams {
   q?: string;
 }
 
-/** The all-`null`/all-`false` shape `getSite()` falls back to during `next build` — identical to what the contract itself documents for a site the Owner has never configured ("every settings field is `null` until... saved"), so every existing consumer (`resolveSiteContact()`, `toSiteStatsSummary()`) already renders it correctly with no new code. */
+/** The all-`null`/all-`false` shape `getSite()` falls back to on ANY failure (build-time unreachability or a runtime failure — see `withFallback()`/`getSite()`'s own comments) — identical to what the contract itself documents for a site the Owner has never configured ("every settings field is `null` until... saved"), so every existing consumer (`resolveSiteContact()`, `toSiteStatsSummary()`) already renders it correctly with no new code. */
 const EMPTY_SITE_RESPONSE: CrmSiteResponse = {
   images: { HERO_BACKGROUND: [], ABOUT: [], GALLERY: [], FOOTER: [] },
   settings: {
@@ -341,16 +401,25 @@ const EMPTY_SITE_RESPONSE: CrmSiteResponse = {
 };
 
 export async function getDepartures(params: DeparturesParams = {}): Promise<CrmDeparturesResponse> {
-  return withBuildPhaseFallback({ departures: [], months: [] }, async () => {
+  const path = 'GET /public/departures';
+  return withBuildPhaseFallback(path, { departures: [], months: [] }, async () => {
     const body = await fetchCrm<unknown>({ path: '/public/departures', query: { ...params }, tags: ['crm:departures'] });
-    return validateCrmResponse('GET /public/departures', crmDeparturesResponseSchema, body);
+    const raw = (body ?? {}) as Record<string, unknown>;
+    const { parsed: departures } = parseArrayLeniently(
+      path,
+      crmDeparturesTourCardSchema,
+      Array.isArray(raw.departures) ? raw.departures : []
+    );
+    const months = Array.isArray(raw.months) ? raw.months.filter((m): m is string => typeof m === 'string') : [];
+    return { departures, months };
   });
 }
 
 export async function getPlaces(): Promise<CrmPlace[]> {
-  return withBuildPhaseFallback([], async () => {
+  const path = 'GET /public/places';
+  return withFallbackAlways(path, [], async () => {
     const body = await fetchCrm<unknown>({ path: '/public/places', tags: ['crm:places'] });
-    const places = validateCrmResponse('GET /public/places', crmPlacesResponseSchema, body);
+    const { parsed: places } = parseArrayLeniently(path, crmPlaceSchema, Array.isArray(body) ? body : []);
 
     // Production incident 2026-10-27 — logged ONCE per response (not once
     // per place) so a catalogue-wide field rename produces one line, not
@@ -373,28 +442,73 @@ export async function getPlaces(): Promise<CrmPlace[]> {
   });
 }
 
+/**
+ * The critical one — `SiteShell` calls this from EVERY page (header,
+ * footer, contact details). Incident 2 (2026-10-27): this used to call
+ * `validateCrmResponse()` (a strict, whole-response, throw-on-mismatch
+ * schema) and only shielded the throw during `next build`. A real
+ * `GET /public/site` response with `alt: null` on a site image made that
+ * throw at RUNTIME too, on every single page, taking the entire site
+ * down. Now: every sub-piece is parsed as leniently as the data allows —
+ * each image array drops only its own bad entries, and a malformed
+ * `settings` object falls back to the hard-coded defaults on its own
+ * (logged), without affecting the images — and the whole thing is still
+ * wrapped in `withFallback()` so even a completely malformed/non-JSON
+ * response falls back to `EMPTY_SITE_RESPONSE` instead of throwing.
+ */
 export async function getSite(): Promise<CrmSiteResponse> {
-  return withBuildPhaseFallback(EMPTY_SITE_RESPONSE, async () => {
+  const path = 'GET /public/site';
+  return withFallbackAlways(path, EMPTY_SITE_RESPONSE, async () => {
     const body = await fetchCrm<unknown>({ path: '/public/site', tags: ['crm:site'] });
-    return validateCrmResponse('GET /public/site', crmSiteResponseSchema, body);
+    const raw = (body ?? {}) as Record<string, unknown>;
+    const imagesRaw = (raw.images ?? {}) as Record<string, unknown>;
+
+    const parseImageSlot = (slot: string): CrmSiteImage[] => {
+      const slotPath = `${path} images.${slot}`;
+      const items = Array.isArray(imagesRaw[slot]) ? (imagesRaw[slot] as unknown[]) : [];
+      return parseArrayLeniently(slotPath, crmSiteImageSchema, items).parsed;
+    };
+
+    const images = {
+      HERO_BACKGROUND: parseImageSlot('HERO_BACKGROUND'),
+      ABOUT: parseImageSlot('ABOUT'),
+      GALLERY: parseImageSlot('GALLERY'),
+      FOOTER: parseImageSlot('FOOTER'),
+    };
+
+    const settingsResult = crmSiteSettingsSchema.safeParse(raw.settings);
+    if (!settingsResult.success) {
+      console.error(
+        `[crm] ${path} settings: did not match the documented shape — using the hard-coded default settings ` +
+          `for this request. ${settingsResult.error.issues
+            .slice(0, 3)
+            .map((issue: z.ZodIssue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+            .join('; ')}`
+      );
+    }
+    const settings = settingsResult.success ? settingsResult.data : EMPTY_SITE_RESPONSE.settings;
+
+    return { images, settings };
   });
 }
 
 export async function getCategories(): Promise<CrmCategoryCount[]> {
-  return withBuildPhaseFallback([], async () => {
+  const path = 'GET /public/categories';
+  return withBuildPhaseFallback(path, [], async () => {
     const body = await fetchCrm<unknown>({ path: '/public/categories', tags: ['crm:categories'] });
-    return validateCrmResponse('GET /public/categories', crmCategoriesResponseSchema, body);
+    return parseArrayLeniently(path, crmCategoryCountSchema, Array.isArray(body) ? body : []).parsed;
   });
 }
 
 export async function getSitemap(): Promise<CrmSitemapEntry[]> {
+  const path = 'GET /public/sitemap';
   // Deliberately NOT tagged with the other content tags — this is its own
   // endpoint on its own rate-limit budget (120/min vs 600/min, per the
   // contract) and nothing revalidates it as a side effect of a tour/place
   // save; the CRM's revalidation hook does not name a `sitemap` path.
-  return withBuildPhaseFallback([], async () => {
+  return withBuildPhaseFallback(path, [], async () => {
     const body = await fetchCrm<unknown>({ path: '/public/sitemap', revalidate: 60 });
-    return validateCrmResponse('GET /public/sitemap', crmSitemapResponseSchema, body);
+    return parseArrayLeniently(path, crmSitemapEntrySchema, Array.isArray(body) ? body : []).parsed;
   });
 }
 

@@ -25,10 +25,19 @@ export interface SiteShellProps {
  * `MobileActionBar`) reads the SAME resolved values, so they cannot drift
  * the way four separately-imported constants once did.
  *
- * If either CRM call fails, this throws and Next's nearest `error.tsx`
- * handles it — site-wide chrome failing closed is the right default for a
- * CRM that is now the single source of truth; there is no fixture catalogue
- * left to fall back to silently.
+ * Production incident 2026-10-27 (#2): this comment used to say "if either
+ * CRM call fails, this throws and Next's nearest `error.tsx` handles it" —
+ * that was true, and it is exactly what took the ENTIRE site down the same
+ * day. `SiteShell` renders on every single page, so a throw from `getSite()`/
+ * `getPlaces()` is not a "failing closed on one page", it is every page at
+ * once. Both now NEVER throw (see `withFallbackAlways()` in
+ * `src/server/crm/client.ts` for the full reasoning) — a CRM outage or a
+ * schema mismatch degrades `site`/`places` to their safe empty/`null`
+ * shapes instead, which `resolveSiteContact()` already renders correctly
+ * (falls back to the static `gty-contact` constants) and `Footer`'s empty-
+ * `places` case already handles. This file does not need its own try/catch
+ * for that reason — the fallback already happened one layer down, before
+ * `await` ever rejects here.
  *
  * DOM order matters here: `MobileActionBar` is `position: sticky; bottom: 0`
  * and relies on being the LAST element in the document flow for the "sticky
