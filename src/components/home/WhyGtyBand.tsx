@@ -89,6 +89,37 @@ function buildWhyItems(yearsExperienceLabel: string | null) {
   ];
 }
 
+/**
+ * Decorative pine-cluster silhouette for the card's bottom corners — same
+ * visual language as `Footer`'s `MountainBand`, tinted to sit on a light
+ * card instead of a light-gray one. Purely decorative, `aria-hidden`.
+ */
+function PineCluster({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 120 70" className={className}>
+      <path d="M18 70 L30 40 L24 40 L34 18 L28 18 L40 0 L52 18 L46 18 L56 40 L50 40 L62 70 Z" fill="#f3d9d6" opacity="0.8" />
+      <path d="M-4 70 L6 46 L1 46 L10 28 L30 28 L39 46 L34 46 L44 70 Z" fill="#f7e5e3" opacity="0.8" />
+    </svg>
+  );
+}
+
+/** Dashed flight-trail + airplane glyph, top-right corner — matches the reference image's corner motif. */
+function FlightTrail() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 120 70" className="absolute right-4 top-4 h-10 w-16 text-gty-primary/35 860:h-12 860:w-20">
+      <path
+        d="M2 50 C30 56 48 40 58 26 C66 15 80 8 100 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="1 7"
+      />
+      <path d="M96 4 L112 2 L118 10 L104 12 L108 20 L100 19 L94 12 L84 14 L86 9 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function WhyGtyBand({ yearsExperienceLabel }: WhyGtyBandProps) {
   const whyItems = buildWhyItems(yearsExperienceLabel);
 
@@ -99,20 +130,28 @@ export function WhyGtyBand({ yearsExperienceLabel }: WhyGtyBandProps) {
     >
       <div className="flex items-center gap-[10px]">
         <span aria-hidden="true" className="h-[1.5px] w-[26px] bg-gty-primary" />
-        <p className="text-10 font-bold uppercase tracking-label text-gty-subtle">Why Travel With GTY?</p>
+        <p className="text-10 font-bold uppercase tracking-label text-gty-navy">
+          Why Travel With <span className="text-gty-primary">GTY</span>?
+        </p>
         <span aria-hidden="true" className="h-[1.5px] w-[26px] bg-gty-primary" />
       </div>
 
       <div
         role="group"
         aria-label="Why travel with GTY"
-        className="flex w-full flex-wrap rounded-24 shadow-[0_0_30px_6px_rgba(255,90,70,.22),0_22px_48px_rgba(198,0,0,.3)] 760:flex-nowrap"
-        style={{ background: 'radial-gradient(130% 150% at 50% -10%,#f5442f 0%,#e51612 42%,#c60000 100%)' }}
+        className="relative flex w-full flex-wrap overflow-hidden rounded-24 shadow-gty-card 760:flex-nowrap"
+        style={{
+          background: 'radial-gradient(120% 150% at 50% -10%,#ffffff 0%,#fdf8f6 55%,#faf1ee 100%)',
+        }}
       >
+        <PineCluster className="pointer-events-none absolute -bottom-2 left-0 h-14 w-24 860:h-16 860:w-28" />
+        <PineCluster className="pointer-events-none absolute -bottom-2 right-0 h-14 w-24 scale-x-[-1] 860:h-16 860:w-28" />
+        <FlightTrail />
+
         {whyItems.map((item, index) => (
           <div
             key={item.title}
-            className="flex flex-1 flex-[1_0_44%] flex-col items-center gap-4 border-l border-gty-white/26 px-3 py-[26px] text-center 760:flex-1 760:px-5 760:py-[38px]"
+            className="relative flex flex-1 flex-[1_0_44%] flex-col items-center gap-4 border-l border-gty-border-6 px-3 py-[26px] text-center first:border-l-0 760:flex-1 760:px-5 760:py-[38px]"
           >
             <span className="relative flex h-[86px] w-[86px] flex-none items-center justify-center">
               <span
@@ -130,7 +169,7 @@ export function WhyGtyBand({ yearsExperienceLabel }: WhyGtyBandProps) {
                   background: 'conic-gradient(from 205deg,#f8d787,#c2842a,#fdeeb8,#a3661c,#f8d787)',
                 }}
               >
-                <span className="relative flex flex-1 items-center justify-center rounded-pill bg-gty-white text-gty-primary">
+                <span className="relative flex flex-1 items-center justify-center rounded-pill bg-gty-white text-gty-primary shadow-gty-sm">
                   {WHY_ICONS[index]}
                   {index === 2 && (
                     <span className="absolute left-0 right-0 top-[47%] -translate-y-1/2 text-12-5 font-extrabold tracking-tightest text-gty-primary">
@@ -140,8 +179,8 @@ export function WhyGtyBand({ yearsExperienceLabel }: WhyGtyBandProps) {
                 </span>
               </span>
             </span>
-            <p className="text-16 font-extrabold leading-[1.2] tracking-nudge text-gty-white">{item.title}</p>
-            <p className="max-w-[215px] text-13-5 leading-[1.55] text-gty-white/92">{item.description}</p>
+            <p className="text-16 font-extrabold leading-[1.2] tracking-nudge text-gty-navy">{item.title}</p>
+            <p className="max-w-[215px] text-13-5 leading-[1.55] text-gty-body">{item.description}</p>
           </div>
         ))}
       </div>

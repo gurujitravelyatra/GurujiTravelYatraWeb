@@ -39,6 +39,7 @@
   --color-gty-placeholder: #a09a97; /* form field placeholder */
   --color-gty-faint: #b5aeaa;
   --color-gty-faint-2: #9b9797;
+  --color-gty-navy: #0d1b3e; /* design review 2026-11-01 — "Why Travel With GTY?" label/titles, sampled from the reference image (not reused elsewhere: distinct from gty-ink's warm near-black) */
 
   /* --- Surfaces ----------------------------------------------------------- */
   --color-gty-white: #ffffff;
@@ -83,6 +84,15 @@
   --color-gty-slate: #9aa1a6; /* header decorative SVG */
   --color-gty-slate-2: #c3c8cd;
   --color-gty-overlay-dark: rgba(20, 18, 17, 0.55); /* photo-count badge fill on PackageCard — verified against the export, was missing from this layer */
+
+  /* --- Footer sunset band (design review 2026-11-01) ----------------------
+     Replaces the old flat `--color-gty-primary` footer background. Stops
+     sampled directly from the reference image (Documents/Footer
+     Reference.png) at y≈45%/60%/90% of its red band — one shared source for
+     both Footer's RedBand and CopyrightBar, so they never drift apart. */
+  --color-gty-footer-glow: #e64039; /* bright sunset-red, top of the band */
+  --color-gty-footer-mid: #a90d12;
+  --color-gty-footer-deep: #680303; /* near-maroon, bottom of the band / copyright bar */
 
   /* --- Radii: the export's exact ladder (99px = pill, used 87x) ----------- */
   --radius-2: 2px;
