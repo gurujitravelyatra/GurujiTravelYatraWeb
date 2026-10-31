@@ -6,8 +6,6 @@ import { z } from 'zod';
  * from `@/content/ports`'s wider `LeadSourceTag` (which also covered
  * `'Newsletter Signup'`, `'Contact Page'` and `'Service Enquiry – ${string}'`
  * — tags with no form behind them even before `src/content/**` was deleted).
- * `src/lib/newsletter-adapter.ts` needs none of this; it has exactly one
- * message now, not one per source tag.
  */
 export type LeadSourceTag =
   | `Enquire Now – ${string}`

@@ -4,17 +4,10 @@ import { GTY_PHONE_DISPLAY } from '@/lib/gty-contact';
 /**
  * The browser's side of `POST /api/leads`.
  *
- * ## Why the newsletter form does not use this
- *
  * This route's schema is a discriminated union on `formType`, accepting
  * only the four tags that have a real trigger (enquiry/brochure/group-tour-
  * reservation/custom-trip — all four now forward to the real CRM via
- * `POST /public/enquiries`, CRM-migration Step 3). A newsletter signup has
- * no `formType` to supply and no CRM `kind` to map onto (see
- * `src/lib/newsletter-adapter.ts`'s own header) — `Newsletter.tsx` calls
- * that module directly instead, never this one. Two submit paths is the
- * honest state of the system: one that genuinely reaches a CRM, one that
- * genuinely does not yet.
+ * `POST /public/enquiries`, CRM-migration Step 3).
  *
  * ## Every failure is reported as something a visitor can act on
  *

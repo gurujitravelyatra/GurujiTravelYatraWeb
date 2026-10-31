@@ -2,14 +2,11 @@ import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import type { CrmPlace } from '@/server/crm/types';
 import type { SiteContact } from '@/lib/site-contact';
 
 export interface FooterProps {
   /** Resolved by `SiteShell` from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
   contact: SiteContact;
-  /** `GET /public/places`, fetched once by `SiteShell` — feeds the "Top Destinations" column. */
-  places: CrmPlace[];
 }
 
 const QUICK_LINKS = [
@@ -20,49 +17,31 @@ const QUICK_LINKS = [
   { label: 'About Us', href: '/about-us' },
 ] as const;
 
-const TOP_DESTINATIONS_LIMIT = 7;
-
-/**
- * CRM-migration Step 2: `GET /public/places` returns active places in the
- * CRM's own saved display order, each with a real `liveTourCount` — so
- * "only advertise a destination with at least one journey" is now a filter
- * on real data rather than a derivation from the old fixture catalogue.
- */
-function topDestinations(places: CrmPlace[]): CrmPlace[] {
-  return places.filter((place) => place.liveTourCount > 0).slice(0, TOP_DESTINATIONS_LIMIT);
-}
-
-/**
- * The export rendered these as no-op buttons with no route at all; most are
- * built as real `<Link>`s to deliberately-404 pages instead (Decision G:
- * dead links ship as designed, backed by a branded 404).
- *
- * `FAQs` is REMOVED from this list (not merely re-pointed): per the CRM
- * migration's own decision, `/legal/faqs` stays a deliberate 404 (no real
- * FAQ content exists to build it from), so the footer no longer advertises
- * a link to it at all. The page itself is untouched.
- */
-const SUPPORT_LINKS = [
-  { label: 'Travel Tips', href: '/legal/travel-tips' },
-  { label: 'Cancellation Policy', href: '/legal/cancellation-policy' },
-  { label: 'Terms & Conditions', href: '/legal/terms-and-conditions' },
-  { label: 'Privacy Policy', href: '/legal/privacy-policy' },
-  { label: 'Refund Policy', href: '/legal/refund-policy' },
-] as const;
-
 /**
  * `.ftrwrap`/`.ftr` — export lines 742-829, tech spec §4.3. Server
  * component: pure presentation, no interaction.
+ *
+ * Design review 2026-11-01: the "Top Destinations" and "Support" columns
+ * were removed completely — data and links, not just hidden. `SiteShell` no
+ * longer fetches `GET /public/places` for this component at all (see its
+ * own file header), and the old `SUPPORT_LINKS` array (Travel Tips,
+ * Cancellation Policy, Terms & Conditions, Privacy Policy, Refund Policy) is
+ * gone, not relocated — those pages remain reachable directly and via the
+ * sitemap, just no longer linked from the footer. The remaining Brand /
+ * Quick Links / Get In Touch columns were widened so the three-column
+ * layout reads as intentional rather than leaving a gap where two columns
+ * used to sit. `/legal/faqs` was never linked from here either way (it
+ * stays a deliberate 404).
  *
  * Composition note: this does NOT render `<BottomContactStrip />` — see that
  * component's file header for the exact wiring contract it needs from
  * whatever renders both (root layout / page, out of scope in this pass).
  */
-export function Footer({ contact, places }: FooterProps) {
+export function Footer({ contact }: FooterProps) {
   return (
     <footer className="relative overflow-hidden bg-gty-white">
       <MountainBand />
-      <RedBand contact={contact} destinations={topDestinations(places)} />
+      <RedBand contact={contact} />
       <CopyrightBar />
     </footer>
   );
@@ -129,8 +108,14 @@ function MountainBand() {
   );
 }
 
-/** `.ftrred` — export lines 752-823. Red band with the wave-divider SVG and the 4 `.ftcol` columns plus the wide Brand column. */
-function RedBand({ contact, destinations }: { contact: SiteContact; destinations: CrmPlace[] }) {
+/**
+ * `.ftrred` — export lines 752-823. Red band with the wave-divider SVG and
+ * the footer columns. Design review 2026-11-01: down to 3 columns (Brand,
+ * Quick Links, Get In Touch) after Top Destinations/Support were removed —
+ * widened (`flex-[1.6...]` vs. the original `flex-[1...]`) so they fill the
+ * row evenly instead of leaving a gap where 5 narrower columns used to sit.
+ */
+function RedBand({ contact }: { contact: SiteContact }) {
   return (
     <div className="relative bg-gty-primary px-gx pb-7 pt-11">
       <svg
@@ -180,7 +165,7 @@ function RedBand({ contact, destinations }: { contact: SiteContact; destinations
           </div>
         </div>
 
-        <FooterColumn title="Quick Links">
+        <FooterColumn title="Quick Links" widthClassName="flex-[1.6_1_220px]">
           {QUICK_LINKS.map((link) => (
             <Link key={link.href} href={link.href} className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline">
               {link.label}
@@ -188,27 +173,7 @@ function RedBand({ contact, destinations }: { contact: SiteContact; destinations
           ))}
         </FooterColumn>
 
-        <FooterColumn title="Top Destinations">
-          {destinations.map((destination) => (
-            <Link
-              key={destination.slug}
-              href={`/tour-packages?place=${encodeURIComponent(destination.slug)}`}
-              className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline"
-            >
-              {destination.name}
-            </Link>
-          ))}
-        </FooterColumn>
-
-        <FooterColumn title="Support">
-          {SUPPORT_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline">
-              {link.label}
-            </Link>
-          ))}
-        </FooterColumn>
-
-        <div className="flex min-w-[190px] flex-[1.3_1_200px] flex-col border-l border-gty-white/26 pl-[22px]">
+        <div className="flex min-w-[220px] flex-[1.6_1_240px] flex-col border-l border-gty-white/26 pl-[22px]">
           <h3 className="whitespace-nowrap text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">
             Get In Touch
           </h3>
@@ -239,9 +204,18 @@ function RedBand({ contact, destinations }: { contact: SiteContact; destinations
   );
 }
 
-function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
+function FooterColumn({
+  title,
+  children,
+  widthClassName = 'flex-[1_1_140px]',
+}: {
+  title: string;
+  children: ReactNode;
+  /** Overrides the default flex-basis so columns can be rebalanced when the footer has fewer of them. */
+  widthClassName?: string;
+}) {
   return (
-    <div className="flex min-w-[132px] flex-[1_1_140px] flex-col border-l border-gty-white/26 pl-[22px] max-1080:min-w-[180px] max-1080:flex-[1_1_44%] max-1080:border-l-0 max-1080:pl-0">
+    <div className={`flex min-w-[132px] ${widthClassName} flex-col border-l border-gty-white/26 pl-[22px] max-1080:min-w-[180px] max-1080:flex-[1_1_44%] max-1080:border-l-0 max-1080:pl-0`}>
       <h3 className="whitespace-nowrap text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">{title}</h3>
       <span aria-hidden="true" className="my-[7px] mb-[14px] block h-[2px] w-[38px] bg-gty-white/50" />
       <div className="flex flex-col items-start gap-[9px]">{children}</div>

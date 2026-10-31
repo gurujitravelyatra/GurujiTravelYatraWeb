@@ -2,33 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 
 import { Footer } from '../Footer';
 import { resolveSiteContact } from '@/lib/site-contact';
-import type { CrmPlace } from '@/server/crm/types';
 
 const contact = resolveSiteContact(null);
 const PHONE_DISPLAY = contact.phoneDisplay;
 const EMAIL = contact.email;
 
-function place(slug: string, name: string, liveTourCount: number): CrmPlace {
-  return {
-    name,
-    slug,
-    region: 'Region',
-    description: 'A place.',
-    imageUrl: 'https://res.cloudinary.com/place-images/abc.jpg',
-    showInCustomBuilder: true,
-    liveTourCount,
-  };
-}
-
-const places: CrmPlace[] = [
-  place('kedarnath', 'Kedarnath', 3),
-  place('varanasi', 'Varanasi', 2),
-  place('no-tours', 'No Tours Here', 0),
-];
-
 describe('Footer', () => {
   it('renders the Quick Links column pointing at the five real routes', () => {
-    render(<Footer contact={contact} places={places} />);
+    render(<Footer contact={contact} />);
 
     const expected = [
       ['Home', '/'],
@@ -43,51 +24,30 @@ describe('Footer', () => {
     }
   });
 
-  describe('Top Destinations column', () => {
-    it('deep-links each destination to its own place-filtered catalogue — the CRM contract\'s own query param name', () => {
-      render(<Footer contact={contact} places={places} />);
+  /**
+   * Design review 2026-11-01: "Top Destinations" and "Support" were removed
+   * completely (data and links, not just hidden) — this is the regression
+   * guard for that. `places` is no longer even a `Footer` prop (see
+   * `SiteShell`, which stopped fetching `GET /public/places` for it).
+   */
+  it('renders no Top Destinations or Support column, and no link to any removed Support route or /legal/faqs', () => {
+    render(<Footer contact={contact} />);
 
-      const links = screen
-        .getAllByRole('link')
-        .filter((link) => link.getAttribute('href')?.startsWith('/tour-packages?place='));
+    expect(screen.queryByText('Top Destinations')).not.toBeInTheDocument();
+    expect(screen.queryByText('Support')).not.toBeInTheDocument();
 
-      expect(links.length).toBeGreaterThan(0);
-      const hrefs = links.map((link) => link.getAttribute('href'));
-      expect(new Set(hrefs).size).toBe(hrefs.length);
-    });
-
-    it('names only destinations with at least one live tour (liveTourCount > 0)', () => {
-      render(<Footer contact={contact} places={places} />);
-
-      expect(screen.getByRole('link', { name: 'Kedarnath' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Varanasi' })).toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'No Tours Here' })).not.toBeInTheDocument();
-    });
-  });
-
-  it('renders the Support links as real /legal routes, with NO link to /legal/faqs', () => {
-    render(<Footer contact={contact} places={places} />);
-
-    const expected = [
-      ['Travel Tips', '/legal/travel-tips'],
-      ['Cancellation Policy', '/legal/cancellation-policy'],
-      ['Terms & Conditions', '/legal/terms-and-conditions'],
-      ['Privacy Policy', '/legal/privacy-policy'],
-      ['Refund Policy', '/legal/refund-policy'],
-    ] as const;
-
-    for (const [label, href] of expected) {
-      expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', href);
+    const removedLabels = ['Travel Tips', 'Cancellation Policy', 'Terms & Conditions', 'Privacy Policy', 'Refund Policy', 'FAQs'];
+    for (const label of removedLabels) {
+      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument();
     }
 
-    // The FAQs footer link was removed per the CRM-migration decision: the
-    // page itself stays a deliberate 404, but the footer no longer points at
-    // it.
-    expect(screen.queryByRole('link', { name: 'FAQs' })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) {
+      expect(link.getAttribute('href')).not.toBe('/legal/faqs');
+    }
   });
 
   it('renders the real phone/email as actionable tel: and mailto: links, plus a non-link address', () => {
-    render(<Footer contact={contact} places={places} />);
+    render(<Footer contact={contact} />);
 
     expect(screen.getByRole('link', { name: new RegExp(PHONE_DISPLAY.replace(/\+/g, '\\+')) })).toHaveAttribute(
       'href',
@@ -100,7 +60,7 @@ describe('Footer', () => {
   });
 
   it('links Instagram to the resolved contact URL and leaves every unconfirmed handle inert', () => {
-    render(<Footer contact={contact} places={places} />);
+    render(<Footer contact={contact} />);
 
     const instagram = screen.getByRole('link', { name: 'Instagram' });
     expect(instagram).toHaveAttribute('href', contact.instagramUrl);
@@ -114,7 +74,7 @@ describe('Footer', () => {
   });
 
   it('exposes no admin, login, dashboard or CMS surface anywhere', () => {
-    const { container } = render(<Footer contact={contact} places={places} />);
+    const { container } = render(<Footer contact={contact} />);
 
     for (const link of Array.from(container.querySelectorAll('a'))) {
       expect(link.getAttribute('href')).not.toMatch(/admin|login|sign-?in|dashboard|cms|wp-/i);
@@ -123,7 +83,7 @@ describe('Footer', () => {
   });
 
   it('renders the copyright bar with the CURRENT year, not a hardcoded one', () => {
-    render(<Footer contact={contact} places={places} />);
+    render(<Footer contact={contact} />);
 
     const currentYear = new Date().getFullYear();
     expect(
@@ -134,7 +94,7 @@ describe('Footer', () => {
   it('computes the copyright year from the clock (proved by moving the clock)', () => {
     jest.useFakeTimers().setSystemTime(new Date('2031-03-04T10:00:00Z'));
     try {
-      render(<Footer contact={contact} places={places} />);
+      render(<Footer contact={contact} />);
       expect(screen.getByText(/© 2031 Guruji Travel Yatra/)).toBeInTheDocument();
     } finally {
       jest.useRealTimers();
@@ -142,7 +102,7 @@ describe('Footer', () => {
   });
 
   it('marks the decorative mountain art as hidden from assistive tech', () => {
-    const { container } = render(<Footer contact={contact} places={places} />);
+    const { container } = render(<Footer contact={contact} />);
 
     const band = container.querySelector('[aria-hidden="true"]');
     expect(band).toBeInTheDocument();

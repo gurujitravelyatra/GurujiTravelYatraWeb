@@ -11,7 +11,6 @@ import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
 import { StatsBar } from '@/components/home/StatsBar';
 import { InstagramStrip } from '@/components/home/InstagramStrip';
-import { Newsletter } from '@/components/home/Newsletter';
 
 /**
  * Build-time static prerendering fix (2026-10-27) — capping
@@ -71,6 +70,9 @@ export const dynamic = 'force-dynamic';
  *    no CRM field to source them from. Removed outright.
  *  - Testimonials / About milestones — removed in the earlier CRM-migration
  *    decisions (no CRM endpoint for either).
+ *  - "Let's Travel Together" newsletter signup — removed per design review
+ *    2026-11-01 (never connected to a real backend; see the deleted
+ *    `src/lib/newsletter-adapter.ts`'s own header for why).
  */
 export default async function HomePage() {
   const [site, places, popularTours] = await Promise.all([
@@ -98,7 +100,6 @@ export default async function HomePage() {
       <WhyGtyBand yearsExperienceLabel={stats.yearsExperience ?? null} />
       <StatsBar stats={stats} />
       <InstagramStrip instagramUrl={contact.instagramUrl} />
-      <Newsletter />
     </SiteShell>
   );
 }

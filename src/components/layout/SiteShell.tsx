@@ -1,4 +1,4 @@
-import { getPlaces, getSite } from '@/server/crm/client';
+import { getSite } from '@/server/crm/client';
 import { resolveSiteContact } from '@/lib/site-contact';
 import { Navbar } from './Navbar';
 import { MobileActionBar } from './MobileActionBar';
@@ -18,26 +18,28 @@ export interface SiteShellProps {
  * every public page renders through.
  *
  * CRM-migration Step 2: now an async Server Component. It is the ONE place
- * that fetches `GET /public/site` and `GET /public/places` for the chrome
- * (contact info, the Footer's "Top Destinations" column) — every page
- * composing `<SiteShell>` gets them for free instead of re-fetching, and
- * every contact-info consumer (`Navbar`/`Footer`/`BottomContactStrip`/
+ * that fetches `GET /public/site` for the chrome (contact info) — every page
+ * composing `<SiteShell>` gets it for free instead of re-fetching, and every
+ * contact-info consumer (`Navbar`/`Footer`/`BottomContactStrip`/
  * `MobileActionBar`) reads the SAME resolved values, so they cannot drift
  * the way four separately-imported constants once did.
  *
- * Production incident 2026-10-27 (#2): this comment used to say "if either
- * CRM call fails, this throws and Next's nearest `error.tsx` handles it" —
- * that was true, and it is exactly what took the ENTIRE site down the same
- * day. `SiteShell` renders on every single page, so a throw from `getSite()`/
- * `getPlaces()` is not a "failing closed on one page", it is every page at
- * once. Both now NEVER throw (see `withFallbackAlways()` in
- * `src/server/crm/client.ts` for the full reasoning) — a CRM outage or a
- * schema mismatch degrades `site`/`places` to their safe empty/`null`
- * shapes instead, which `resolveSiteContact()` already renders correctly
- * (falls back to the static `gty-contact` constants) and `Footer`'s empty-
- * `places` case already handles. This file does not need its own try/catch
- * for that reason — the fallback already happened one layer down, before
- * `await` ever rejects here.
+ * Design review 2026-11-01: this used to also fetch `GET /public/places` for
+ * the Footer's "Top Destinations" column. That column was removed entirely
+ * (`Footer.tsx`), so the fetch went with it — one fewer CRM call on every
+ * single page load.
+ *
+ * Production incident 2026-10-27 (#2): this comment used to say "if the CRM
+ * call fails, this throws and Next's nearest `error.tsx` handles it" — that
+ * was true, and it is exactly what took the ENTIRE site down the same day.
+ * `SiteShell` renders on every single page, so a throw from `getSite()` is
+ * not a "failing closed on one page", it is every page at once. It now NEVER
+ * throws (see `withFallbackAlways()` in `src/server/crm/client.ts` for the
+ * full reasoning) — a CRM outage or a schema mismatch degrades `site` to its
+ * safe `null` shape instead, which `resolveSiteContact()` already renders
+ * correctly (falls back to the static `gty-contact` constants). This file
+ * does not need its own try/catch for that reason — the fallback already
+ * happened one layer down, before `await` ever rejects here.
  *
  * DOM order matters here: `MobileActionBar` is `position: sticky; bottom: 0`
  * and relies on being the LAST element in the document flow for the "sticky
@@ -45,7 +47,7 @@ export interface SiteShellProps {
  * wrapper, not before it.
  */
 export async function SiteShell({ activePath, pageLabel, children }: SiteShellProps) {
-  const [site, places] = await Promise.all([getSite(), getPlaces()]);
+  const site = await getSite();
   const contact = resolveSiteContact(site.settings);
 
   return (
@@ -54,7 +56,7 @@ export async function SiteShell({ activePath, pageLabel, children }: SiteShellPr
       <main>{children}</main>
       <div className="relative">
         <BottomContactStrip contact={contact} />
-        <Footer contact={contact} places={places} />
+        <Footer contact={contact} />
       </div>
       <MobileActionBar pageLabel={pageLabel} contact={contact} />
     </div>

@@ -85,7 +85,7 @@ describe('no public navigation surface links to /admin', () => {
   });
 
   it('Footer', () => {
-    const { container } = render(<Footer contact={contact} places={[]} />);
+    const { container } = render(<Footer contact={contact} />);
     assertNoAdminSurface(container);
   });
 
