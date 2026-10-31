@@ -117,7 +117,13 @@ function MountainBand() {
  */
 function RedBand({ contact }: { contact: SiteContact }) {
   return (
-    <div className="relative bg-gty-primary px-gx pb-7 pt-11">
+    <div
+      className="relative px-gx pb-7 pt-11"
+      style={{
+        background:
+          'linear-gradient(180deg, var(--color-gty-footer-glow) 0%, var(--color-gty-footer-mid) 55%, var(--color-gty-footer-deep) 100%)',
+      }}
+    >
       <svg
         viewBox="0 0 1400 110"
         preserveAspectRatio="none"
@@ -126,30 +132,29 @@ function RedBand({ contact }: { contact: SiteContact }) {
       >
         <path
           d="M0 110 L0 44 C220 -6 430 4 700 46 C960 86 1180 66 1400 22 L1400 110 Z"
-          className="fill-gty-primary"
+          className="fill-gty-footer-glow"
         />
       </svg>
 
       <div className="relative flex flex-wrap items-start gap-x-0 gap-y-[22px]">
         <div className="flex min-w-[250px] flex-[2_1_300px] flex-col gap-[14px] pr-[26px]">
           <div className="flex items-center gap-4">
-            <span className="block h-[74px] w-[82px] flex-none overflow-hidden rounded-10">
+            <span className="block h-[74px] w-[82px] flex-none">
               <Image
-                src="/logo/gty-logo.png"
+                src="/logo/gty-logo-mark.webp"
                 alt="Guruji Travel Yatra"
                 width={82}
                 height={82}
-                className="h-[82px] w-[82px] max-w-none object-cover object-[center_22%]"
+                className="h-[82px] w-[82px] object-contain"
               />
             </span>
-            <p className="text-21 font-extrabold leading-[1.08] tracking-tiny text-gty-white">
-              GURUJI
-              <br />
-              TRAVEL YATRA
+            <p className="leading-[1.05] text-gty-white">
+              <span className="block font-marker text-27 leading-[1.1] tracking-wide">Guruji</span>
+              <span className="block text-15 font-extrabold tracking-wider">TRAVEL YATRA</span>
             </p>
           </div>
-          <p className="pl-[2px] text-12-5 tracking-nudge text-gty-white/95">Keep Guessing, Where&#39;s Next Trip?</p>
-          <p className="max-w-[340px] text-14 leading-[1.5] text-gty-white">
+          <p className="pl-[2px] text-13-5 leading-[1.4] tracking-nudge text-gty-white">Keep Guessing, Where&#39;s Next Trip?</p>
+          <p className="max-w-[340px] text-14-5 leading-[1.55] text-gty-white">
             Creating journeys that touch your soul
             <br />
             and memories that last a lifetime.
@@ -167,14 +172,18 @@ function RedBand({ contact }: { contact: SiteContact }) {
 
         <FooterColumn title="Quick Links" widthClassName="flex-[1.6_1_220px]">
           {QUICK_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="text-13-5 text-gty-white/95 hover:text-gty-white hover:underline">
+            <Link
+              key={link.href}
+              href={link.href}
+              className="inline-block py-[3px] text-14-5 text-gty-white hover:underline 860:py-0"
+            >
               {link.label}
             </Link>
           ))}
         </FooterColumn>
 
         <div className="flex min-w-[220px] flex-[1.6_1_240px] flex-col border-l border-gty-white/26 pl-[22px]">
-          <h3 className="whitespace-nowrap text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">
+          <h3 className="whitespace-nowrap text-12 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">
             Get In Touch
           </h3>
           <span aria-hidden="true" className="my-[7px] mb-4 block h-[2px] w-[38px] bg-gty-white/50" />
@@ -216,9 +225,9 @@ function FooterColumn({
 }) {
   return (
     <div className={`flex min-w-[132px] ${widthClassName} flex-col border-l border-gty-white/26 pl-[22px] max-1080:min-w-[180px] max-1080:flex-[1_1_44%] max-1080:border-l-0 max-1080:pl-0`}>
-      <h3 className="whitespace-nowrap text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">{title}</h3>
+      <h3 className="whitespace-nowrap text-12 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">{title}</h3>
       <span aria-hidden="true" className="my-[7px] mb-[14px] block h-[2px] w-[38px] bg-gty-white/50" />
-      <div className="flex flex-col items-start gap-[9px]">{children}</div>
+      <div className="flex flex-col items-start gap-[11px]">{children}</div>
     </div>
   );
 }
@@ -226,20 +235,20 @@ function FooterColumn({
 function ContactRow({ label, href, children }: { label: string; href?: string; children: ReactNode }) {
   const content = (
     <>
-      <span className="flex h-[29px] w-[29px] flex-none items-center justify-center rounded-pill bg-gty-white text-gty-primary">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <span className="flex h-[32px] w-[32px] flex-none items-center justify-center rounded-pill bg-gty-white text-gty-primary">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
           {children}
         </svg>
       </span>
-      <span className="text-13-5 text-gty-white">{label}</span>
+      <span className="text-14-5 leading-[1.4] text-gty-white">{label}</span>
     </>
   );
   return href ? (
-    <a href={href} className="flex items-center gap-[14px] hover:underline">
+    <a href={href} className="flex items-center gap-[14px] py-[3px] hover:underline 860:py-0">
       {content}
     </a>
   ) : (
-    <div className="flex items-center gap-[14px]">{content}</div>
+    <div className="flex items-center gap-[14px] py-[3px] 860:py-0">{content}</div>
   );
 }
 
@@ -350,7 +359,7 @@ function CopyrightBar() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-[10px] bg-gty-primary-darker px-gx py-4 text-12-5 text-gty-white/94">
+    <div className="flex flex-wrap items-center justify-between gap-[10px] bg-gty-footer-deep px-gx py-4 text-13-5 text-gty-white">
       <span>© {year} Guruji Travel Yatra. All Rights Reserved.</span>
       <span className="flex items-center gap-2">
         Designed with <span className="text-17 text-[#ff6b5e]">❤</span> for travellers

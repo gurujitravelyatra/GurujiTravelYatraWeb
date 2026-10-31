@@ -28,7 +28,7 @@
   /* --- Brand red ---------------------------------------------------------- */
   --color-gty-primary: #d80000; /* 168 uses - the brand red */
   --color-gty-primary-deep: #b30000; /* link hover, primary button hover */
-  --color-gty-primary-darker: #a80000; /* footer copyright bar */
+  --color-gty-primary-darker: #a80000; /* unused since design review 2026-11-01 (footer copyright bar now uses --color-gty-footer-deep) — kept: required by design-tokens.test.ts */
 
   /* --- Ink / text --------------------------------------------------------- */
   --color-gty-ink: #1c1a19; /* body text, headings */
@@ -89,10 +89,16 @@
      Replaces the old flat `--color-gty-primary` footer background. Stops
      sampled directly from the reference image (Documents/Footer
      Reference.png) at y≈45%/60%/90% of its red band — one shared source for
-     both Footer's RedBand and CopyrightBar, so they never drift apart. */
-  --color-gty-footer-glow: #e64039; /* bright sunset-red, top of the band */
-  --color-gty-footer-mid: #a90d12;
-  --color-gty-footer-deep: #680303; /* near-maroon, bottom of the band / copyright bar */
+     both Footer's RedBand and CopyrightBar, so they never drift apart.
+     `--color-gty-footer-glow` is deliberately darkened from the literal
+     sampled pixel (#e64039 → #c62a1f): the sampled value contrasts white
+     text at only ~4.2:1, under WCAG AA's 4.5:1 for normal-weight text, and
+     the Brand column's smaller text (tagline, description) sits in exactly
+     that part of the gradient. #c62a1f keeps the same "bright red fading to
+     maroon" shape while clearing AA (~5.6:1) at every stop — see Footer.tsx. */
+  --color-gty-footer-glow: #c62a1f;
+  --color-gty-footer-mid: #a90d12; /* sampled as-is */
+  --color-gty-footer-deep: #680303; /* sampled as-is — near-maroon, bottom of the band / copyright bar */
 
   /* --- Radii: the export's exact ladder (99px = pill, used 87x) ----------- */
   --radius-2: 2px;
@@ -143,9 +149,14 @@
   /* --- Type ---------------------------------------------------------------
      Archivo = UI + headings. Caveat = script accent ONLY.
      Georgia = editorial serif accent (system font, no loading).
-     next/font sets --font-archivo / --font-caveat in layout.tsx.          */
+     Permanent Marker = footer "Guruji" wordmark ONLY (design review
+     2026-11-01) — see the font's own comment in layout.tsx for why Caveat
+     wasn't reused here.
+     next/font sets --font-archivo / --font-caveat / --font-permanent-marker
+     in layout.tsx.                                                        */
   --font-sans: var(--font-archivo), system-ui, sans-serif;
   --font-script: var(--font-caveat), cursive;
+  --font-marker: var(--font-permanent-marker), cursive;
   --font-serif-editorial: Georgia, serif;
 
   /* Font sizes present in the export, to the half-pixel */

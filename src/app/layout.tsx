@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Archivo, Caveat } from 'next/font/google';
+import { Archivo, Caveat, Permanent_Marker } from 'next/font/google';
 import './globals.css';
 
 import { ModalProvider } from '@/components/modals/modal-context';
@@ -27,6 +27,24 @@ const caveat = Caveat({
   subsets: ['latin'],
   weight: ['600', '700'],
   variable: '--font-caveat',
+  display: 'swap',
+});
+
+/**
+ * Design review 2026-11-01 — footer wordmark ("Guruji") only, per
+ * Documents/GTY Logo side text.png: a bold brush-marker script, which
+ * Caveat (a thinner handwriting style, already used for every OTHER script
+ * accent on the site) does not match. Permanent Marker ships a single
+ * weight (400) on Google Fonts, so that is all that's requested here.
+ * Self-hosted via next/font/google like every other family on this site —
+ * no runtime request to fonts.googleapis.com. License: SIL Open Font
+ * License 1.1 (free, including commercial use) — see
+ * https://fonts.google.com/specimen/Permanent+Marker/license.
+ */
+const permanentMarker = Permanent_Marker({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-permanent-marker',
   display: 'swap',
 });
 
@@ -70,7 +88,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${archivo.variable} ${caveat.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${caveat.variable} ${permanentMarker.variable}`}>
       <body>
         {/*
           Mounted once at the root (tech spec §4.3): any Server Component
