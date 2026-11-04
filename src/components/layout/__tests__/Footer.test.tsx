@@ -59,17 +59,25 @@ describe('Footer', () => {
     expect(address.closest('a')).toBeNull();
   });
 
-  it('links Instagram to the resolved contact URL and leaves every unconfirmed handle inert', () => {
+  /**
+   * Design review 2026-11-04: YouTube, Facebook, X (Twitter) and LinkedIn
+   * were removed completely — they were never real links (every one pointed
+   * at a bare `#` stub). Instagram and WhatsApp are the only two social
+   * links the business actually uses, and both resolve to a real URL.
+   */
+  it('links Instagram and WhatsApp to their resolved contact URLs, and renders no other social button', () => {
     render(<Footer contact={contact} />);
 
     const instagram = screen.getByRole('link', { name: 'Instagram' });
     expect(instagram).toHaveAttribute('href', contact.instagramUrl);
     expect(instagram).toHaveAttribute('rel', 'noopener noreferrer');
 
+    const whatsapp = screen.getByRole('link', { name: 'WhatsApp' });
+    expect(whatsapp).toHaveAttribute('href', contact.whatsappUrl);
+    expect(whatsapp).toHaveAttribute('rel', 'noopener noreferrer');
+
     for (const label of ['YouTube', 'Facebook', 'X (Twitter)', 'LinkedIn']) {
-      const link = screen.getByRole('link', { name: label });
-      expect(link).toHaveAttribute('href', '#');
-      expect(link).not.toHaveAttribute('target');
+      expect(screen.queryByRole('link', { name: label })).not.toBeInTheDocument();
     }
   });
 

@@ -109,16 +109,97 @@ function MountainBand() {
 }
 
 /**
+ * Faint pine-forest + mountain silhouette along the red band's bottom edge —
+ * design review 2026-11-04, matching `Documents/Footer Reference.png`'s
+ * "deep red mountain and forest" background. Sits behind the column content
+ * (z-0, columns are `relative`), tinted with the band's own deep stop so it
+ * reads as part of the gradient rather than a separate flat graphic.
+ * Decorative only: `aria-hidden`, `pointer-events-none`.
+ */
+function ForestSilhouette() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 1400 170"
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[90px] w-full text-gty-footer-deep/55 860:h-[130px]"
+    >
+      <path d="M0 170 L90 70 L170 120 L260 50 L360 170Z" fill="currentColor" opacity="0.6" />
+      <path d="M1040 170 L1140 60 L1230 118 L1340 40 L1400 90 L1400 170Z" fill="currentColor" opacity="0.6" />
+      <path d="M0 170 L1400 170 L1400 150 C1150 110 1000 160 820 140 C600 115 420 160 220 140 C130 128 60 150 0 150 Z" fill="currentColor" />
+      {Array.from({ length: 7 }, (_, i) => {
+        const x = 40 + i * 44;
+        return (
+          <path
+            key={i}
+            d={`M${x} 170 L${x + 11} 128 L${x + 7} 128 L${x + 17} 96 L${x + 13} 96 L${x + 24} 66 L${x + 35} 96 L${x + 31} 96 L${x + 41} 128 L${x + 37} 128 L${x + 48} 170 Z`}
+            fill="currentColor"
+            opacity="0.5"
+          />
+        );
+      })}
+      {Array.from({ length: 7 }, (_, i) => {
+        const x = 1000 + i * 44;
+        return (
+          <path
+            key={i}
+            d={`M${x} 170 L${x + 11} 128 L${x + 7} 128 L${x + 17} 96 L${x + 13} 96 L${x + 24} 66 L${x + 35} 96 L${x + 31} 96 L${x + 41} 128 L${x + 37} 128 L${x + 48} 170 Z`}
+            fill="currentColor"
+            opacity="0.5"
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Dashed flight trail + airplane + two birds, top-right of the red band — matches the reference image's corner motif. Decorative, `aria-hidden`. */
+function FooterFlightPath() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 260 120"
+      className="pointer-events-none absolute right-6 top-4 z-0 h-16 w-36 text-gty-white/30 860:h-20 860:w-44"
+    >
+      <path
+        d="M4 70 C50 84 90 56 118 36 C140 20 170 8 210 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="1 7"
+      />
+      <path d="M202 2 L224 0 L232 10 L214 13 L219 24 L208 22 L200 13 L186 16 L189 9 Z" fill="currentColor" />
+      <path d="M30 36 q8 -8 16 0 q-8 -4 -16 0" fill="currentColor" opacity="0.8" />
+      <path d="M64 50 q7 -7 14 0 q-7 -3 -14 0" fill="currentColor" opacity="0.8" />
+    </svg>
+  );
+}
+
+/**
  * `.ftrred` — export lines 752-823. Red band with the wave-divider SVG and
  * the footer columns. Design review 2026-11-01: down to 3 columns (Brand,
  * Quick Links, Get In Touch) after Top Destinations/Support were removed —
  * widened (`flex-[1.6...]` vs. the original `flex-[1...]`) so they fill the
  * row evenly instead of leaving a gap where 5 narrower columns used to sit.
+ * Design review 2026-11-04: added `ForestSilhouette`/`FooterFlightPath`
+ * (both `z-0`, behind the `relative` column content) and extra bottom
+ * padding on mobile so `MobileActionBar`'s sticky bar never sits flush
+ * against the last line of copy. Also fixed a pre-existing <1080px wrap bug:
+ * "Get In Touch" had no <1080px override (unlike `FooterColumn`, which
+ * already switched to `flex-[1_1_44%]` there), so at exactly the brief's own
+ * 768/1024px check widths it wrapped onto an orphaned row under Brand
+ * instead of sitting evenly next to Quick Links — giving "Get In Touch" the
+ * same `max-1080:flex-[1_1_44%]` only moved the orphan (Brand + Quick Links
+ * still fit on one row together below 1080px, pushing Get In Touch alone
+ * onto its own row regardless). Brand now also switches to full width below
+ * 1080px, so the tablet layout is a clean "Brand full-width, Quick Links +
+ * Get In Touch as two even columns underneath" instead of an uneven wrap.
  */
 function RedBand({ contact }: { contact: SiteContact }) {
   return (
     <div
-      className="relative px-gx pb-7 pt-11"
+      className="relative overflow-hidden px-gx pb-7 pt-11"
       style={{
         background:
           'linear-gradient(180deg, var(--color-gty-footer-glow) 0%, var(--color-gty-footer-mid) 55%, var(--color-gty-footer-deep) 100%)',
@@ -136,8 +217,11 @@ function RedBand({ contact }: { contact: SiteContact }) {
         />
       </svg>
 
-      <div className="relative flex flex-wrap items-start gap-x-0 gap-y-[22px]">
-        <div className="flex min-w-[250px] flex-[2_1_300px] flex-col gap-[14px] pr-[26px]">
+      <ForestSilhouette />
+      <FooterFlightPath />
+
+      <div className="relative z-10 flex flex-wrap items-start gap-x-0 gap-y-[22px]">
+        <div className="flex min-w-[250px] flex-[2_1_300px] flex-col gap-[14px] pr-[26px] max-1080:flex-[1_1_100%] max-1080:pr-0">
           <div className="flex items-center gap-4">
             <span className="block h-[74px] w-[82px] flex-none">
               <Image
@@ -159,7 +243,7 @@ function RedBand({ contact }: { contact: SiteContact }) {
             <br />
             and memories that last a lifetime.
           </p>
-          <SocialRow instagramUrl={contact.instagramUrl} />
+          <SocialRow instagramUrl={contact.instagramUrl} whatsappUrl={contact.whatsappUrl} />
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap font-script text-24 rotate-[-4deg] text-gty-white">
               Follow Our Journey
@@ -182,7 +266,7 @@ function RedBand({ contact }: { contact: SiteContact }) {
           ))}
         </FooterColumn>
 
-        <div className="flex min-w-[220px] flex-[1.6_1_240px] flex-col border-l border-gty-white/26 pl-[22px]">
+        <div className="flex min-w-[220px] flex-[1.6_1_240px] flex-col border-l border-gty-white/26 pl-[22px] max-1080:min-w-[180px] max-1080:flex-[1_1_44%] max-1080:border-l-0 max-1080:pl-0">
           <h3 className="whitespace-nowrap text-12 font-extrabold uppercase tracking-eyebrow-3 text-gty-white">
             Get In Touch
           </h3>
@@ -253,53 +337,16 @@ function ContactRow({ label, href, children }: { label: string; href?: string; c
 }
 
 /**
- * Instagram's `href` is passed in per-render (`contact.instagramUrl`, from
- * `GET /public/site` with a static fallback); every other handle below is
- * still unconfirmed — TODO(social-links).
+ * Design review 2026-11-04: YouTube, X (Twitter) and LinkedIn were removed
+ * completely — imports, config and all — because none of them were ever
+ * real links (every one pointed at a bare `#` stub; see the removed
+ * `TODO(social-links)` this file used to carry). Facebook was never backed
+ * by a CRM field either, so it goes too. Instagram (`contact.instagramUrl`)
+ * and WhatsApp (`contact.whatsappUrl`) are the only two the business
+ * actually uses, and both already resolve to a real URL via
+ * `resolveSiteContact` (CRM value, falling back to the confirmed
+ * `gty-contact` constant) — nothing invented.
  */
-const OTHER_SOCIAL_LINKS = [
-  {
-    label: 'YouTube',
-    href: '#',
-    className: 'bg-[#ff0000]',
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true">
-        <path d="M9.5 8.2v7.6l6.5-3.8z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Facebook',
-    href: '#',
-    className: 'bg-[#1877f2]',
-    icon: (
-      <span aria-hidden="true" className="font-serif-editorial text-20 font-extrabold text-gty-white">
-        f
-      </span>
-    ),
-  },
-  {
-    label: 'X (Twitter)',
-    href: '#',
-    className: 'bg-[#141414]',
-    icon: (
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="#fff" aria-hidden="true">
-        <path d="M17.6 3h3.2l-6.9 7.9L21.5 21h-5.3l-4.2-5.5L7 21H3.8l7.3-8.3L3 3h5.4l3.9 5.2z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'LinkedIn',
-    href: '#',
-    className: 'bg-[#0a66c2]',
-    icon: (
-      <span aria-hidden="true" className="text-16 font-extrabold text-gty-white">
-        in
-      </span>
-    ),
-  },
-] as const;
-
 const INSTAGRAM_ICON = (
   <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
     <rect x="3" y="3" width="18" height="18" rx="5" />
@@ -308,7 +355,13 @@ const INSTAGRAM_ICON = (
   </svg>
 );
 
-function SocialRow({ instagramUrl }: { instagramUrl: string }) {
+const WHATSAPP_ICON = (
+  <svg viewBox="0 0 32 32" width="21" height="21" fill="#fff" aria-hidden="true">
+    <path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.7 6.4L3 29l6.8-1.7c1.9 1 4 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm7.3 18.2c-.3.9-1.8 1.7-2.5 1.8-.6.1-1.4.1-2.3-.2-3.6-1.2-6-4.7-6.2-4.9-.2-.3-1.5-2-1.5-3.9s1-2.8 1.3-3.2c.3-.4.7-.5 1-.5h.7c.2 0 .5 0 .8.6l1 2.4c.1.2.1.4 0 .6l-.4.7c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 1.7 1.3 2 1.4.2.1.4.1.6-.1l.9-1c.2-.2.4-.2.6-.1l2.3 1.1c.3.2.5.3.5.5.1.2.1.9-.4 1.6z" />
+  </svg>
+);
+
+function SocialRow({ instagramUrl, whatsappUrl }: { instagramUrl: string; whatsappUrl: string }) {
   const socials = [
     {
       label: 'Instagram',
@@ -316,7 +369,12 @@ function SocialRow({ instagramUrl }: { instagramUrl: string }) {
       className: 'bg-[linear-gradient(135deg,#f9ce34,#ee2a7b_48%,#6228d7)]',
       icon: INSTAGRAM_ICON,
     },
-    ...OTHER_SOCIAL_LINKS,
+    {
+      label: 'WhatsApp',
+      href: whatsappUrl,
+      className: 'bg-gty-whatsapp',
+      icon: WHATSAPP_ICON,
+    },
   ];
 
   return (
@@ -359,7 +417,7 @@ function CopyrightBar() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-[10px] bg-gty-footer-deep px-gx py-4 text-13-5 text-gty-white">
+    <div className="flex flex-wrap items-center justify-between gap-[10px] bg-gty-footer-deep px-gx py-4 pb-[62px] text-13-5 text-gty-white 760:pb-4">
       <span>© {year} Guruji Travel Yatra. All Rights Reserved.</span>
       <span className="flex items-center gap-2">
         Designed with <span className="text-17 text-[#ff6b5e]">❤</span> for travellers
