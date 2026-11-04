@@ -77,15 +77,15 @@ export function BottomContactStrip({ contact }: BottomContactStripProps) {
 
         <span aria-hidden="true" className="hidden min-h-[78px] w-[1.5px] flex-none self-stretch bg-gty-red-400 860:block" />
 
-        <div className="flex min-w-[260px] flex-[1.35] justify-around gap-2">
+        <div className="flex min-w-0 flex-[1.35] justify-around gap-1 860:min-w-[260px] 860:gap-2">
           {BENEFITS.map((benefit) => (
-            <div key={benefit.label} className="flex min-w-[80px] flex-1 flex-col items-center gap-[7px] text-center">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-pill bg-gty-red-200 text-gty-primary">
-                <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true">
+            <div key={benefit.label} className="flex min-w-0 flex-1 flex-col items-center gap-[5px] text-center 860:gap-[7px] 860:min-w-[80px]">
+              <span className="flex h-7 w-7 flex-none items-center justify-center rounded-pill bg-gty-red-200 text-gty-primary 860:h-9 860:w-9">
+                <svg viewBox="0 0 24 24" className="h-[15px] w-[15px] 860:h-[19px] 860:w-[19px]" fill="currentColor" aria-hidden="true">
                   <path d={benefit.path} />
                 </svg>
               </span>
-              <span className="text-11-5 leading-[1.3] text-gty-ink-soft">{benefit.label}</span>
+              <span className="text-[9.5px] leading-[1.25] text-gty-ink-soft 860:text-11-5 860:leading-[1.3]">{benefit.label}</span>
             </div>
           ))}
         </div>

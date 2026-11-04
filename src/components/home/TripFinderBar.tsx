@@ -71,7 +71,16 @@ export function TripFinderBar() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-3 px-4 py-[14px]">
+      {/*
+        Design review 2026-11-04: below 860px this used to stay a `flex-wrap`
+        row — 3 fields with real min-widths (170/130/120px) plus a CTA could
+        never fit a narrow viewport, so labels truncated to 2-3 characters
+        ("Where do yo…", "Jo…" at 375px; still "Jour…"/"2 Tra…" at 768px).
+        Stacked full-width below 860px instead; the original side-by-side row
+        (now gated to `860:flex-row`) is unchanged on desktop, where it always
+        had room.
+      */}
+      <div className="flex flex-col gap-3 px-4 py-[14px] 860:flex-row 860:flex-wrap">
         {/*
           These three are NOT WIRED and now say so. They are the export's own
           inert `.fld` boxes; rendering them as crisp, solid-bordered controls
@@ -80,13 +89,13 @@ export function TripFinderBar() {
           visitor nor a screen-reader user is told they can search here. The
           "Explore Now" CTA beside them is the real, working control.
         */}
-        <DecorativeField className="min-w-[170px] flex-[2]" label="Where do you want to go?" glyph="⌕" />
-        <DecorativeField className="min-w-[130px] flex-1" label="Journey Month" glyph="▤" />
-        <DecorativeField className="min-w-[120px] flex-1" label="2 Travellers" glyph="▾" />
+        <DecorativeField className="w-full 860:min-w-[170px] 860:w-auto 860:flex-[2]" label="Where do you want to go?" glyph="⌕" />
+        <DecorativeField className="w-full 860:min-w-[130px] 860:w-auto 860:flex-1" label="Journey Month" glyph="▤" />
+        <DecorativeField className="w-full 860:min-w-[120px] 860:w-auto 860:flex-1" label="2 Travellers" glyph="▾" />
         <Link
           href={ctaHref(activeTab)}
           data-testid="trip-finder-cta"
-          className="inline-flex min-h-[42px] items-center justify-center gap-[9px] whitespace-nowrap rounded-pill border-[1.5px] border-gty-primary bg-gty-primary px-5 py-3 text-11-5 font-bold tracking-btn text-gty-white shadow-gty-btn transition-[background-color,transform] duration-gty-fast ease-gty hover:-translate-y-px hover:bg-gty-primary-deep"
+          className="inline-flex min-h-[44px] w-full items-center justify-center gap-[9px] whitespace-nowrap rounded-pill border-[1.5px] border-gty-primary bg-gty-primary px-5 py-3 text-11-5 font-bold tracking-btn text-gty-white shadow-gty-btn transition-[background-color,transform] duration-gty-fast ease-gty hover:-translate-y-px hover:bg-gty-primary-deep 860:min-h-[42px] 860:w-auto"
         >
           Explore Now <span aria-hidden="true">→</span>
         </Link>
