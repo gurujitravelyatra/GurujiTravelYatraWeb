@@ -106,25 +106,27 @@ export function StatsBar({ stats }: StatsBarProps) {
         {cards.map((card, index) => (
           <div
             key={card.key}
-            className={`relative flex min-w-[110px] flex-1 flex-col items-center gap-[9px] px-3 py-[30px] ${index > 0 ? 'border-l border-gty-red-200' : ''}`}
+            className={`relative flex min-w-0 flex-1 items-center gap-[10px] px-2 py-4 760:gap-4 760:px-4 760:py-[30px] ${index > 0 ? 'border-l border-gty-red-200' : ''}`}
           >
-            <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-12 bg-gty-white text-gty-primary shadow-gty-sm">
+            <span aria-hidden="true" className="flex h-8 w-8 flex-none items-center justify-center rounded-10 bg-gty-white text-gty-primary shadow-gty-sm 760:h-9 760:w-9 760:rounded-12">
               {card.icon}
             </span>
-            <p className="text-[30px] font-extrabold leading-none text-gty-primary">
-              {card.value}
-              {stats.showFiguresNote && (
-                <span
-                  aria-hidden="true"
-                  data-testid={`stat-placeholder-marker-${card.key}`}
-                  className="align-super text-16 font-bold text-gty-primary/60"
-                >
-                  *
-                </span>
-              )}
-            </p>
-            <p className="text-13-5 text-gty-ink-soft">{card.caption}</p>
-            <StatUnderline />
+            <div className="flex min-w-0 flex-col items-start gap-1">
+              <p className="text-[19px] font-extrabold leading-none text-gty-primary 760:text-[30px]">
+                {card.value}
+                {stats.showFiguresNote && (
+                  <span
+                    aria-hidden="true"
+                    data-testid={`stat-placeholder-marker-${card.key}`}
+                    className="align-super text-16 font-bold text-gty-primary/60"
+                  >
+                    *
+                  </span>
+                )}
+              </p>
+              <p className="text-10 leading-[1.25] text-gty-ink-soft 760:text-13-5">{card.caption}</p>
+              <StatUnderline />
+            </div>
           </div>
         ))}
       </div>
