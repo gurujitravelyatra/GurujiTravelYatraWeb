@@ -125,34 +125,88 @@ describe('StatsBar renders only the 3 CRM-shaped figures it is given', () => {
   });
 });
 
-describe('WhyGtyBand quotes the CRM years-of-experience figure directly, with no placeholder marker', () => {
+describe('WhyGtyBand quotes the CRM years-of-experience figure directly, with no placeholder marker on the pillar', () => {
   it('renders "Trusted Since X Years" when the CRM has set a figure', () => {
-    render(<WhyGtyBand yearsExperienceLabel="8+" />);
+    render(<WhyGtyBand stats={{ yearsExperience: '8+', showFiguresNote: false }} />);
     expect(screen.getByText('Trusted Since 8+ Years')).toBeInTheDocument();
   });
 
   it('falls back to figure-free copy when the CRM has not set one, rather than guessing a number', () => {
-    render(<WhyGtyBand yearsExperienceLabel={null} />);
+    render(<WhyGtyBand stats={{ showFiguresNote: false }} />);
     expect(screen.getByText('Trusted For Years')).toBeInTheDocument();
     expect(screen.queryByText(/Trusted Since/)).not.toBeInTheDocument();
   });
 
-  it('renders no placeholder asterisk or footnote — a CRM-confirmed value needs no caveat', () => {
-    render(<WhyGtyBand yearsExperienceLabel="8+" />);
-    expect(screen.queryByText('*')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('why-placeholder-note')).not.toBeInTheDocument();
+  it('renders no placeholder asterisk on the pillar title itself — a CRM-confirmed value needs no caveat', () => {
+    render(<WhyGtyBand stats={{ yearsExperience: '8+', showFiguresNote: false }} />);
+    expect(screen.getByText('Trusted Since 8+ Years')).not.toHaveTextContent('*');
+  });
+});
+
+/**
+ * "Redux" redesign (brief §8, 2026-11-14): the stats band that used to be
+ * the separate `<StatsBar>` section is now rendered INSIDE `WhyGtyBand`
+ * (reading the exact same `stats` object `Hero` reads) — `StatsBar` the
+ * component is untouched and still renders unchanged on `/about-us`, so its
+ * own describe block above is unaffected. This mirrors that block's
+ * coverage for the new location.
+ */
+describe("WhyGtyBand's stats band renders only the 3 CRM-shaped figures it is given", () => {
+  it('renders Happy Travellers, Destinations and Years of Experience verbatim', () => {
+    render(<WhyGtyBand stats={CONFIRMED_STATS} />);
+    const band = screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' });
+
+    expect(within(band).getByText('42,000+')).toBeInTheDocument();
+    expect(within(band).getByText('Happy Travellers')).toBeInTheDocument();
+    expect(within(band).getByText('7+')).toBeInTheDocument();
+    expect(within(band).getByText('Destinations')).toBeInTheDocument();
+    expect(within(band).getByText('3+')).toBeInTheDocument();
+    expect(within(band).getByText('Years of Experience')).toBeInTheDocument();
+  });
+
+  it('hides a stat instead of rendering a blank box when its value is absent', () => {
+    render(<WhyGtyBand stats={{ happyTravellers: '10,000+', showFiguresNote: false }} />);
+    const band = screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' });
+
+    expect(within(band).getByText('10,000+')).toBeInTheDocument();
+    expect(within(band).queryByText('Destinations')).not.toBeInTheDocument();
+    expect(within(band).queryByText('Years of Experience')).not.toBeInTheDocument();
+  });
+
+  it('renders no stats band at all — not an empty one — when every figure is absent', () => {
+    render(<WhyGtyBand stats={{ showFiguresNote: false }} />);
+    expect(screen.queryByRole('group', { name: 'Guruji Travel Yatra in numbers' })).not.toBeInTheDocument();
+  });
+
+  it('shows the asterisk and footnote on every figure when showFiguresNote is true', () => {
+    render(<WhyGtyBand stats={UNCONFIRMED_STATS} />);
+
+    expect(screen.getByTestId('why-gty-stat-placeholder-happyTravellers')).toBeInTheDocument();
+    expect(screen.getByTestId('why-gty-stat-placeholder-destinations')).toBeInTheDocument();
+    expect(screen.getByTestId('why-gty-stat-placeholder-yearsExperience')).toBeInTheDocument();
+    expect(screen.getByTestId('why-gty-stats-placeholder-note')).toHaveTextContent(/pending confirmation/i);
+  });
+
+  it('shows no marker and no footnote when showFiguresNote is false', () => {
+    render(<WhyGtyBand stats={CONFIRMED_STATS} />);
+
+    expect(screen.queryByTestId('why-gty-stat-placeholder-happyTravellers')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('why-gty-stats-placeholder-note')).not.toBeInTheDocument();
   });
 });
 
 /**
  * F2 — the placeholder marking has to REACH assistive tech, on every surface
- * that still has one (`WhyGtyBand` no longer does — see above). `Hero` and
- * `StatsBar` share the exact same `showFiguresNote`-driven pattern now.
+ * that has one. `StatsBar`, `Hero` and `WhyGtyBand`'s stats band (which
+ * replaced the pillar-title asterisk this section used to carry — see the
+ * describe block above) all share the exact same `showFiguresNote`-driven
+ * pattern.
  */
 describe('placeholder footnotes are wired to the figures they explain', () => {
   interface Surface {
     name: string;
     render: () => void;
+    renderConfirmed: () => void;
     groupLabel: string;
     noteTestId: string;
     markerTestId: string;
@@ -162,6 +216,7 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
     {
       name: 'StatsBar',
       render: () => void render(<StatsBar stats={UNCONFIRMED_STATS} />),
+      renderConfirmed: () => void render(<StatsBar stats={CONFIRMED_STATS} />),
       groupLabel: 'Guruji Travel Yatra in numbers',
       noteTestId: 'stats-placeholder-note',
       markerTestId: 'stat-placeholder-marker-happyTravellers',
@@ -169,9 +224,18 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
     {
       name: 'Hero',
       render: () => void renderHero(UNCONFIRMED_STATS),
+      renderConfirmed: () => void renderHero(CONFIRMED_STATS),
       groupLabel: 'Guruji Travel Yatra in numbers',
       noteTestId: 'hero-stats-placeholder-note',
       markerTestId: 'hero-stat-placeholder-happyTravellers',
+    },
+    {
+      name: "WhyGtyBand's stats band",
+      render: () => void render(<WhyGtyBand stats={UNCONFIRMED_STATS} />),
+      renderConfirmed: () => void render(<WhyGtyBand stats={CONFIRMED_STATS} />),
+      groupLabel: 'Guruji Travel Yatra in numbers',
+      noteTestId: 'why-gty-stats-placeholder-note',
+      markerTestId: 'why-gty-stat-placeholder-happyTravellers',
     },
   ];
 
@@ -205,8 +269,7 @@ describe('placeholder footnotes are wired to the figures they explain', () => {
 
       it('drops the aria-describedby entirely when showFiguresNote is false', () => {
         cleanup();
-        if (surface.name === 'Hero') renderHero(CONFIRMED_STATS);
-        else render(<StatsBar stats={CONFIRMED_STATS} />);
+        surface.renderConfirmed();
 
         expect(screen.queryByTestId(surface.noteTestId)).not.toBeInTheDocument();
         expect(screen.getByRole('group', { name: surface.groupLabel })).not.toHaveAttribute('aria-describedby');

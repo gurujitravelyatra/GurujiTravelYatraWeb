@@ -10,7 +10,6 @@ import { PopularDestinationsSection } from '@/components/home/PopularDestination
 import { DestinationsRail } from '@/components/home/InternationalDestinationsRail';
 import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
-import { StatsBar } from '@/components/home/StatsBar';
 import { InstagramStrip } from '@/components/home/InstagramStrip';
 
 /**
@@ -90,8 +89,9 @@ export default async function HomePage() {
   return (
     <SiteShell activePath="/" pageLabel="Home">
       {/*
-        `Hero` and `StatsBar` are both fed by the SAME `site.settings` —
-        one source, never two independently-maintained copies of a figure.
+        `Hero` and `WhyGtyBand`'s stats band are both fed by the SAME
+        `site.settings` — one source, never two independently-maintained
+        copies of a figure.
       */}
       <Hero headline={contact.heroHeadline} subtext={contact.heroSubtext} heroImageUrl={heroImageUrl} stats={stats} />
       {/*
@@ -116,8 +116,13 @@ export default async function HomePage() {
       <PopularDestinationsSection tours={popularTours.tours} />
       <DestinationsRail places={exploreDestinations} />
       <JourneyVideoBlock profileVideoUrl={contact.profileVideoUrl} />
-      <WhyGtyBand yearsExperienceLabel={stats.yearsExperience ?? null} />
-      <StatsBar stats={stats} />
+      {/*
+        "Redux" redesign (brief §8, 2026-11-14): the stats band that used to
+        be the separate `<StatsBar>` section is now part of `WhyGtyBand`
+        itself (same `stats` object — still one source, never two). `StatsBar`
+        the component is untouched and still renders on `/about-us`.
+      */}
+      <WhyGtyBand stats={stats} />
       <InstagramStrip instagramUrl={contact.instagramUrl} />
     </SiteShell>
   );
