@@ -4,6 +4,7 @@ import { resolveSiteContact } from '@/lib/site-contact';
 
 import { SiteShell } from '@/components/layout/SiteShell';
 import { Hero } from '@/components/home/Hero';
+import { RouteMarquee } from '@/components/home/RouteMarquee';
 import { TripFinderBar } from '@/components/home/TripFinderBar';
 import { PopularDestinationsSection } from '@/components/home/PopularDestinationsSection';
 import { DestinationsRail } from '@/components/home/InternationalDestinationsRail';
@@ -93,6 +94,24 @@ export default async function HomePage() {
         one source, never two independently-maintained copies of a figure.
       */}
       <Hero headline={contact.heroHeadline} subtext={contact.heroSubtext} heroImageUrl={heroImageUrl} stats={stats} />
+      {/*
+        Filtered to the SAME liveTourCount > 0 subset `DestinationsRail`
+        further down the page uses, not every CRM place — the rest of this
+        page already treats "no live tours" as "do not promote this
+        destination right now" (see home.fake-server.test.tsx's "a place
+        with zero live tours does not crash the Explore Destinations rail"),
+        and this scrolling strip is promotional, not a neutral directory.
+
+        Only rendered with NO real destinations when the CRM has configured
+        NO places at all (`places.length === 0`) — `RouteMarquee` then shows
+        its static fallback list. If the CRM has places but every one of
+        them is filtered out for having zero live tours right now, this
+        renders nothing rather than a fallback list unrelated to what the
+        CRM actually has configured.
+      */}
+      {(exploreDestinations.length > 0 || places.length === 0) && (
+        <RouteMarquee places={exploreDestinations.map((place) => place.name)} />
+      )}
       <TripFinderBar />
       <PopularDestinationsSection tours={popularTours.tours} />
       <DestinationsRail places={exploreDestinations} />
