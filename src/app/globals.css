@@ -214,6 +214,117 @@
   --ease-gty: cubic-bezier(0.25, 0.1, 0.25, 1); /* === CSS `ease` */
   --duration-gty-fast: 150ms;
   --duration-gty-card: 180ms;
+
+  /* ==========================================================================
+     "REDUX" DESIGN SYSTEM (2026-11-14) — home page + shared header/footer only.
+     ----------------------------------------------------------------------------
+     A second, deliberately separate design language layered in alongside the
+     `--color-gty-*`/Archivo tokens above, which every OTHER route (tour
+     packages, about us, group tours, customize tours, legal pages) keeps
+     using unchanged. Nothing above this block was edited or removed.
+
+     Scope decision (see the round's report for the full reasoning): the
+     brief's own global CSS asked for `body { background; color; font-family }`
+     to change outright, which would restyle every page's base text — not
+     just the home page + shared chrome this round is scoped to. That base
+     `body` rule (further down this file, @layer base) was deliberately left
+     reading the ORIGINAL `--color-gty-bg`/`--color-gty-ink`/`--font-sans`
+     tokens. These `--color-redux-*`/`--font-redux-*` tokens exist so Navbar,
+     Footer and every home-page section can opt in explicitly via their own
+     Tailwind classes (`bg-redux-cream`, `text-redux-ink`, `font-redux-display`,
+     `font-redux-sans`, …) — the same "every element gets an explicit class,
+     nothing relies on inherited body defaults" convention this file already
+     follows for the `gty-*` system. Tour-packages/about-us/etc. are
+     therefore visually unaffected by this round, by design; Navbar/Footer
+     change everywhere since the brief explicitly calls them "shared".       */
+  --color-redux-crimson: #dc2626;
+  --color-redux-crimson-dark: #b91c1c;
+  --color-redux-crimson-deep: #7f1216;
+  --color-redux-crimson-tint: #fef2f2;
+  --color-redux-cream: #faf8f5;
+  --color-redux-ink: #1c1917;
+  --color-redux-ink-mute: #78716c;
+  --color-redux-ink-soft: #57534e;
+
+  /* next/font sets --font-playfair-display / --font-plus-jakarta-sans in layout.tsx. */
+  --font-redux-display: var(--font-playfair-display), Georgia, serif;
+  --font-redux-sans: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --tracking-widest2: 0.3em;
+  --duration-redux-400: 400ms;
+
+  --animate-redux-marquee: redux-marquee 48s linear infinite;
+  --animate-redux-pulse-ring: redux-pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes redux-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes redux-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   "Redux" global utility classes (brief §1) — inert everywhere else, since
+   no existing markup uses these class names. Scoped mentally, not by CSS
+   selector, to the home page + shared header/footer.
+   ========================================================================== */
+@layer utilities {
+  .btn-shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.35) 50%, transparent 58%);
+    transform: translateX(-130%);
+    transition: transform 0.7s;
+    pointer-events: none;
+  }
+  .btn-shine:hover::after {
+    transform: translateX(130%);
+  }
+
+  .link-grow {
+    position: relative;
+  }
+  .link-grow::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    height: 2px;
+    width: 100%;
+    background: var(--color-redux-crimson);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .link-grow:hover::after,
+  .link-grow.is-active::after {
+    transform: scaleX(1);
+  }
+
+  .clean-select {
+    appearance: none;
+    background-color: transparent;
+  }
 }
 
 /* ============================================================================
@@ -234,6 +345,17 @@
 @layer base {
   * {
     box-sizing: border-box;
+  }
+
+  /* Brief §1 ("Redux" global CSS) — safe sitewide: neither line restyles the
+     page itself, so both apply everywhere rather than being scoped to the
+     home page like the color/font tokens above. */
+  html {
+    scroll-behavior: smooth;
+  }
+  ::selection {
+    background: var(--color-redux-crimson);
+    color: #fff;
   }
 
   body {

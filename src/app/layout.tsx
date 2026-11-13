@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Archivo, Caveat, Permanent_Marker } from 'next/font/google';
+import { Archivo, Caveat, Permanent_Marker, Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
 import { ModalProvider } from '@/components/modals/modal-context';
@@ -49,6 +49,32 @@ const permanentMarker = Permanent_Marker({
 });
 
 /**
+ * Design review 2026-11-14 ("Redux" home-page/header/footer redesign) —
+ * self-hosted via next/font/google, same as every family above. Requested
+ * weight/style is a superset of the brief's "500, 600, 700, italic 500/600":
+ * next/font/google generates one weight×style grid per call, and Playfair
+ * Display has a real italic 700 on Google Fonts, so requesting it too (never
+ * used in this round's italic headings) is simpler and cheaper than a second
+ * font instance just to omit one unused italic cut. License: SIL Open Font
+ * License 1.1 (free, including commercial use).
+ */
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-playfair-display',
+  display: 'swap',
+});
+
+/** License: SIL Open Font License 1.1 (free, including commercial use). */
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta-sans',
+  display: 'swap',
+});
+
+/**
  * Base origin every relative URL in a `metadata` export resolves against —
  * required for `/tour-packages`'s `alternates.canonical` to emit a real
  * absolute canonical instead of Next's `http://localhost:3000` default.
@@ -88,7 +114,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${archivo.variable} ${caveat.variable} ${permanentMarker.variable}`}>
+    <html
+      lang="en"
+      className={`${archivo.variable} ${caveat.variable} ${permanentMarker.variable} ${playfairDisplay.variable} ${plusJakartaSans.variable}`}
+    >
       <body>
         {/*
           Mounted once at the root (tech spec §4.3): any Server Component
