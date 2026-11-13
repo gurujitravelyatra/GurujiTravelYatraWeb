@@ -27,7 +27,9 @@ describe('JourneyVideoBlock with no video configured', () => {
     render(<JourneyVideoBlock profileVideoUrl={null} />);
 
     expect(screen.getByTestId('section-5-8-journey-video')).toBeInTheDocument();
-    expect(screen.getByText('Explore Journeys')).toBeInTheDocument();
+    // Source casing is "Explore journeys" (brief §7) — rendered ALL CAPS via
+    // `uppercase`, so this is a visual no-op, not a copy change.
+    expect(screen.getByText('Explore journeys')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Explore All Journeys/ })).toHaveAttribute('href', '/tour-packages');
   });
 });
