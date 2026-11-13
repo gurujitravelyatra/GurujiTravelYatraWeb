@@ -1,5 +1,7 @@
 'use client';
 
+import { ArrowRight, Menu, Phone, X } from 'lucide-react';
+
 import { useModal } from '@/components/modals/modal-context';
 import { trackEvent } from '@/lib/analytics';
 import { useMobileMenu } from './mobile-menu-context';
@@ -10,35 +12,28 @@ export interface HeaderControlsProps {
   phoneTel: string;
 }
 
-/**
- * Right-hand cluster of the header pill bar — export lines 131-142. Call
- * button + divider are ≥760px only; the burger is <1180px only.
- */
+/** "Redux" redesign (brief §2) — right-hand cluster of the floating pill header. */
 export function HeaderControls({ pageLabel, phoneTel }: HeaderControlsProps) {
   const { openEnquiry } = useModal();
   const { open, toggle } = useMobileMenu();
 
   return (
-    <div className="relative z-[2] ml-auto flex flex-none items-center gap-[14px]">
+    <div className="flex items-center gap-2.5">
       <a
         href={`tel:${phoneTel}`}
         onClick={() => trackEvent('call_click', { location: 'header' })}
         aria-label="Call Guruji Travel Yatra"
-        className="relative hidden h-10 w-10 flex-none items-center justify-center rounded-pill bg-gty-primary text-gty-white shadow-gty-red-lg transition-colors duration-gty-fast ease-gty hover:bg-gty-primary-deep 760:flex"
+        className="hidden rounded-full bg-redux-crimson p-2.5 text-white shadow-[0_10px_22px_-8px_rgba(220,38,38,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-redux-crimson-dark sm:block"
       >
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
-          <path d="M6.6 10.8c1.1 2.2 2.9 4 5.1 5.1l1.7-1.7c.2-.2.5-.3.8-.2 1 .3 2 .5 3.1.5.4 0 .8.3.8.8V18c0 .4-.3.8-.8.8C9.6 18.8 5.2 14.4 5.2 7.5c0-.4.3-.8.8-.8h2.7c.4 0 .8.3.8.8 0 1.1.2 2.1.5 3.1.1.3 0 .6-.2.8z" />
-        </svg>
+        <Phone size={16} />
       </a>
-      <span aria-hidden="true" className="hidden h-[26px] w-px flex-none bg-gty-border-2 760:block" />
       <button
         type="button"
         onClick={() => openEnquiry({ label: 'Page', value: pageLabel })}
-        className="flex flex-none items-center gap-[9px] whitespace-nowrap rounded-pill border-[1.5px] border-gty-primary bg-gty-primary px-6 py-[14px] text-13 font-bold tracking-btn text-gty-white shadow-gty-red-lg transition-[background-color,box-shadow,transform] duration-gty-fast ease-gty hover:-translate-y-px hover:bg-gty-primary-deep"
+        className="btn-shine hidden items-center gap-2 rounded-full bg-redux-crimson px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_25px_-8px_rgba(220,38,38,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-redux-crimson-dark sm:inline-flex"
       >
-        <span className="hidden 760:inline">Enquire Now</span>
-        <span className="760:hidden">Enquire</span>
-        <span aria-hidden="true">→</span>
+        Enquire
+        <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
       </button>
       <button
         type="button"
@@ -46,9 +41,9 @@ export function HeaderControls({ pageLabel, phoneTel }: HeaderControlsProps) {
         aria-expanded={open}
         aria-controls="mobile-menu-panel"
         aria-label={open ? 'Close menu' : 'Open menu'}
-        className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary max-1180:flex"
+        className="rounded-full border border-stone-200 p-2.5 text-stone-800 transition-colors hover:border-redux-crimson/40 hover:text-redux-crimson lg:hidden"
       >
-        ☰
+        {open ? <X size={19} /> : <Menu size={19} />}
       </button>
     </div>
   );

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { MobileMenu } from '../MobileMenu';
@@ -45,7 +45,7 @@ describe('MobileMenu', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('renders exactly 5 nav items plus the Call/Enquire row when open', async () => {
+  it('renders exactly 5 nav items plus the Enquire CTA when open', async () => {
     const user = userEvent.setup();
     renderOpenMenu();
     await user.click(screen.getByText('toggle-for-test'));
@@ -54,15 +54,12 @@ describe('MobileMenu', () => {
     for (const label of expectedItems) {
       expect(screen.getByRole('link', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     }
-    // Exactly 5 nav links — no extra/missing item. Scoped to in-app routes so
-    // the `tel:` "Call GTY" action link (asserted separately below) isn't
-    // counted as a sixth nav item.
+    // Exactly 5 nav links — no extra/missing item.
     const navLinks = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('href')?.startsWith('/'));
     expect(navLinks).toHaveLength(5);
 
-    expect(screen.getByRole('link', { name: /Call GTY/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enquire Now' })).toBeInTheDocument();
   });
 
@@ -71,11 +68,18 @@ describe('MobileMenu', () => {
     renderOpenMenu();
     await user.click(screen.getByText('toggle-for-test'));
 
-    expect(screen.getByRole('link', { name: /^Home/ })).toBeInTheDocument();
+    const homeLink = screen.getByRole('link', { name: /^Home/ });
+    expect(homeLink).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: /^Home/ }));
+    await user.click(homeLink);
 
-    expect(screen.queryByRole('link', { name: /^Home/ })).not.toBeInTheDocument();
+    // AnimatePresence may keep the panel mounted for a moment after the
+    // click (mid exit transition) before removing it — the actual contract
+    // is "it leaves the DOM once the exit animation finishes", not
+    // "instantly" or "synchronously", so only wait if it is not already gone.
+    if (screen.queryByRole('link', { name: /^Home/ })) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('link', { name: /^Home/ }));
+    }
   });
 
   it('closes the menu and calls openEnquiry with the page context when "Enquire Now" is clicked', async () => {
@@ -86,6 +90,8 @@ describe('MobileMenu', () => {
     await user.click(screen.getByRole('button', { name: 'Enquire Now' }));
 
     expect(openEnquiry).toHaveBeenCalledWith({ label: 'Page', value: 'Tour Packages' });
-    expect(screen.queryByRole('button', { name: 'Enquire Now' })).not.toBeInTheDocument();
+    if (screen.queryByRole('button', { name: 'Enquire Now' })) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('button', { name: 'Enquire Now' }));
+    }
   });
 });

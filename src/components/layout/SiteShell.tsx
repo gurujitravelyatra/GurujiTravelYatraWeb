@@ -45,6 +45,14 @@ export interface SiteShellProps {
  * and relies on being the LAST element in the document flow for the "sticky
  * footer bar" trick to work — it must render after the Footer/BottomContactStrip
  * wrapper, not before it.
+ *
+ * "Redux" redesign (2026-11-14): `Navbar` switched from `position: sticky`
+ * (took real space in document flow) to `position: fixed` (brief §2) so the
+ * home page's dark hero can run full-bleed behind it — `Hero`'s own content
+ * wrapper carries enough top padding to clear the floating header itself.
+ * Every OTHER route does not have that padding built in, so `<main>` adds it
+ * here instead, conditionally, rather than touching each of those pages —
+ * this is the one shared place that already knows `activePath`.
  */
 export async function SiteShell({ activePath, pageLabel, children }: SiteShellProps) {
   const site = await getSite();
@@ -53,7 +61,7 @@ export async function SiteShell({ activePath, pageLabel, children }: SiteShellPr
   return (
     <div className="site relative w-full bg-gty-white">
       <Navbar activePath={activePath} pageLabel={pageLabel} contact={contact} />
-      <main>{children}</main>
+      <main className={activePath === '/' ? undefined : 'pt-[104px] sm:pt-[112px]'}>{children}</main>
       <div className="relative">
         <BottomContactStrip contact={contact} />
         <Footer contact={contact} />

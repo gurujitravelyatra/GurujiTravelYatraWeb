@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { Navbar } from '../Navbar';
@@ -47,7 +47,9 @@ describe('Navbar', () => {
     expect(screen.getByRole('button', { name: 'Close menu' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close menu' }));
-    expect(screen.queryByRole('link', { name: 'About Us' })).not.toBeInTheDocument();
+    if (screen.queryByRole('link', { name: 'About Us' })) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('link', { name: 'About Us' }));
+    }
   });
 
   it('CTA click calls openEnquiry with the current page context', async () => {

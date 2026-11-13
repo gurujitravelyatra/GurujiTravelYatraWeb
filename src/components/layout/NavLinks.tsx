@@ -19,10 +19,10 @@ export interface NavLinksProps {
   activePath: string;
 }
 
-/** `.hdrnav` — desktop nav row, visible only ≥1180px (tech spec §4.2/§4.3). */
+/** "Redux" redesign (brief §2) — `lg:flex` desktop link row, `.link-grow` underline on hover/active. */
 export function NavLinks({ activePath }: NavLinksProps) {
   return (
-    <div className="hidden min-w-0 flex-1 justify-center gap-[30px] 1180:flex">
+    <div className="hidden items-center gap-8 lg:flex">
       {NAV_ITEMS.map((item) => {
         const isActive = item.href === activePath;
         return (
@@ -31,8 +31,8 @@ export function NavLinks({ activePath }: NavLinksProps) {
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'whitespace-nowrap border-b-[2.5px] border-transparent pb-[9px] pt-[5px] text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary',
-              isActive && 'border-gty-primary font-semibold text-gty-primary'
+              'link-grow text-[15px] font-semibold text-stone-700 transition-colors hover:text-redux-crimson',
+              isActive && 'is-active text-redux-crimson'
             )}
           >
             {item.label}
