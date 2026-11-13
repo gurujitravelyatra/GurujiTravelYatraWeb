@@ -2,7 +2,6 @@ import { render, screen, within } from '@testing-library/react';
 
 import { PopularDestinationsSection } from '../PopularDestinationsSection';
 import { DestinationsRail } from '../InternationalDestinationsRail';
-import { gridColumnsForCount } from '@/lib/card-grid';
 import type { CrmPlace, CrmTourCard } from '@/server/crm/types';
 
 /**
@@ -70,43 +69,40 @@ function place(slug: string): CrmPlace {
   };
 }
 
-describe('Popular Destinations adapts to how many cards there actually are', () => {
-  it('declares exactly as many grid columns as it has cards', () => {
+/**
+ * "Redux" redesign (brief §6, 2026-11-14) REQUIRED CHANGE: a fixed
+ * responsive grid (1 col / 2 / 3 / 4 at ≥1280px) replaces the item-count-
+ * driven `gridColumnsForCount` ladder this file used to assert here — that
+ * helper (and its own test coverage in card-grid.test.ts) still exists
+ * unchanged for `/tour-packages`' grid, which is out of scope this round.
+ * The dot pagination is gone outright per the brief: "Dots under the grid
+ * in the reference are decorative; omit them unless a real carousel is
+ * used" — this grid never was a carousel.
+ */
+describe('Popular Destinations renders a fixed responsive grid regardless of card count', () => {
+  it('always declares the same responsive column classes', () => {
     render(<PopularDestinationsSection tours={fiveTours} />);
     const grid = screen.getByTestId('popular-destinations-grid');
 
-    expect(grid.className).toContain(gridColumnsForCount(fiveTours.length));
-    for (const match of grid.className.matchAll(/grid-cols-(\d+)/g)) {
-      expect(Number(match[1])).toBeLessThanOrEqual(fiveTours.length);
-    }
+    expect(grid.className).toMatch(/sm:grid-cols-2/);
+    expect(grid.className).toMatch(/lg:grid-cols-3/);
+    expect(grid.className).toMatch(/xl:grid-cols-4/);
   });
 
-  it('does not hardcode the five-column ladder the design was drawn against', () => {
+  it('renders one card per tour, for a sparse list too', () => {
     const sparse = fiveTours.slice(0, 2);
     render(<PopularDestinationsSection tours={sparse} />);
-    expect(screen.getByTestId('popular-destinations-grid').className).not.toMatch(/grid-cols-5/);
+    expect(within(screen.getByTestId('popular-destinations-grid')).getAllByRole('link')).toHaveLength(2);
   });
 
-  it('draws one dot per card, not a fixed five', () => {
+  it('renders no dot-pagination element at all', () => {
     render(<PopularDestinationsSection tours={fiveTours} />);
-
-    const dots = screen.getByTestId('popular-destinations-dots');
-    const cards = within(screen.getByTestId('popular-destinations-grid')).getAllByRole('link');
-
-    expect(dots.children).toHaveLength(fiveTours.length);
-    expect(dots.children).toHaveLength(cards.length);
+    expect(screen.queryByTestId('popular-destinations-dots')).not.toBeInTheDocument();
   });
 
-  it('keeps grid and dots in step at any count', () => {
-    render(<PopularDestinationsSection tours={fiveTours.slice(0, 1)} />);
-
-    expect(screen.getByTestId('popular-destinations-dots').children).toHaveLength(1);
-    expect(screen.getByTestId('popular-destinations-grid').className).not.toMatch(/grid-cols-[2-9]/);
-  });
-
-  it('renders no dots at all for an empty list rather than a lone orphan dot', () => {
+  it('renders an empty grid rather than crashing when there are no tours', () => {
     render(<PopularDestinationsSection tours={[]} />);
-    expect(screen.getByTestId('popular-destinations-dots').children).toHaveLength(0);
+    expect(within(screen.getByTestId('popular-destinations-grid')).queryAllByRole('link')).toHaveLength(0);
   });
 });
 

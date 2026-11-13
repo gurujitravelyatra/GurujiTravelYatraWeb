@@ -1,9 +1,9 @@
 import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
 import type { CrmTourCard } from '@/server/crm/types';
-import { PackageCard } from '@/components/cards/PackageCard';
-import { gridColumnsForCount } from '@/lib/card-grid';
-import { cn } from '@/lib/utils';
+import { PopularDestinationCard } from './PopularDestinationCard';
+import { Reveal } from './Reveal';
 
 export interface PopularDestinationsSectionProps {
   tours: CrmTourCard[];
@@ -11,43 +11,54 @@ export interface PopularDestinationsSectionProps {
 
 /**
  * Export lines 190-219, tech spec §4.4 row 6. Despite the section name, the
- * export's own card composition here is the full `PackageCard`
- * (price/duration/savings/heart), not the minimal `DestinationCard` — that
+ * card composition here is the full `PopularDestinationCard`
+ * (price/duration/seats/heart), not the minimal `DestinationCard` — that
  * one is reserved for the International rail below.
  *
- * Dot pagination is presentational-only per tech spec ("no working pagination
- * logic required this sprint since all fixture items fit on screen") and
- * renders ONE DOT PER CARD ACTUALLY RENDERED — the tech spec's "5 dots" was
- * written when the rail had 5 items and is not a fixed count.
+ * "Redux" redesign (brief §6, 2026-11-14): REQUIRED CHANGE — a fixed
+ * responsive grid (1 col / 2 / 3 / 4 at ≥1280px) replaces the old
+ * `gridColumnsForCount` item-count-driven ladder (still used, unchanged,
+ * by `/tour-packages`' own grid via `PackagesCatalogue.tsx` — that page is
+ * out of scope this round). `page.tsx` already caps `tours` at 8
+ * (`getTours({ pageSize: 8 })`), matching the brief's "if more than 4
+ * tours, show the first 8 as rows" — nothing to slice here.
+ *
+ * Dot pagination (export's own, presentational-only) was dropped per the
+ * brief: "Dots under the grid in the reference are decorative; omit them
+ * unless a real carousel is used" — this grid is not a carousel.
  */
 export function PopularDestinationsSection({ tours }: PopularDestinationsSectionProps) {
   return (
-    <section data-testid="section-6-popular-destinations" className="flex flex-col gap-[14px] border-t border-gty-border-6 px-gx py-[22px]">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-24 font-extrabold tracking-tightest text-gty-ink">
-          Popular <span className="text-gty-primary">Destinations</span>
-        </h2>
-        <Link href="/tour-packages" className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary">
-          View All Tour Packages →
-        </Link>
-      </div>
+    <section className="bg-white px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <div className="mx-auto max-w-[1320px]">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <Reveal>
+            <span className="inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-widest2 text-redux-crimson">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 bg-redux-crimson" />
+              Handpicked for you
+            </span>
+            <h2 className="mt-3 font-redux-display text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
+              Popular <em className="italic text-redux-crimson">Destinations</em>
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <Link
+              href="/tour-packages"
+              className="group inline-flex items-center gap-2 rounded-full border border-stone-300 px-5 py-2.5 text-sm font-bold text-stone-800 transition-all duration-300 hover:-translate-y-0.5 hover:border-redux-crimson hover:bg-redux-crimson hover:text-white"
+            >
+              View All Tour Packages
+              <ArrowUpRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </Reveal>
+        </div>
 
-      <div
-        data-testid="popular-destinations-grid"
-        className={cn('grid gap-[18px]', gridColumnsForCount(tours.length))}
-      >
-        {tours.map((tour) => (
-          <PackageCard key={tour.slug} tour={tour} />
-        ))}
-      </div>
-
-      <div aria-hidden="true" data-testid="popular-destinations-dots" className="flex justify-center gap-[6px] pt-1">
-        {tours.map((tour, index) => (
-          <span
-            key={tour.slug}
-            className={index === 0 ? 'h-[7px] w-[18px] rounded-pill bg-gty-primary' : 'h-[7px] w-[7px] rounded-pill bg-gty-border-3'}
-          />
-        ))}
+        <div data-testid="popular-destinations-grid" className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {tours.map((tour, index) => (
+            <Reveal key={tour.slug} delay={Math.min(index * 0.12, 0.4)} className="h-full">
+              <PopularDestinationCard tour={tour} />
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
