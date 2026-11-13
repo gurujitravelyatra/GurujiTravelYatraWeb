@@ -1,13 +1,6 @@
-import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { Instagram } from 'lucide-react';
 
-/**
- * No real Instagram feed integration exists (no API, no CMS-managed tile
- * set) — these are obvious placeholder tiles, never presented as real posts.
- * Inlined here (not read through `@/content/**`, which is the old fixture/
- * database content layer being removed) since this is decorative token data
- * with no CRM source and no reason to live in that doomed directory.
- */
-const INSTAGRAM_TILE_KEYS = Array.from({ length: 6 }, (_, index) => `instagram-placeholder-${index + 1}`);
+import { Reveal } from './Reveal';
 
 export interface InstagramStripProps {
   /** Resolved from `site.settings.instagramUrl` with a static fallback — see `resolveSiteContact`. */
@@ -21,37 +14,84 @@ function instagramHandleFromUrl(url: string): string {
 }
 
 /**
- * [TOKENS] — no design reference exists for this section. No Instagram API
- * integration — tiles are obvious placeholders (see instagram.fixture.ts),
- * but the handle and profile link are real, sourced from the CRM's site
- * settings (with a static fallback until the Owner sets one there).
+ * "Redux" redesign (brief §9, 2026-11-14) — postcard-style tiles replace
+ * the old dashed "Image placeholder" boxes. Still no real Instagram API/CMS
+ * integration (same as before — see the deleted comment this file used to
+ * carry), so these stay obvious decorative art, not photos presented as
+ * real posts; the brief's own fallback for this exact situation ("If real
+ * Instagram photos are available in the CRM site images, use them instead")
+ * does not apply — `GET /public/site`'s `images` has no Instagram slot at
+ * all (`HERO_BACKGROUND`/`ABOUT`/`GALLERY`/`FOOTER` only), so there is
+ * nothing to prefer over the postcard art.
+ *
+ * Caption copy ("Yatra diary", "Temple trails", …) is the brief's own
+ * decorative placeholder set, not a claim about any specific real post.
  */
+const POSTCARDS = [
+  { caption: 'Yatra diary', bg: 'bg-redux-crimson-tint' },
+  { caption: 'Temple trails', bg: 'bg-[#F5F0EB]' },
+  { caption: 'Mountain air', bg: 'bg-redux-crimson-tint' },
+  { caption: 'Group joy', bg: 'bg-[#F5F0EB]' },
+  { caption: 'Roadside chai', bg: 'bg-redux-crimson-tint' },
+  { caption: 'Darshan day', bg: 'bg-[#F5F0EB]' },
+] as const;
+
 export function InstagramStrip({ instagramUrl }: InstagramStripProps) {
   const handle = instagramHandleFromUrl(instagramUrl);
 
   return (
-    <section data-testid="section-12-instagram" className="flex flex-col gap-4 border-t border-gty-border-6 px-gx py-[26px]">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-24 font-extrabold tracking-tightest text-gty-ink">@{handle}</h2>
-        <a
-          href={instagramUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary"
-        >
-          Follow Our Journey →
-        </a>
-      </div>
+    <section data-testid="section-12-instagram" className="bg-redux-cream px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <div className="mx-auto max-w-[1320px]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <Reveal>
+            <h2 className="font-redux-display text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
+              <em className="italic text-redux-crimson">@</em>
+              {handle}
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 text-sm font-bold text-redux-ink-soft transition-colors hover:text-redux-crimson"
+            >
+              Follow Our Journey
+              <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+                ↗
+              </span>
+            </a>
+          </Reveal>
+        </div>
 
-      <div className="grid grid-cols-3 gap-3 640:grid-cols-6">
-        {INSTAGRAM_TILE_KEYS.map((key) => (
-          <PhotoPlaceholder
-            key={key}
-            photoKey={key}
-            alt="Instagram post"
-            className="aspect-square h-auto w-full rounded-14 border-[1.5px] border-dashed border-gty-border-8"
-          />
-        ))}
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+          {POSTCARDS.map((postcard, index) => (
+            <Reveal key={postcard.caption} delay={index * 0.06}>
+              <div
+                className={`group relative flex aspect-square flex-col justify-between overflow-hidden rounded-2xl border border-stone-200/80 p-4 transition-all duration-400 hover:-rotate-2 hover:shadow-[0_20px_45px_-20px_rgba(127,18,22,0.4)] ${postcard.bg}`}
+              >
+                <div className="flex items-center justify-between">
+                  <Instagram size={16} className="text-redux-crimson/70" aria-hidden="true" />
+                  <span
+                    aria-hidden="true"
+                    className="grid h-9 w-7 rotate-3 place-items-center rounded-[3px] border border-dashed border-redux-crimson/40 bg-white/70 text-[9px] font-bold text-redux-crimson/60"
+                  >
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <span aria-hidden="true" className="self-center font-redux-display text-4xl font-semibold italic text-redux-crimson/25 group-hover:text-redux-crimson/50">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div>
+                  <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-redux-ink-mute">
+                    Postcard {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="block font-redux-display text-lg italic leading-none text-redux-crimson/80">{postcard.caption}</span>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );

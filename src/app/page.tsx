@@ -11,6 +11,7 @@ import { DestinationsRail } from '@/components/home/InternationalDestinationsRai
 import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
 import { InstagramStrip } from '@/components/home/InstagramStrip';
+import { WhatsAppCtaSection } from '@/components/home/WhatsAppCtaSection';
 
 /**
  * Build-time static prerendering fix (2026-10-27) — capping
@@ -124,6 +125,7 @@ export default async function HomePage() {
       */}
       <WhyGtyBand stats={stats} />
       <InstagramStrip instagramUrl={contact.instagramUrl} />
+      <WhatsAppCtaSection contact={contact} />
     </SiteShell>
   );
 }

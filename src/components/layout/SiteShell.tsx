@@ -53,17 +53,25 @@ export interface SiteShellProps {
  * Every OTHER route does not have that padding built in, so `<main>` adds it
  * here instead, conditionally, rather than touching each of those pages —
  * this is the one shared place that already knows `activePath`.
+ *
+ * `BottomContactStrip` is also skipped on `/` specifically: the home page
+ * now has its own full `WhatsAppCtaSection` (brief §10) with the exact same
+ * content (heading, phone/WhatsApp CTAs, 4 perks) in the normal page flow,
+ * so showing BOTH would duplicate the same card twice in a row, right above
+ * the footer. Every other route is unaffected — `BottomContactStrip` still
+ * renders there exactly as before.
  */
 export async function SiteShell({ activePath, pageLabel, children }: SiteShellProps) {
   const site = await getSite();
   const contact = resolveSiteContact(site.settings);
+  const isHome = activePath === '/';
 
   return (
     <div className="site relative w-full bg-gty-white">
       <Navbar activePath={activePath} pageLabel={pageLabel} contact={contact} />
-      <main className={activePath === '/' ? undefined : 'pt-[104px] sm:pt-[112px]'}>{children}</main>
+      <main className={isHome ? undefined : 'pt-[104px] sm:pt-[112px]'}>{children}</main>
       <div className="relative">
-        <BottomContactStrip contact={contact} />
+        {!isHome && <BottomContactStrip contact={contact} />}
         <Footer contact={contact} />
       </div>
       <MobileActionBar pageLabel={pageLabel} contact={contact} />
