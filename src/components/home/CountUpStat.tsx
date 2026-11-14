@@ -1,40 +1,42 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { animate } from 'framer-motion';
 
 import { parseCountableStat } from '@/lib/count-up-stat';
 
 export interface CountUpStatProps {
   /** The exact CRM stat string ("10,000+") — rendered verbatim before/after the animation. */
   value: string;
-  /** Seconds to wait before starting, once `start` flips true (brief's per-card stagger). */
-  delay: number;
+  /** The per-card stagger (0, 0.12, 0.24) — the brief's own `delay: 1 + stagger` adds the 1s baseline. */
+  stagger: number;
   /** Shared trigger — every card in a stats band starts from the same `useInView` flip. */
   start: boolean;
   /** Applied to the trailing suffix only ("+" in red), per brief §A6. */
   suffixClassName?: string;
 }
 
-const DURATION_MS = 1800;
-
 /**
- * Brief §A6/§A7 (2026-11-14): counts a CRM stat up from 0 with an easeOut
- * curve once its stats band scrolls into view, then settles on the EXACT
- * CRM string — never a re-derived one — so the "rendered verbatim" contract
- * (`Hero`/`WhyGtyBand`'s own header) holds at rest, before and after the
- * animation runs.
+ * Brief §3 (2026-11-14 round) / §A6-A7 (2026-11-14 "Redux" round): counts a
+ * CRM stat up from 0 via framer-motion's imperative `animate(0, value,
+ * {duration: 1.8, delay: 1 + stagger, ease: "easeOut"})`, exactly as the
+ * spec names it, then settles on the EXACT CRM string — never a re-derived
+ * one — so the "rendered verbatim" contract (`Hero`/`WhyGtyBand`'s own
+ * header) holds at rest, before AND after the animation runs.
  *
- * The first state mutation happens inside a `setTimeout` callback, never
- * synchronously in the mount effect — `useInView`'s IntersectionObserver
- * (mocked in `jest.setup.ts` to fire synchronously) can flip `start` true
- * within the same render pass a unit test asserts on. Deferring to a real
- * timer/rAF tick means a synchronous `getByText(value)` right after
- * `render()` still sees the untouched CRM string, matching every existing
- * stats test — the animation itself is unverified by jsdom (no real rAF
- * clock advances in those tests), which is fine: it is a progressive-
- * enhancement effect, not the fact being tested.
+ * "Render the FINAL value in the server HTML... never show 0+ ... when
+ * JavaScript is blocked": `useState`'s initializer runs during SSR too, so
+ * the server-rendered HTML already contains the real digits — there is no
+ * server-rendered "0" state at all, and with JS blocked (no hydration, no
+ * effect) this is simply what stays on screen forever.
+ *
+ * The animation itself never mutates state synchronously during the mount
+ * effect — framer-motion's `animate()` schedules its first tick via a real
+ * timer/rAF, never inline — so a synchronous `getByText(value)` right after
+ * `render()` in a unit test still sees the untouched CRM string, matching
+ * every existing stats test.
  */
-export function CountUpStat({ value, delay, start, suffixClassName }: CountUpStatProps) {
+export function CountUpStat({ value, stagger, start, suffixClassName }: CountUpStatProps) {
   const parsed = parseCountableStat(value);
   const [displayNumber, setDisplayNumber] = useState(parsed?.rawDigits ?? value);
   const startedRef = useRef(false);
@@ -44,28 +46,16 @@ export function CountUpStat({ value, delay, start, suffixClassName }: CountUpSta
     if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     startedRef.current = true;
 
-    let rafId = 0;
-    const timeoutId = window.setTimeout(() => {
-      const startTime = performance.now();
-      const tick = () => {
-        const elapsed = performance.now() - startTime;
-        const progress = Math.min(elapsed / DURATION_MS, 1);
-        const eased = 1 - (1 - progress) ** 3;
-        if (progress < 1) {
-          setDisplayNumber(Math.round(parsed.target * eased).toLocaleString('en-IN'));
-          rafId = window.requestAnimationFrame(tick);
-        } else {
-          setDisplayNumber(parsed.rawDigits);
-        }
-      };
-      rafId = window.requestAnimationFrame(tick);
-    }, delay * 1000);
+    const controls = animate(0, parsed.target, {
+      duration: 1.8,
+      delay: 1 + stagger,
+      ease: 'easeOut',
+      onUpdate: (latest) => setDisplayNumber(Math.round(latest).toLocaleString('en-IN')),
+      onComplete: () => setDisplayNumber(parsed.rawDigits),
+    });
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      if (rafId) window.cancelAnimationFrame(rafId);
-    };
-  }, [start, parsed, delay]);
+    return () => controls.stop();
+  }, [start, parsed, stagger]);
 
   if (!parsed) return <>{value}</>;
 

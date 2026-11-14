@@ -95,6 +95,29 @@ describe('Hero renders the SiteStatsSummary it is given — no literal of its ow
     expect(screen.getByText(/touch your soul and memories/)).toBeInTheDocument();
   });
 
+  /**
+   * New brief, Part 2 (2026-11-14): "add a safe default if the value is
+   * shorter than 2 words" — a real-but-too-short CRM value (the Owner
+   * testing with "test") must not attempt a degenerate 1-word split.
+   */
+  it('falls back to the default two-line headline when the real CRM value is a single word', () => {
+    renderHero(CONFIRMED_STATS, 'test', null);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Journeys That Stay Forever.');
+    expect(screen.queryByText('test')).not.toBeInTheDocument();
+  });
+
+  /**
+   * New brief, Part 2 (2026-11-14): "no ImagePlaceholder in the hero ever"
+   * — unlike every other photo slot, the hero must never fall through to
+   * `PhotoPlaceholder`'s grey box + text label, even when no CRM image is
+   * configured at all.
+   */
+  it('never shows an ImagePlaceholder label in the hero, with or without a CRM image', () => {
+    renderHero(CONFIRMED_STATS);
+    expect(screen.queryByText('Himalayas')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /image placeholder/i })).not.toBeInTheDocument();
+  });
+
   it('falls back to default copy when the CRM has not set a headline/subtext yet', () => {
     renderHero(CONFIRMED_STATS, null, null);
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();

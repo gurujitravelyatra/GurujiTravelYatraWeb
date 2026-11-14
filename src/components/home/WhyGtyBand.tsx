@@ -157,7 +157,7 @@ export function WhyGtyBand({ stats }: WhyGtyBandProps) {
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/15 text-white">{stat.icon}</span>
                   <div>
                     <p className="font-redux-display text-3xl font-semibold leading-none text-white sm:text-4xl">
-                      <CountUpStat value={stat.value as string} delay={index * 0.12} start={statsInView} suffixClassName="text-red-200" />
+                      <CountUpStat value={stat.value as string} stagger={index * 0.12} start={statsInView} suffixClassName="text-red-200" />
                       {stats.showFiguresNote && (
                         <span
                           aria-hidden="true"

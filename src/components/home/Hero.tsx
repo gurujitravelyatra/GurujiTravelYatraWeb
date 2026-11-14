@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
 import type { SiteStatsSummary } from '@/lib/site-stats';
-import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { cloudinaryDisplayUrl, safeMediaUrl } from '@/lib/cloudinary-url';
 import { CountUpStat } from './CountUpStat';
 import { HeroCtas } from './HeroCtas';
 
@@ -74,7 +74,13 @@ interface StatCard {
  * cheap to not crash on.
  */
 function headlineLines(headline: string | null): { text: string; italicTail?: string }[] {
-  const source = headline ?? DEFAULT_HEADLINE;
+  // New brief, Part 2 (2026-11-14): "add a safe default if the value is
+  // shorter than 2 words" — a real-but-too-short CRM value (the Owner
+  // testing with "test", say) degrades to the SAME default as `null`
+  // rather than attempting a degenerate 1-word split.
+  const trimmed = headline?.trim() ?? '';
+  const hasEnoughWords = trimmed.split(/\s+/).filter(Boolean).length >= 2;
+  const source = hasEnoughWords ? trimmed : DEFAULT_HEADLINE;
   const explicitLines = source.split('\n').filter((line) => line.trim().length > 0);
 
   const [line1Words, line2Words] =
@@ -131,6 +137,39 @@ function MaskedLine({ line, delay }: { line: { text: string; italicTail?: string
  */
 const FALLBACK_HERO_IMAGE_URL = 'https://media.gurujitravelyatra.com/site-images/51507ac4-baf9-4d38-9e0a-c4bdda789679.webp';
 
+/**
+ * New brief, Part 2 (2026-11-14): "no ImagePlaceholder in the hero ever" —
+ * a dedicated plain `<img>`, not `PhotoPlaceholder` (which is built to show
+ * a grey box + a text label, "Himalayas", for every OTHER tour/place/site
+ * slot that genuinely can have no photo yet). The hero always has SOME
+ * image to show — the CRM's, or `FALLBACK_HERO_IMAGE_URL` — so there is no
+ * state here that should ever fall through to a labelled placeholder box.
+ *
+ * `safeMediaUrl` still gates the CRM value (defence in depth, same as
+ * everywhere else a CRM-returned URL reaches an `<img>`), and `onError`
+ * catches a URL that passed that check but still fails to actually load
+ * (a deleted asset, a transient CDN error) — both cases fall to the SAME
+ * confirmed fallback file, already on the trusted media host, never to a
+ * broken-image icon or placeholder text.
+ */
+function HeroImage({ heroImageUrl }: { heroImageUrl: string | undefined }) {
+  const [loadFailed, setLoadFailed] = useState(false);
+  const safeUrl = safeMediaUrl(heroImageUrl);
+  const src = !loadFailed && safeUrl ? safeUrl : FALLBACK_HERO_IMAGE_URL;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={cloudinaryDisplayUrl(src, 1920)}
+      alt="Himalayan landscape — Guruji Travel Yatra"
+      loading="eager"
+      decoding="async"
+      className="absolute inset-0 h-[115%] w-full object-cover"
+      onError={() => setLoadFailed(true)}
+    />
+  );
+}
+
 export function Hero({ headline, heroImageUrl, stats }: HeroProps) {
   const { scrollY } = useScroll();
   const parallaxY = useTransform(scrollY, [0, 900], [0, 110]);
@@ -151,12 +190,7 @@ export function Hero({ headline, heroImageUrl, stats }: HeroProps) {
       className="relative isolate flex min-h-screen flex-col justify-end overflow-hidden bg-stone-950"
     >
       <motion.div style={{ y: parallaxY }} className="absolute inset-0 -z-10">
-        <PhotoPlaceholder
-          photoKey="Himalayas"
-          imageUrl={heroImageUrl ?? FALLBACK_HERO_IMAGE_URL}
-          alt="Himalayan landscape — Guruji Travel Yatra"
-          className="h-[115%] w-full"
-        />
+        <HeroImage heroImageUrl={heroImageUrl} />
         <span
           aria-hidden="true"
           className="absolute inset-0 bg-gradient-to-b from-stone-950/70 via-stone-950/30 to-stone-950/80"
@@ -253,7 +287,7 @@ export function Hero({ headline, heroImageUrl, stats }: HeroProps) {
                     is now safe to do without breaking the "rendered
                     verbatim" contract the earlier round deliberately upheld.
                   */}
-                  <CountUpStat value={card.value} delay={index * 0.12} start={statsInView} suffixClassName="text-redux-crimson" />
+                  <CountUpStat value={card.value} stagger={index * 0.12} start={statsInView} suffixClassName="text-redux-crimson" />
                   {stats.showFiguresNote && (
                     <span
                       aria-hidden="true"
