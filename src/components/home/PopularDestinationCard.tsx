@@ -53,7 +53,8 @@ export function PopularDestinationCard({ tour }: PopularDestinationCardProps) {
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-redux-crimson shadow backdrop-blur">
           {tour.category}
         </span>
-        {tour.nextDeparture && (
+        {/* User decision (2026-11-14, Trip Finder business rules, item 1): seats/availability only ever shows for Group tours. */}
+        {tour.category === 'Group' && tour.nextDeparture && (
           <span className="absolute bottom-3 right-3 rounded-full bg-redux-crimson px-3 py-1 text-[11px] font-bold text-white shadow-lg">
             {tour.nextDeparture.seatsLeft > 0 ? `${tour.nextDeparture.seatsLeft} seats left` : 'Sold out'}
           </span>

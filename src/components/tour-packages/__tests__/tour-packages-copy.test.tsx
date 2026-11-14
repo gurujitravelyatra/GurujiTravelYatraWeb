@@ -87,8 +87,13 @@ describe('/tour-packages rendered copy claims nothing the product cannot back', 
     expect(container.textContent ?? '').not.toMatch(/₹15,000 — ₹75,000/);
   });
 
-  it('renders a real seat count when the CRM reports one — an honest claim, not a fabricated one', () => {
-    renderPage([tour('with-seats')]);
+  /**
+   * User decision (2026-11-14, Trip Finder business rules, item 1): seats
+   * only ever show for Group tours — non-Group tours have no fixed
+   * departures.
+   */
+  it('renders a real seat count when the CRM reports one on a Group tour — an honest claim, not a fabricated one', () => {
+    renderPage([{ ...tour('with-seats'), category: 'Group' }]);
     expect(screen.getByText('4 seats left')).toBeInTheDocument();
   });
 

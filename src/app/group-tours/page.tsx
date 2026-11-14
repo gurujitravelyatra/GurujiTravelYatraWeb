@@ -32,17 +32,27 @@ export const dynamic = 'force-dynamic';
  *
  * CRM-migration Step 2: reads `GET /public/departures` directly — upcoming
  * departures of live tours, soonest first, already server-filtered (the
- * contract guarantees no past-dated departure is ever returned). The CRM's
- * own `months` list drives the month chips, replacing the old
- * `departureMonthKeys()` derivation.
+ * contract guarantees no past-dated departure is ever returned).
+ *
+ * User decision (2026-11-14, Trip Finder business rules, item 6): "Group
+ * Tours page keeps listing tours of category Group only" — `getDepartures()`
+ * itself returns upcoming departures of EVERY category (any tour can carry
+ * a `CrmDeparturesTourCard`), so this page now filters to `category ===
+ * 'Group'` itself rather than trusting the endpoint's own unfiltered mix.
+ * The month-chip list is recomputed from that same filtered set, instead of
+ * the CRM's own `months` (which covers every category) — a month with only
+ * non-Group departures would otherwise offer a chip that always shows zero
+ * results here.
  */
 export default async function GroupToursPage() {
-  const { departures, months } = await getDepartures();
+  const { departures } = await getDepartures();
+  const groupDepartures = departures.filter((departure) => departure.category === 'Group');
+  const months = Array.from(new Set(groupDepartures.map((departure) => departure.departureDate.slice(0, 7)))).sort();
 
   return (
     <SiteShell activePath="/group-tours" pageLabel="Group Tours">
       <GroupToursHero />
-      <GroupDeparturesList departures={departures} months={months} />
+      <GroupDeparturesList departures={groupDepartures} months={months} />
     </SiteShell>
   );
 }

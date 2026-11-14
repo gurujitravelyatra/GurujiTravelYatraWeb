@@ -65,7 +65,15 @@ export function PackageCard({ tour }: PackageCardProps) {
             <path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.4 12 20 12 20z" />
           </svg>
         </span>
-        {tour.nextDeparture && (
+        {/*
+          User decision (2026-11-14, Trip Finder business rules, item 1):
+          non-Group tours have no fixed departures — the team confirms
+          hotels/tickets only after the visitor enquires — so seats/
+          departure availability must never show for them anywhere, even
+          if a stray `nextDeparture` value exists on the row. Gated on
+          `category`, not just on `nextDeparture` being set.
+        */}
+        {tour.category === 'Group' && tour.nextDeparture && (
           <span className="absolute bottom-3 right-[10px] flex items-center gap-[6px] rounded-8 bg-gty-overlay-dark px-[10px] py-[5px] text-12 font-semibold text-gty-white">
             {tour.nextDeparture.seatsLeft > 0 ? `${tour.nextDeparture.seatsLeft} seats left` : 'Sold out'}
           </span>

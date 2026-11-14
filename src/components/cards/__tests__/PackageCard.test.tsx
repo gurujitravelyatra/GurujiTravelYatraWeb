@@ -35,13 +35,25 @@ describe('PackageCard', () => {
     expect(screen.queryByText(/line-through/)).not.toBeInTheDocument();
   });
 
-  it('shows remaining seats when a next departure exists', () => {
-    render(<PackageCard tour={baseTour} />);
+  /**
+   * User decision (2026-11-14, Trip Finder business rules, item 1): seats/
+   * departure availability only ever shows for Group tours — non-Group
+   * tours have no fixed departures (hotels/tickets are confirmed only
+   * after the visitor enquires), so a `nextDeparture` value on any other
+   * category must never surface here.
+   */
+  it('shows remaining seats when a next departure exists on a Group tour', () => {
+    render(<PackageCard tour={{ ...baseTour, category: 'Group' }} />);
     expect(screen.getByText('8 seats left')).toBeInTheDocument();
   });
 
+  it('hides seats/departure info on a non-Group tour even when nextDeparture is set', () => {
+    render(<PackageCard tour={baseTour} />);
+    expect(screen.queryByText(/seats left/)).not.toBeInTheDocument();
+  });
+
   it('shows nothing extra when there is no next departure', () => {
-    render(<PackageCard tour={{ ...baseTour, nextDeparture: null }} />);
+    render(<PackageCard tour={{ ...baseTour, category: 'Group', nextDeparture: null }} />);
     expect(screen.queryByText(/seats left/)).not.toBeInTheDocument();
   });
 

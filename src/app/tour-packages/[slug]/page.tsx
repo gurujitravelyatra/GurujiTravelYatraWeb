@@ -214,7 +214,8 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
           </section>
         )}
 
-        {tour.departures.length > 0 && (
+        {/* User decision (2026-11-14, Trip Finder business rules, item 1): only Group tours have fixed departures/seats to show here. */}
+        {tour.category === 'Group' && tour.departures.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="text-16 font-extrabold text-gty-ink">Upcoming departures</h2>
             <ul className="flex flex-wrap gap-3">
@@ -240,7 +241,7 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
           </section>
         )}
 
-        <PackageDetailCtas packageName={tour.name} slug={tour.slug} hasBrochure={tour.hasBrochure} />
+        <PackageDetailCtas packageName={tour.name} slug={tour.slug} hasBrochure={tour.hasBrochure} category={tour.category} />
       </div>
     </SiteShell>
   );
