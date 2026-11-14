@@ -28,16 +28,17 @@ describe('LeadModal variant="brochure"', () => {
     submitLead.mockReset();
   });
 
+  /**
+   * New brief (2026-11-15): both variants now share ONE visible marketing
+   * heading ("Tell us where your heart leads.") — the per-variant copy
+   * lives in the sr-only Radix `DialogTitle` instead (the dialog's
+   * accessible name), and in the CTA/context-chip label.
+   */
   it('renders brochure-specific copy and CTA the enquiry variant does not use', () => {
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
 
-    // The copy deliberately appears twice, as two <h2>s: ModalShell's sr-only
-    // Radix <DialogTitle> (which supplies the dialog's accessible name) and
-    // FormStep's visible chrome. Assert the visible one specifically.
-    const headings = screen.getAllByRole('heading', { name: 'Get Your Complete Travel Brochure' });
-    expect(headings).toHaveLength(2);
-    expect(headings.filter((h) => !h.classList.contains('sr-only'))).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /Get My Brochure/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Get Your Complete Travel Brochure' })).toHaveClass('sr-only');
+    expect(screen.getByRole('button', { name: /Get my brochure/ })).toBeInTheDocument();
     expect(screen.getByText('Brochure for')).toBeInTheDocument();
   });
 
@@ -47,7 +48,7 @@ describe('LeadModal variant="brochure"', () => {
 
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Get My Brochure/ }));
+    await user.click(screen.getByRole('button', { name: /Get my brochure/ }));
 
     expect(submitLead.mock.calls[0][0]).toMatchObject({
       formType: 'brochure',
@@ -60,43 +61,58 @@ describe('LeadModal variant="brochure"', () => {
     const user = userEvent.setup();
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: /Get My Brochure/ }));
+    await user.click(screen.getByRole('button', { name: /Get my brochure/ }));
 
     expect(await screen.findByText('Please enter your full name.')).toBeInTheDocument();
     expect(screen.getByText('Please enter your mobile number.')).toBeInTheDocument();
     expect(submitLead).not.toHaveBeenCalled();
   });
 
-  it('the done step renders the 4 brochure-specific unlock buttons plus Keep Exploring', async () => {
+  /**
+   * New brief (2026-11-15), item 4: the confirmation panel is now the SAME
+   * two-button shape in both variants — "Close" plus one variant-specific
+   * CTA ("Download brochure" here, "Continue exploring" for enquiry) — not
+   * the previous 4-stub-button brochure-only layout.
+   */
+  it("the done step says the brochure is ready and offers a single Download brochure CTA alongside Close", async () => {
     const user = userEvent.setup();
     submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
 
     render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Get My Brochure/ }));
+    await user.click(screen.getByRole('button', { name: /Get my brochure/ }));
 
-    expect(await screen.findByText('Your Spiti Valley Circuit brochure is ready.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /View Brochure/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Download Brochure/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send to Email' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'On WhatsApp' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Keep Exploring/ })).toBeInTheDocument();
+    expect(await screen.findByText('Thank you!')).toBeInTheDocument();
+    expect(screen.getByText('Your brochure is ready.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Download brochure/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /View Brochure/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send to Email' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'On WhatsApp' })).not.toBeInTheDocument();
   });
 
-  it('the enquiry variant\'s done step does NOT render the brochure-specific buttons', async () => {
+  it("the enquiry variant's done step does NOT render the brochure-specific CTA", async () => {
     const user = userEvent.setup();
     submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
-    expect(await screen.findByText(/GTY will call you about Spiti Valley Circuit/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /View Brochure/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Download Brochure/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Send to Email' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'On WhatsApp' })).not.toBeInTheDocument();
-    // "Keep Exploring" is common to both variants' done step.
-    expect(screen.getByRole('button', { name: /Keep Exploring/ })).toBeInTheDocument();
+    expect(await screen.findByText(/Thank you, Asha!/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Download brochure/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue exploring/ })).toBeInTheDocument();
+  });
+
+  it('shows the brochure-specific toast on success', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-1' });
+
+    render(<LeadModal variant="brochure" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Get my brochure/ }));
+
+    await screen.findByText('Thank you!');
+    expect(await screen.findByRole('status')).toHaveTextContent('Brochure request submitted');
   });
 });

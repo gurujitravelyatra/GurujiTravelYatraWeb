@@ -38,7 +38,7 @@ async function submitWith(result: unknown, options: { variant?: 'enquiry' | 'bro
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
   await user.click(screen.getByLabelText(/I agree to be contacted/));
-  await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+  await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
   return user;
 }
@@ -93,7 +93,7 @@ describe('LeadModal — field-level 400s', () => {
     await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
     await user.type(screen.getByLabelText('City'), 'Ahmedabad');
     await user.click(screen.getByLabelText(/I agree to be contacted/));
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(await screen.findByText('Please keep this under 120 characters.')).toBeInTheDocument();
     expect(screen.getByLabelText('Name *')).toHaveValue('Asha Patel');
@@ -150,7 +150,7 @@ describe('LeadModal — field-level 400s', () => {
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
 
     // Reached the done step, so the stale server error is gone with the form.
-    expect(await screen.findByText(/Your journey/)).toBeInTheDocument();
+    expect(await screen.findByText(/Thank you, Asha!/)).toBeInTheDocument();
     expect(screen.queryByText('Please enter a valid mobile number.')).not.toBeInTheDocument();
   });
 
@@ -175,8 +175,8 @@ describe('LeadModal — field-level 400s', () => {
     });
 
     await screen.findByTestId('lead-form-error');
-    expect(screen.queryByRole('heading', { name: /starts here/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/GTY has your details/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Thank you,/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Continue exploring/ })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Name *')).toBeVisible();
   });
 });

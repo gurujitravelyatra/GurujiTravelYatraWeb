@@ -47,11 +47,50 @@ describe('LeadModal variant="enquiry"', () => {
     const user = userEvent.setup();
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(await screen.findByText('Please enter your full name.')).toBeInTheDocument();
     expect(screen.getByText('Please enter your mobile number.')).toBeInTheDocument();
     expect(submitLead).not.toHaveBeenCalled();
+  });
+
+  /** New brief (2026-11-15), item 3: client validation now enforces the per-country digit rule, not just the generic length/shape regex. */
+  it('blocks submit on a mobile number that is the right shape but not a valid Indian number', async () => {
+    const user = userEvent.setup();
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
+    // 10 digits, but does not start 6-9 — passes the old generic regex, fails the new per-country rule.
+    await user.type(screen.getByLabelText('Mobile Number *'), '1234567890');
+    await user.click(screen.getByLabelText(/I agree to be contacted/));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    expect(await screen.findByText('Please enter a valid mobile number.')).toBeInTheDocument();
+    expect(submitLead).not.toHaveBeenCalled();
+  });
+
+  /** New brief (2026-11-15), item 3: "focus the first invalid field". */
+  it('focuses the first invalid field on a blocked submit (Name, before Mobile)', async () => {
+    const user = userEvent.setup();
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    await screen.findByText('Please enter your full name.');
+    expect(screen.getByLabelText('Name *')).toHaveFocus();
+  });
+
+  /** Mobile is the custom `useController`/`PhoneField` field — it needs its own `ref` wired back to react-hook-form to be focusable this way at all (see `PhoneField.tsx`). */
+  it('focuses the phone field when it is the only invalid one', async () => {
+    const user = userEvent.setup();
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
+    await user.click(screen.getByLabelText(/I agree to be contacted/));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    await screen.findByText('Please enter your mobile number.');
+    expect(screen.getByLabelText('Mobile Number *')).toHaveFocus();
   });
 
   it('does not block submit when only the optional fields are empty', async () => {
@@ -61,7 +100,7 @@ describe('LeadModal variant="enquiry"', () => {
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(submitLead).toHaveBeenCalledTimes(1);
     // Brief §E2 (2026-11-14): the submitted value is now the full
@@ -84,7 +123,7 @@ describe('LeadModal variant="enquiry"', () => {
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(submitLead.mock.calls[0][0]).toMatchObject({
       formType: 'enquiry',
@@ -100,7 +139,7 @@ describe('LeadModal variant="enquiry"', () => {
     // The Navbar's persistent "Enquire Now" calls `openEnquiry()` with no args.
     render(<LeadModal variant="enquiry" open onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     const request = submitLead.mock.calls[0][0];
     expect(request).toMatchObject({ formType: 'enquiry' });
@@ -108,28 +147,54 @@ describe('LeadModal variant="enquiry"', () => {
     expect(request.interestedIn).toBeUndefined();
   });
 
-  it('transitions form -> sending -> form-with-error, and the error path preserves every entered value', async () => {
+  it('shows a disabled, spinning submit button while sending — the form stays on screen, no double submit', async () => {
     const user = userEvent.setup();
     const { promise, resolve } = deferred<LeadApiResult>();
     submitLead.mockReturnValue(promise);
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.type(screen.getByLabelText('City'), 'Ahmedabad');
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
-    // "sending" step
-    expect(await screen.findByText('Submitting your enquiry…')).toBeInTheDocument();
+    const sendingButton = await screen.findByRole('button', { name: /Sending/ });
+    expect(sendingButton).toBeDisabled();
+    // The form itself — not a separate full-screen "sending" step — is still on screen.
+    expect(screen.getByLabelText('Name *')).toHaveValue('Asha Patel');
 
     await act(async () => {
-      resolve({ status: 'error', message: 'Visitor safe message.' });
+      resolve({ status: 'success', leadId: 'lead-1' });
     });
+    expect(await screen.findByText(/Thank you, Asha!/)).toBeInTheDocument();
+  });
 
-    // Back on the form step, with the error banner and every entered value intact.
-    expect(await screen.findByRole('alert')).toHaveTextContent('Visitor safe message.');
+  it('transitions form -> form-with-error, and the error path preserves every entered value', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'error', message: 'Visitor safe message.' });
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.type(screen.getByLabelText('City'), 'Ahmedabad');
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    const banner = await screen.findByTestId('lead-form-error');
+    expect(banner).toHaveTextContent('Visitor safe message.');
     expect(screen.getByLabelText('Name *')).toHaveValue('Asha Patel');
     expect(screen.getByLabelText('Mobile Number *')).toHaveValue('9876543210');
     expect(screen.getByLabelText('City')).toHaveValue('Ahmedabad');
+  });
+
+  /** New brief (2026-11-15), item 4: every error banner carries the phone-number fallback, alongside (not instead of) the specific message. */
+  it('the error banner always offers the phone-number fallback alongside the specific message', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'error', message: 'Visitor safe message.' });
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    const banner = await screen.findByTestId('lead-form-error');
+    expect(banner).toHaveTextContent('Visitor safe message.');
+    expect(banner).toHaveTextContent('+91 90999 57658');
   });
 
   it('"Try Again" re-submits with the same preserved values', async () => {
@@ -138,7 +203,7 @@ describe('LeadModal variant="enquiry"', () => {
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(submitLead).toHaveBeenCalledTimes(1);
@@ -152,21 +217,76 @@ describe('LeadModal variant="enquiry"', () => {
 
   /**
    * The route's 200 carries no visitor-facing copy (only `leadId`/`source`/
-   * `receivedAt`), so the confirmation sentence is composed from the context
-   * the client already has rather than from a server string.
+   * `receivedAt`), so the confirmation panel's copy is composed from the
+   * context the client already has rather than from a server string.
    */
-  it('transitions form -> sending -> done on a successful submission', async () => {
+  it('transitions form -> done on a successful submission, with a named confirmation panel', async () => {
     const user = userEvent.setup();
     submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-42' });
 
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
+    expect(await screen.findByText('Thank you, Asha!')).toBeInTheDocument();
     expect(
-      await screen.findByText("We've got it — GTY will call you about Spiti Valley Circuit within business hours.")
+      screen.getByText('Your enquiry has been submitted. Team Guruji will contact you very soon.')
     ).toBeInTheDocument();
-    expect(screen.getByText(/Your journey/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue exploring/ })).toBeInTheDocument();
+  });
+
+  it('shows a toast on success and the "Continue exploring"/"Close" buttons both close the modal', async () => {
+    const user = userEvent.setup();
+    submitLead.mockResolvedValue({ status: 'success', leadId: 'lead-42' });
+    const onClose = jest.fn();
+
+    render(<LeadModal variant="enquiry" open context={context} onClose={onClose} />);
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
+
+    await screen.findByText('Thank you, Asha!');
+    expect(await screen.findByRole('status')).toHaveTextContent('Enquiry submitted');
+
+    await user.click(screen.getByRole('button', { name: /Continue exploring/ }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * New brief (2026-11-15), item 2: "Phone + Email in two columns (stack on
+   * mobile)" and the same for "Travel date + Travellers" — i.e. a
+   * responsive grid, not a grid that is always 2 columns regardless of
+   * viewport (what shipped before this redesign).
+   */
+  it('stacks the Phone/Email and Travel-date/Travellers rows on mobile, 2 columns from sm: up', () => {
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    const mobileRow = screen.getByLabelText('Mobile Number *').closest('.grid');
+    const travelDateRow = screen.getByLabelText('Travel Date').closest('.grid');
+    expect(mobileRow).toHaveClass('grid-cols-1', 'sm:grid-cols-2');
+    expect(travelDateRow).toHaveClass('grid-cols-1', 'sm:grid-cols-2');
+  });
+
+  /** New brief (2026-11-15), item 2: phone field matches the Name field's own box height exactly, rather than a narrower, differently-padded control. */
+  it("the phone field's box is the same height as the Name field's", () => {
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    const phoneBox = screen.getByLabelText('Mobile Number *').closest('div');
+    expect(phoneBox).toHaveClass('min-h-[44px]');
+  });
+
+  /** New brief (2026-11-15), item 3: belt-and-braces — never a native GET-reload submit, on an empty OR a filled form. */
+  it('never falls back to a native form submission', async () => {
+    render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
+
+    const form = screen.getByRole('button', { name: /Send my enquiry/ }).closest('form');
+    expect(form).toHaveAttribute('method', 'post');
+
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    act(() => {
+      form!.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
   });
 
   // CRM-migration Step 3: the submit path now genuinely reaches a CRM
@@ -181,7 +301,7 @@ describe('LeadModal variant="enquiry"', () => {
     it('makes no such claim on the form step', () => {
       const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
-      expect(screen.getByText(/We'll only use these details to plan your journey with you\./)).toBeInTheDocument();
+      expect(screen.getByText('No pressure, no spam, just thoughtful travel ideas.')).toBeInTheDocument();
       for (const claim of FALSE_CLAIMS) {
         expect(container.textContent ?? '').not.toMatch(claim);
       }
@@ -202,16 +322,16 @@ describe('LeadModal variant="enquiry"', () => {
       expect(text).not.toMatch(/we('ll| will) (call|contact|email) you/i);
     });
 
-    it('makes no such claim on the sending step', async () => {
+    it('makes no such claim while the request is in flight', async () => {
       const user = userEvent.setup();
       const { promise } = deferred<LeadApiResult>();
       submitLead.mockReturnValue(promise);
 
       const { container } = render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
       await fillRequiredFields(user);
-      await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
+      await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
-      expect(await screen.findByText('Submitting your enquiry…')).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Sending/ })).toBeInTheDocument();
       for (const claim of FALSE_CLAIMS) {
         expect(container.textContent ?? '').not.toMatch(claim);
       }
