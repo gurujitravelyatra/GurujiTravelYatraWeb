@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { animate } from 'framer-motion';
 
 import { parseCountableStat } from '@/lib/count-up-stat';
@@ -37,7 +37,16 @@ export interface CountUpStatProps {
  * every existing stats test.
  */
 export function CountUpStat({ value, stagger, start, suffixClassName }: CountUpStatProps) {
-  const parsed = parseCountableStat(value);
+  // `useMemo`, not a plain `const` — `parseCountableStat` returns a fresh
+  // object literal on every call, and that object sat in the effect below's
+  // dependency array. A fresh reference on every render (including the ones
+  // the animation's own `onUpdate` triggers) made the effect tear down and
+  // reconnect on every tick; the `startedRef` guard then stopped it from
+  // ever restarting, freezing the display at whatever the FIRST tick showed
+  // — visually "stuck at 0" forever. Memoising on `value` (a primitive)
+  // keeps the same object across re-renders until the CRM string itself
+  // changes, so the effect only ever runs once per real start.
+  const parsed = useMemo(() => parseCountableStat(value), [value]);
   const [displayNumber, setDisplayNumber] = useState(parsed?.rawDigits ?? value);
   const startedRef = useRef(false);
 
