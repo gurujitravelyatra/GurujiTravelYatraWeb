@@ -140,7 +140,14 @@ function DecorativeField({
     <div
       aria-disabled="true"
       data-testid={`trip-finder-field-${label}`}
-      className="relative flex items-center gap-3 rounded-2xl border border-stone-200 bg-redux-cream px-4 py-3.5 transition-colors duration-300 hover:border-redux-crimson/40"
+      // `min-w-0` is required here, not decorative: a CSS grid track sized
+      // with `fr` still floors each item at its CONTENT's min-content width
+      // unless the item itself opts out — without this, the unbreakable
+      // label text (plus the SOON chip) forced this field wider than its
+      // `1fr`/`1.5fr` track at 768px, pushing the CTA column off the right
+      // edge of the viewport (confirmed via a real horizontal-overflow
+      // check: 917px of content in a 768px viewport).
+      className="relative flex min-w-0 items-center gap-3 rounded-2xl border border-stone-200 bg-redux-cream px-4 py-3.5 transition-colors duration-300 hover:border-redux-crimson/40"
     >
       <span className="text-redux-crimson">{icon}</span>
       <span className="w-full truncate text-[15px] font-medium text-stone-900">{label}</span>
