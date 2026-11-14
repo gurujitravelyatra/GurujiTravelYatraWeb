@@ -64,8 +64,11 @@ describe('LeadModal variant="enquiry"', () => {
     await user.click(screen.getByRole('button', { name: /Start Your Journey/ }));
 
     expect(submitLead).toHaveBeenCalledTimes(1);
+    // Brief §E2 (2026-11-14): the submitted value is now the full
+    // international number — "+91" (the default country) + the digits
+    // typed into the field — not the bare local number.
     expect(submitLead).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Asha Patel', mobile: '9876543210', email: undefined })
+      expect.objectContaining({ name: 'Asha Patel', mobile: '+919876543210', email: undefined })
     );
   });
 
@@ -144,7 +147,7 @@ describe('LeadModal variant="enquiry"', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(submitLead).toHaveBeenCalledTimes(2);
-    expect(submitLead.mock.calls[1][0]).toEqual(expect.objectContaining({ name: 'Asha Patel', mobile: '9876543210' }));
+    expect(submitLead.mock.calls[1][0]).toEqual(expect.objectContaining({ name: 'Asha Patel', mobile: '+919876543210' }));
   });
 
   /**

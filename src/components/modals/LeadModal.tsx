@@ -13,6 +13,7 @@ import { buildLeadRequest } from './build-lead-request';
 import { submitLeadRequest } from '@/lib/leads/lead-api-client';
 import type { LeadSubmissionInput } from '@/server/leads/lead-schema';
 import { leadFormDefaultValues, leadFormSchema, type LeadFormValues } from './lead-form-schema';
+import { PhoneField } from './PhoneField';
 import { TurnstileWidget } from './TurnstileWidget';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -305,6 +306,7 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
   const {
     register,
     setValue,
+    control,
     formState: { errors },
   } = form;
 
@@ -373,7 +375,7 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         {/* `.form-row` (brief §12) — phone + email side by side; both stay full-width fields on mobile via the Field/Input components' own responsive styling. */}
         <div className="grid grid-cols-2 gap-[14px]">
           <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
-            <Input id="lead-mobile" type="tel" autoComplete="tel" aria-invalid={!!errors.mobile} {...register('mobile')} />
+            <PhoneField control={control} id="lead-mobile" aria-invalid={!!errors.mobile} />
           </Field>
           <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
             <Input id="lead-email" type="email" autoComplete="email" aria-invalid={!!errors.email} {...register('email')} />

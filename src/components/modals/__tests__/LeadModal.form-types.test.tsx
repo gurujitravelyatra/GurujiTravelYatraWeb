@@ -70,7 +70,8 @@ describe('LeadModal — group-tour-reservation', () => {
       batchDate: '12 — 18 May 2026',
       departureName: 'Spiti Valley Circuit',
       name: 'Asha Patel',
-      mobile: '9876543210',
+      // Brief §E2 (2026-11-14): submitted as the full international number.
+      mobile: '+919876543210',
     });
   });
 
