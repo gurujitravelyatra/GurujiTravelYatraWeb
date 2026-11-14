@@ -7,6 +7,7 @@ import { Hero } from '@/components/home/Hero';
 import { RouteMarquee } from '@/components/home/RouteMarquee';
 import { TripFinderBar } from '@/components/home/TripFinderBar';
 import { PopularDestinationsSection } from '@/components/home/PopularDestinationsSection';
+import { InlineEnquiryForm } from '@/components/home/InlineEnquiryForm';
 import { DestinationsRail } from '@/components/home/InternationalDestinationsRail';
 import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
@@ -146,6 +147,8 @@ export default async function HomePage() {
         the component is untouched and still renders on `/about-us`.
       */}
       <WhyGtyBand stats={stats} />
+      {/* New brief, Part 4A (2026-11-14): the reference's inline enquiry card — placed right after "Why Travel With GTY?" and before the Instagram strip, per that brief's own instruction. */}
+      <InlineEnquiryForm happyTravellersLabel={stats.happyTravellers} />
       <InstagramStrip instagramUrl={contact.instagramUrl} />
       <WhatsAppCtaSection contact={contact} />
     </SiteShell>
