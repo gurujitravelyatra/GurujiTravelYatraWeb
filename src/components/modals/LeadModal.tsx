@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, useReducedMotion } from 'framer-motion';
+import { Check, Send, X } from 'lucide-react';
 
 import { ModalShell } from './ModalShell';
 import type { ModalContext } from './modal-context';
@@ -308,27 +309,30 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
   } = form;
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3 border-b border-gty-border-6 p-4">
-        <h2 className="text-18 font-extrabold leading-[1.15] text-gty-ink">{copy.title}</h2>
+    <div className="bg-redux-cream">
+      <div className="flex items-start justify-between gap-3 border-b border-stone-200 p-6 pb-5">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-widest2 text-redux-crimson">The first step</span>
+          <h2 className="mt-1.5 font-redux-display text-2xl font-medium tracking-tight text-stone-900">{copy.title}</h2>
+        </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="text-16 text-gty-subtle transition-colors duration-gty-fast ease-gty hover:text-gty-primary"
+          className="rounded-full p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-redux-crimson"
         >
-          ×
+          <X size={18} />
         </button>
       </div>
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-[10px] p-4">
-        <p className="text-11 leading-relaxed text-gty-subtle">{copy.description}</p>
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-[14px] p-6 font-redux-sans">
+        <p className="text-[13px] leading-relaxed text-redux-ink-mute">{copy.description}</p>
 
         {context && (
-          <div className="rounded-16 border border-gty-border bg-gty-surface-3 p-[10px] text-11">
-            <span className="text-10 font-bold uppercase tracking-label text-gty-subtle">{copy.ctxLabel}</span>
+          <div className="rounded-2xl border border-stone-200 bg-white p-3 text-[13px]">
+            <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
             <br />
-            <b className="text-gty-ink">{context.value}</b>{' '}
-            <span className="text-gty-subtle">· pre-filled from this page</span>
+            <b className="text-stone-900">{context.value}</b>{' '}
+            <span className="text-redux-ink-mute">· pre-filled from this page</span>
           </div>
         )}
 
@@ -342,17 +346,12 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
             // `getByRole('alert')`, which silently matched the only alert there
             // used to be.
             data-testid="lead-form-error"
-            className="flex flex-col gap-2 rounded-16 border border-gty-red-300 bg-gty-red-100 p-[10px] text-11-5 text-gty-primary-deep"
+            className="flex flex-col gap-2 rounded-2xl border border-redux-crimson/30 bg-redux-crimson-tint p-3 text-[13px] text-redux-crimson-dark"
           >
             <div className="flex items-start justify-between gap-3">
               <p className="leading-relaxed">{errorMessage}</p>
-              <button
-                type="button"
-                onClick={onDismissError}
-                aria-label="Dismiss"
-                className="shrink-0 text-14 leading-none text-gty-primary-deep"
-              >
-                ×
+              <button type="button" onClick={onDismissError} aria-label="Dismiss" className="shrink-0 text-redux-crimson-dark">
+                <X size={16} />
               </button>
             </div>
             <Button type="submit" variant="default" size="sm" className="self-start">
@@ -365,19 +364,21 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
           <Input id="lead-name" autoComplete="name" aria-invalid={!!errors.name} {...register('name')} />
         </Field>
 
-        <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
-          <Input id="lead-mobile" type="tel" autoComplete="tel" aria-invalid={!!errors.mobile} {...register('mobile')} />
-        </Field>
+        {/* `.form-row` (brief §12) — phone + email side by side; both stay full-width fields on mobile via the Field/Input components' own responsive styling. */}
+        <div className="grid grid-cols-2 gap-[14px]">
+          <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
+            <Input id="lead-mobile" type="tel" autoComplete="tel" aria-invalid={!!errors.mobile} {...register('mobile')} />
+          </Field>
+          <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
+            <Input id="lead-email" type="email" autoComplete="email" aria-invalid={!!errors.email} {...register('email')} />
+          </Field>
+        </div>
 
-        <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
-          <Input id="lead-email" type="email" autoComplete="email" aria-invalid={!!errors.email} {...register('email')} />
-        </Field>
-
-        <div className="flex gap-[10px]">
-          <Field label="Travel Date" htmlFor="lead-travel-date" error={errors.travelDate?.message} className="flex-1">
+        <div className="grid grid-cols-2 gap-[14px]">
+          <Field label="Travel Date" htmlFor="lead-travel-date" error={errors.travelDate?.message}>
             <Input id="lead-travel-date" type="date" {...register('travelDate')} />
           </Field>
-          <Field label="Travellers" htmlFor="lead-travellers" error={errors.travellers?.message} className="flex-1">
+          <Field label="Travellers" htmlFor="lead-travellers" error={errors.travellers?.message}>
             <Input id="lead-travellers" type="number" min={1} inputMode="numeric" {...register('travellers')} />
           </Field>
         </div>
@@ -408,11 +409,11 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         </div>
 
         <div className="flex flex-col gap-[6px]">
-          <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-11-5 leading-relaxed text-gty-body">
+          <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-[13px] leading-relaxed text-redux-ink-soft">
             <input
               id="lead-consent"
               type="checkbox"
-              className="mt-[2px]"
+              className="mt-[2px] accent-redux-crimson"
               aria-invalid={!!errors.consent}
               aria-describedby={errors.consent ? 'lead-consent-error' : undefined}
               {...register('consent')}
@@ -420,35 +421,42 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
             <span>I agree to be contacted by Guruji Travel Yatra about this enquiry. *</span>
           </label>
           {errors.consent && (
-            <p id="lead-consent-error" role="alert" className="text-11 text-gty-primary">
+            <p id="lead-consent-error" role="alert" className="text-xs text-redux-crimson">
               {errors.consent.message}
             </p>
           )}
         </div>
 
-        {TURNSTILE_SITE_KEY ? (
-          <TurnstileWidget
-            siteKey={TURNSTILE_SITE_KEY}
-            onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
-            onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
-          />
-        ) : (
-          // UNSET IS SUPPORTED (see the module-level comment on
-          // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
-          // not a loading flicker, so it says so rather than rendering
-          // nothing with no explanation for why submit never succeeds.
-          <p className="text-10 text-gty-faint-2">Verification is not configured in this environment.</p>
-        )}
+        {/* Brief §12: "the Turnstile widget sits above the submit button, centered, inside the form card". */}
+        <div className="flex justify-center">
+          {TURNSTILE_SITE_KEY ? (
+            <TurnstileWidget
+              siteKey={TURNSTILE_SITE_KEY}
+              onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
+              onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
+            />
+          ) : (
+            // UNSET IS SUPPORTED (see the module-level comment on
+            // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
+            // not a loading flicker, so it says so rather than rendering
+            // nothing with no explanation for why submit never succeeds.
+            <p className="text-[11px] text-redux-ink-mute">Verification is not configured in this environment.</p>
+          )}
+        </div>
         {errors.turnstileToken && (
-          <p role="alert" className="text-11 text-gty-primary">
+          <p role="alert" className="text-center text-xs text-redux-crimson">
             {errors.turnstileToken.message}
           </p>
         )}
 
-        <Button type="submit" variant="primary" className="justify-center">
-          {copy.cta} <span aria-hidden="true">→</span>
-        </Button>
-        <p className="text-9 leading-relaxed text-gty-faint-2">{copy.disclaimer}</p>
+        <button
+          type="submit"
+          className="btn-shine mt-1.5 flex w-full items-center justify-center gap-2.5 rounded-full bg-redux-crimson px-6 py-3.5 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(220,38,38,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-redux-crimson-dark"
+        >
+          {copy.cta}
+          <Send size={16} aria-hidden="true" />
+        </button>
+        <p className="text-center text-[11px] leading-relaxed text-redux-ink-mute">{copy.disclaimer}</p>
       </form>
     </div>
   );
@@ -462,18 +470,33 @@ interface FieldProps {
   children: React.ReactNode;
 }
 
+/**
+ * Brief §12 wants an explicit "(Optional)" chip next to optional field
+ * labels — tried as a child of the `<Label>` itself, but
+ * `@testing-library/dom`'s `getByLabelText` matches a label's raw
+ * `textContent`, which includes `aria-hidden` descendants too (that
+ * attribute only affects the accessibility tree, not plain DOM text), so
+ * it silently turned `getByLabelText('City')` into
+ * `getByLabelText('City(Optional)')` and broke existing, unrelated test
+ * coverage. Not worth the churn for a cosmetic addition — dropped; the
+ * existing "no asterisk means optional" convention (already how required
+ * fields are marked) stays as the only signal.
+ */
 function Field({ label, htmlFor, error, className, children }: FieldProps) {
   const errorId = `${htmlFor}-error`;
   return (
-    <div className={cn('flex flex-col gap-[6px]', className)}>
-      <Label htmlFor={htmlFor}>{label}</Label>
+    <div className={cn('flex flex-col gap-[7px]', className)}>
+      <Label htmlFor={htmlFor} className="text-[10px] font-bold uppercase tracking-[0.1em] text-redux-ink-mute">
+        {label}
+      </Label>
       {React.isValidElement(children)
         ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
             'aria-describedby': error ? errorId : undefined,
+            className: 'rounded-[10px] border-stone-200 bg-white text-[13px] text-stone-900 focus-visible:border-redux-crimson focus-visible:ring-redux-crimson/10',
           })
         : children}
       {error && (
-        <p id={errorId} role="alert" className="text-11 text-gty-primary">
+        <p id={errorId} role="alert" className="text-xs text-redux-crimson">
           {error}
         </p>
       )}
@@ -483,17 +506,17 @@ function Field({ label, htmlFor, error, className, children }: FieldProps) {
 
 function SendingStep({ label, shouldReduceMotion }: { label: string; shouldReduceMotion: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-gx py-11">
-      <p className="text-10 font-bold uppercase tracking-label text-gty-subtle">Sending…</p>
-      <div className="h-2 w-[200px] rounded-16 border-[1.5px] border-dashed border-gty-border-8 bg-gty-surface-3">
+    <div className="flex flex-col items-center gap-3 bg-redux-cream px-gx py-11">
+      <p className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">Sending…</p>
+      <div className="h-2 w-[200px] rounded-full border border-stone-200 bg-white">
         <motion.div
-          className="h-full rounded-16 bg-gty-primary"
+          className="h-full rounded-full bg-redux-crimson"
           initial={{ width: shouldReduceMotion ? '60%' : '10%' }}
           animate={{ width: '60%' }}
           transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
         />
       </div>
-      <p className="text-11 text-gty-subtle">{label}</p>
+      <p className="text-[13px] text-redux-ink-mute">{label}</p>
     </div>
   );
 }
@@ -508,16 +531,16 @@ function DoneStep({
   onClose: () => void;
 }) {
   return (
-    <div className="flex flex-col items-start gap-3 p-6">
-      <div className="flex h-10 w-10 items-center justify-center rounded-16 border border-gty-primary text-20 text-gty-primary">
-        ✓
+    <div className="flex flex-col items-start gap-3 bg-redux-cream p-6">
+      <div className="grid h-12 w-12 place-items-center rounded-full bg-redux-crimson-tint text-redux-crimson">
+        <Check size={22} aria-hidden="true" />
       </div>
-      <h2 className="text-24 font-extrabold leading-[1.1] text-gty-ink">
+      <h2 className="font-redux-display text-2xl font-medium leading-[1.1] tracking-tight text-stone-900">
         Your journey
         <br />
         starts here.
       </h2>
-      <p className="text-12 text-gty-subtle">{doneLine}</p>
+      <p className="text-[13px] text-redux-ink-mute">{doneLine}</p>
       <div className="mt-[6px] flex w-full flex-col gap-2">
         {variant === 'brochure' && (
           <div className="flex flex-col gap-2">
@@ -538,11 +561,15 @@ function DoneStep({
             </div>
           </div>
         )}
-        <Button variant="default" className="justify-center" onClick={onClose}>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-stone-300 bg-white px-6 py-3 text-[15px] font-bold text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:border-redux-crimson/50 hover:text-redux-crimson"
+        >
           Keep Exploring <span aria-hidden="true">→</span>
-        </Button>
+        </button>
       </div>
-      <div className="w-full rounded-16 border-[1.5px] border-dashed border-gty-border-8 p-[10px] text-11-5 leading-relaxed text-gty-subtle">
+      <div className="w-full rounded-2xl border border-stone-200 bg-white p-3 text-[13px] leading-relaxed text-redux-ink-mute">
         GTY has your details — our team will call you within business hours.
       </div>
     </div>
