@@ -1,7 +1,11 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { type ReactNode, useRef } from 'react';
+import { useInView } from 'framer-motion';
 import { Award, Headset, MapPin, ShieldCheck, Soup, Users } from 'lucide-react';
 
 import type { SiteStatsSummary } from '@/lib/site-stats';
+import { CountUpStat } from './CountUpStat';
 import { Reveal } from './Reveal';
 
 /**
@@ -97,6 +101,11 @@ interface StatEntry {
 
 export function WhyGtyBand({ stats }: WhyGtyBandProps) {
   const pillars = buildPillars(stats.yearsExperience);
+  const statsRef = useRef<HTMLDivElement>(null);
+  // Brief §A7 (2026-11-14): the same 0-to-X count-up as the hero's stats
+  // band, triggered once this band itself (not the pillars above it)
+  // scrolls 50% into view.
+  const statsInView = useInView(statsRef, { once: true, amount: 0.5 });
 
   const allStats: StatEntry[] = [
     { key: 'happyTravellers', icon: STATS_ICONS.happyTravellers, label: 'Happy Travellers', value: stats.happyTravellers },
@@ -135,6 +144,7 @@ export function WhyGtyBand({ stats }: WhyGtyBandProps) {
       {statCards.length > 0 && (
         <Reveal delay={0.1} className="mx-auto mt-12 max-w-[1320px]">
           <div
+            ref={statsRef}
             role="group"
             aria-label="Guruji Travel Yatra in numbers"
             aria-describedby={stats.showFiguresNote ? PLACEHOLDER_NOTE_ID : undefined}
@@ -142,12 +152,12 @@ export function WhyGtyBand({ stats }: WhyGtyBandProps) {
           >
             <StatsMountainBand />
             <div className="relative grid gap-8 sm:grid-cols-3">
-              {statCards.map((stat) => (
+              {statCards.map((stat, index) => (
                 <div key={stat.key} className="flex items-center gap-4">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/15 text-white">{stat.icon}</span>
                   <div>
                     <p className="font-redux-display text-3xl font-semibold leading-none text-white sm:text-4xl">
-                      {stat.value}
+                      <CountUpStat value={stat.value as string} delay={index * 0.12} start={statsInView} suffixClassName="text-red-200" />
                       {stats.showFiguresNote && (
                         <span
                           aria-hidden="true"

@@ -38,14 +38,28 @@ const UNCONFIRMED_STATS: SiteStatsSummary = {
   showFiguresNote: true,
 };
 
+/**
+ * `CountUpStat` (brief §A6, 2026-11-14) splits a value like "42,000+" into
+ * a number text node plus a separately-coloured suffix `<span>` — real for
+ * sighted/assistive-tech users (the full accessible text still reads
+ * "42,000+"), but `@testing-library/dom`'s default `getByText` matches a
+ * node's OWN direct text-node children only, not descendant elements', so
+ * it can no longer find the two pieces as one string. `toHaveTextContent`
+ * (full `element.textContent`, descendants included) is the correct tool
+ * for a value now split across elements.
+ */
+function getStatValueNode(container: HTMLElement, text: string): HTMLElement {
+  return within(container).getByText((_, element) => element?.textContent === text);
+}
+
 describe('Hero renders the SiteStatsSummary it is given — no literal of its own', () => {
   it('shows the given values', () => {
     renderHero(CONFIRMED_STATS);
     const heroStrip = screen.getByTestId('hero-stats');
 
-    expect(within(heroStrip).getByText('42,000+')).toBeInTheDocument();
-    expect(within(heroStrip).getByText('7+')).toBeInTheDocument();
-    expect(within(heroStrip).getByText('3+')).toBeInTheDocument();
+    expect(getStatValueNode(heroStrip, '42,000+')).toBeInTheDocument();
+    expect(getStatValueNode(heroStrip, '7+')).toBeInTheDocument();
+    expect(getStatValueNode(heroStrip, '3+')).toBeInTheDocument();
   });
 
   it('renders no stats strip at all rather than inventing one when every figure is absent', () => {
@@ -57,15 +71,28 @@ describe('Hero renders the SiteStatsSummary it is given — no literal of its ow
     renderHero({ destinations: '50+', showFiguresNote: false });
     const heroStrip = screen.getByTestId('hero-stats');
 
-    expect(within(heroStrip).getByText('50+')).toBeInTheDocument();
+    expect(getStatValueNode(heroStrip, '50+')).toBeInTheDocument();
     expect(within(heroStrip).queryByText('Happy Travellers')).not.toBeInTheDocument();
     expect(within(heroStrip).queryByText('Years of Experience')).not.toBeInTheDocument();
   });
 
-  it('renders the CRM headline/subtext when set, and a real default otherwise', () => {
+  /**
+   * Brief §A3/§A4 (2026-11-14): a real CRM headline is now ALWAYS split
+   * across the hero's two masked lines with the last word red-italic
+   * (reversing the earlier "never impose this on Owner-typed text"
+   * decision), and the subtext line is fixed copy — a real CRM subtext
+   * value must NOT override it anymore (reversing the earlier CRM-sourced
+   * subtext decision). Both reversals are the brief's own explicit
+   * instruction ("this prompt wins" over the earlier design).
+   */
+  it('splits a real CRM headline across two lines with the last word accented, and always shows the fixed subtext copy', () => {
     renderHero(CONFIRMED_STATS, 'Real CRM Headline', 'Real CRM subtext.');
-    expect(screen.getByText('Real CRM Headline')).toBeInTheDocument();
-    expect(screen.getByText('Real CRM subtext.')).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+
+    expect(heading).toHaveTextContent('Real CRM Headline');
+    expect(screen.getByText('Headline')).toHaveClass('italic');
+    expect(screen.queryByText('Real CRM subtext.')).not.toBeInTheDocument();
+    expect(screen.getByText(/touch your soul and memories/)).toBeInTheDocument();
   });
 
   it('falls back to default copy when the CRM has not set a headline/subtext yet', () => {
@@ -156,11 +183,11 @@ describe("WhyGtyBand's stats band renders only the 3 CRM-shaped figures it is gi
     render(<WhyGtyBand stats={CONFIRMED_STATS} />);
     const band = screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' });
 
-    expect(within(band).getByText('42,000+')).toBeInTheDocument();
+    expect(getStatValueNode(band, '42,000+')).toBeInTheDocument();
     expect(within(band).getByText('Happy Travellers')).toBeInTheDocument();
-    expect(within(band).getByText('7+')).toBeInTheDocument();
+    expect(getStatValueNode(band, '7+')).toBeInTheDocument();
     expect(within(band).getByText('Destinations')).toBeInTheDocument();
-    expect(within(band).getByText('3+')).toBeInTheDocument();
+    expect(getStatValueNode(band, '3+')).toBeInTheDocument();
     expect(within(band).getByText('Years of Experience')).toBeInTheDocument();
   });
 
@@ -168,7 +195,7 @@ describe("WhyGtyBand's stats band renders only the 3 CRM-shaped figures it is gi
     render(<WhyGtyBand stats={{ happyTravellers: '10,000+', showFiguresNote: false }} />);
     const band = screen.getByRole('group', { name: 'Guruji Travel Yatra in numbers' });
 
-    expect(within(band).getByText('10,000+')).toBeInTheDocument();
+    expect(getStatValueNode(band, '10,000+')).toBeInTheDocument();
     expect(within(band).queryByText('Destinations')).not.toBeInTheDocument();
     expect(within(band).queryByText('Years of Experience')).not.toBeInTheDocument();
   });

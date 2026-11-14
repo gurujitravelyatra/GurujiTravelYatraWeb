@@ -253,7 +253,8 @@
   --tracking-widest2: 0.3em;
   --duration-redux-400: 400ms;
 
-  --animate-redux-marquee: redux-marquee 48s linear infinite;
+  /* Brief §A8 (2026-11-14): duration is now per-instance (7s/name) via `RouteMarquee`'s inline `--marquee-duration`; 48s is only the fallback if that var is ever unset. */
+  --animate-redux-marquee: redux-marquee var(--marquee-duration, 48s) linear infinite;
   --animate-redux-pulse-ring: redux-pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 

@@ -1,10 +1,12 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
 import type { SiteStatsSummary } from '@/lib/site-stats';
 import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
+import { CountUpStat } from './CountUpStat';
 import { HeroCtas } from './HeroCtas';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -17,8 +19,14 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const PLACEHOLDER_NOTE_ID = 'hero-stats-placeholder-note';
 
 export interface HeroProps {
-  /** `site.settings.heroHeadline`/`heroSubtext` from `GET /public/site` — `null` until the Owner sets them. */
+  /** `site.settings.heroHeadline` from `GET /public/site` — `null` until the Owner sets it. */
   headline: string | null;
+  /**
+   * Accepted for backward compatibility with `page.tsx`'s existing plumbing
+   * but no longer rendered — brief §A4 (2026-11-14) made the subtext a fixed
+   * line, deliberately not CRM-sourced, overriding the earlier decision (see
+   * `DEFAULT_SUBTEXT`'s own comment below for why).
+   */
   subtext: string | null;
   /** `site.images.HERO_BACKGROUND[0]`, if the CRM has one configured. */
   heroImageUrl?: string;
@@ -29,11 +37,19 @@ export interface HeroProps {
 /**
  * "Redux" redesign (brief §3, 2026-11-14) default headline — replaces the
  * old fallback ("Not All Those Who Wander Are Lost") with the reference's
- * own copy, split into the two lines its masked-reveal animation expects.
- * A real CRM headline (`headline` prop) still wins when the Owner has set
- * one — this is only what renders before that ever happens.
+ * own copy. A real CRM headline (`headline` prop) still wins when the Owner
+ * has set one — this is only what renders before that ever happens.
  */
-const DEFAULT_HEADLINE_LINES = ['Journeys That', 'Stay Forever.'];
+const DEFAULT_HEADLINE = 'Journeys That Stay Forever.';
+
+/**
+ * Brief §A4 (2026-11-14): the Owner asked for this line FIXED, not CRM-
+ * sourced — reversing the earlier CRM-migration decision that let
+ * `site.settings.heroSubtext` override it. This prompt explicitly wins over
+ * that earlier choice ("where this prompt and that file differ, this
+ * prompt wins"), so the `subtext` prop is accepted (callers still pass it)
+ * but intentionally never read below.
+ */
 const DEFAULT_SUBTEXT =
   'From sacred pilgrimages to breathtaking getaways, we create experiences that touch your soul and memories that last a lifetime.';
 
@@ -44,21 +60,47 @@ interface StatCard {
 }
 
 /**
- * Splits a CRM headline into masked-reveal lines. The reference's own
- * choreography is for exactly 2 fixed lines of its own hardcoded copy — a
- * real CRM-typed headline has no guaranteed line count, so this renders
- * whatever the Owner typed as its own line(s) (split only on an explicit
- * newline, never invented) rather than forcing it into a 2-line shape it
- * may not fit. The LAST line's trailing word is never auto-italicised for
- * a real headline — that treatment is specific to the reference's own
- * fallback copy ("Stay <em>Forever.</em>"), not something to impose on
- * text the Owner wrote.
+ * Splits a headline into exactly 2 masked-reveal lines, the LAST word of
+ * the LAST line always the red-italic accent (brief §A3, 2026-11-14) — this
+ * now applies to a real CRM headline too, not only the fallback copy,
+ * reversing the earlier "never impose this on Owner-typed text" decision
+ * now that the brief asks for it explicitly on every headline.
+ *
+ * An explicit newline in the CRM text is honoured as the line break; with
+ * none, the words split in half (`ceil(n/2)` on line 1, brief's own rule).
+ * A single-word headline still gets 2 lines (an empty first line) rather
+ * than crashing on "nothing left to accent on its own line" — not a case
+ * the CRM can currently produce (every seeded headline is multi-word), but
+ * cheap to not crash on.
  */
 function headlineLines(headline: string | null): { text: string; italicTail?: string }[] {
-  if (!headline) {
-    return [{ text: DEFAULT_HEADLINE_LINES[0] }, { text: 'Stay ', italicTail: 'Forever.' }];
-  }
-  return headline.split('\n').map((text) => ({ text }));
+  const source = headline ?? DEFAULT_HEADLINE;
+  const explicitLines = source.split('\n').filter((line) => line.trim().length > 0);
+
+  const [line1Words, line2Words] =
+    explicitLines.length >= 2
+      ? [explicitLines[0].trim().split(/\s+/), explicitLines.slice(1).join(' ').trim().split(/\s+/)]
+      : splitWordsInHalf(source.trim().split(/\s+/));
+
+  const lastWordIndex = line2Words.length > 0 ? line2Words.length - 1 : -1;
+  // Trailing space on line 1 so the accessible/text-content join across the
+  // two separately-wrapped block lines reads "...CRM Headline", not
+  // "...CRMHeadline" — the visual line break comes from `MaskedLine`'s own
+  // `block` wrapper regardless, so this space is never visibly rendered.
+  const line1 = line1Words.length > 0 ? `${line1Words.join(' ')} ` : '';
+  const line2Lead = lastWordIndex >= 0 ? line2Words.slice(0, lastWordIndex).join(' ') : '';
+  const line2Tail = lastWordIndex >= 0 ? line2Words[lastWordIndex] : '';
+
+  return [
+    { text: line1 },
+    { text: line2Lead.length > 0 ? `${line2Lead} ` : '', italicTail: line2Tail },
+  ];
+}
+
+/** `ceil(n/2)` words on line 1, the rest on line 2 (brief §A3's own split rule). */
+function splitWordsInHalf(words: string[]): [string[], string[]] {
+  const splitAt = Math.ceil(words.length / 2);
+  return [words.slice(0, splitAt), words.slice(splitAt)];
 }
 
 function MaskedLine({ line, delay }: { line: { text: string; italicTail?: string }; delay: number }) {
@@ -77,9 +119,23 @@ function MaskedLine({ line, delay }: { line: { text: string; italicTail?: string
   );
 }
 
-export function Hero({ headline, subtext, heroImageUrl, stats }: HeroProps) {
+/**
+ * Brief §A1 (2026-11-14): the Owner's real CRM `hero` image slot is empty
+ * right now (confirmed — `getSite()` returns `images.HERO_BACKGROUND: []`
+ * until the Owner uploads one), so `heroImageUrl` arrives `undefined` and
+ * this fell through to `PhotoPlaceholder`'s grey placeholder box instead of
+ * a photo. This is the Owner's own confirmed file, already on the trusted
+ * media host (`FALLBACK_MEDIA_HOST` in `src/lib/media-host.ts`) — used only
+ * when the CRM slot is empty or its URL fails `safeMediaUrl()`; a real CRM
+ * upload still wins the moment one exists.
+ */
+const FALLBACK_HERO_IMAGE_URL = 'https://media.gurujitravelyatra.com/site-images/51507ac4-baf9-4d38-9e0a-c4bdda789679.webp';
+
+export function Hero({ headline, heroImageUrl, stats }: HeroProps) {
   const { scrollY } = useScroll();
   const parallaxY = useTransform(scrollY, [0, 900], [0, 110]);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const statsInView = useInView(statsRef, { once: true, amount: 0.5 });
 
   const cards: StatCard[] = [
     { key: 'happyTravellers', label: 'Happy Travellers', value: stats.happyTravellers ?? '' },
@@ -97,7 +153,7 @@ export function Hero({ headline, subtext, heroImageUrl, stats }: HeroProps) {
       <motion.div style={{ y: parallaxY }} className="absolute inset-0 -z-10">
         <PhotoPlaceholder
           photoKey="Himalayas"
-          imageUrl={heroImageUrl}
+          imageUrl={heroImageUrl ?? FALLBACK_HERO_IMAGE_URL}
           alt="Himalayan landscape — Guruji Travel Yatra"
           className="h-[115%] w-full"
         />
@@ -154,7 +210,7 @@ export function Hero({ headline, subtext, heroImageUrl, stats }: HeroProps) {
           transition={{ duration: 0.7, delay: 0.65, ease: EASE }}
           className="mt-6 max-w-xl font-redux-sans text-base leading-relaxed text-white/80 sm:text-lg"
         >
-          {subtext ?? DEFAULT_SUBTEXT}
+          {DEFAULT_SUBTEXT}
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -166,6 +222,7 @@ export function Hero({ headline, subtext, heroImageUrl, stats }: HeroProps) {
 
         {cards.length > 0 && (
           <motion.div
+            ref={statsRef}
             // `opacity` deliberately left out of this animation (`y` only):
             // framer-motion's mount animation never actually runs in jsdom
             // (no real rAF), so the component stays frozen at its `initial`
@@ -181,23 +238,22 @@ export function Hero({ headline, subtext, heroImageUrl, stats }: HeroProps) {
             role="group"
             aria-label="Guruji Travel Yatra in numbers"
             aria-describedby={stats.showFiguresNote ? PLACEHOLDER_NOTE_ID : undefined}
-            className="mt-14 grid max-w-xl grid-cols-3 divide-x divide-white/15 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl"
+            // Brief §A6 (2026-11-14): full content width, not a narrow `max-w-xl`
+            // box — the width ceiling now comes only from the section's own
+            // `max-w-[1320px]` container above.
+            className="mt-14 grid grid-cols-3 divide-x divide-white/15 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl"
           >
-            {cards.map((card) => (
+            {cards.map((card, index) => (
               <div key={card.key} className="px-5 py-5 sm:px-8 sm:py-6">
-                {/*
-                  Brief §3 point 6 wants this to count up from 0 via
-                  framer-motion's animate(). Deliberately NOT done: `card.value`
-                  is an opaque, CRM-owner-typed string ("10,000+", "8+", or
-                  anything else they chose to type), and StatsBar's own header
-                  documents "rendered VERBATIM (never reformatted/parsed)" as a
-                  load-bearing contract — parsing out a leading number to
-                  animate, then re-appending whatever text followed it, would
-                  break that for any value that is not cleanly "<number><suffix>".
-                  Visual redesign only; the value itself stays a static string.
-                */}
                 <p className="font-redux-display text-3xl font-semibold leading-none text-white sm:text-4xl">
-                  {card.value}
+                  {/*
+                    Brief §A6 (2026-11-14): counts up 0 -> value on scroll into
+                    view (stagger 0/0.12/0.24s), settling back on the EXACT
+                    CRM string — see `CountUpStat`'s own header for why this
+                    is now safe to do without breaking the "rendered
+                    verbatim" contract the earlier round deliberately upheld.
+                  */}
+                  <CountUpStat value={card.value} delay={index * 0.12} start={statsInView} suffixClassName="text-redux-crimson" />
                   {stats.showFiguresNote && (
                     <span
                       aria-hidden="true"

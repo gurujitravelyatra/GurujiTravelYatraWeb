@@ -39,7 +39,7 @@ export function HeaderControls({ pageLabel, phoneTel }: HeaderControlsProps) {
         onClick={() => openEnquiry({ label: 'Page', value: pageLabel })}
         className="btn-shine hidden min-h-11 items-center gap-2 rounded-full bg-redux-crimson px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_25px_-8px_rgba(220,38,38,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-redux-crimson-dark sm:inline-flex"
       >
-        Enquire
+        Enquire Now
         <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
       </button>
       <button
