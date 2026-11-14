@@ -39,13 +39,14 @@ export function Field({ label, htmlFor, error, className, children }: FieldProps
       {React.isValidElement(children)
         ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
             'aria-describedby': error ? errorId : undefined,
-            // New brief, Part 4B (2026-11-14): "inputs 10px radius with a red
-            // focus ring" using the reference's own exact `--red: #d92d32` —
-            // scoped to this one arbitrary value, not the sitewide
-            // `redux-crimson` token (`#dc2626`), which stays untouched
-            // everywhere else on the site.
+            // New brief, Part 4B (2026-11-14), refined 2026-11-15: "inputs
+            // 10px radius with a red focus ring (border #d92d32 + 3px
+            // rgba(217,45,50,.08))" — the reference's own exact `--red:
+            // #d92d32`, scoped to this one arbitrary value, not the
+            // sitewide `redux-crimson` token (`#dc2626`), which stays
+            // untouched everywhere else on the site.
             className:
-              'rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[#d92d32]/10',
+              'rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08]',
           })
         : children}
       {error && (

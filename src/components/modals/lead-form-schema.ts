@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isValidLocalNumber, parsePhone } from '@/lib/calling-codes';
+
 /**
  * Shared Zod schema for the Enquiry and Brochure forms — tech spec §4.3.
  * Both variants render the exact same 7-field set (BLOCKERS.md Open
@@ -14,7 +16,21 @@ export const leadFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'Please enter your mobile number.')
-    .regex(/^[+]?[\d\s-]{10,15}$/, 'Please enter a valid mobile number.'),
+    .regex(/^[+]?[\d\s-]{10,15}$/, 'Please enter a valid mobile number.')
+    // New brief (2026-11-15), item 3: "mobile valid for the selected
+    // country; India = 10 digits starting 6-9" must actually BLOCK submit,
+    // not just hint at it — `isValidLocalNumber` already existed
+    // (`PhoneField`'s own "looks incomplete" aria-invalid hint) but was
+    // never wired into the schema that gates `handleSubmit`. Reusing it
+    // here, never duplicating its digit rules, keeps the two in sync.
+    // Still never stricter than the unchanged server regex above it.
+    .refine(
+      (value) => {
+        const { callingCode, localNumber } = parsePhone(value);
+        return isValidLocalNumber(callingCode, localNumber);
+      },
+      { message: 'Please enter a valid mobile number.' }
+    ),
   email: z.union([z.literal(''), z.string().trim().email('Please enter a valid email address.')]).optional(),
   travelDate: z.string().optional(),
   travellers: z

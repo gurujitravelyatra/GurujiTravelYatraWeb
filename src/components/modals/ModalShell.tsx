@@ -22,16 +22,42 @@ export interface ModalShellProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  /**
+   * New brief (2026-11-15), item 4's success toast — rendered as a SIBLING
+   * of the dialog card, inside the SAME `DialogPortal`, not alongside
+   * `children` inside `DialogContent`. Two reasons it cannot live anywhere
+   * else:
+   *  1. Radix hides every element outside the Dialog's own portaled subtree
+   *     from the accessibility tree while open (`aria-hidden`, so assistive
+   *     tech ignores background content) — a toast rendered as a sibling
+   *     of `<ModalShell>` itself, elsewhere in the page, gets caught by
+   *     that and silently becomes unannounceable/unqueryable.
+   *  2. `DialogContent`'s own wrapping `motion.div` animates a CSS
+   *     `transform` (`scale`/`y`) while open, which creates a new
+   *     containing block for any `position: fixed` descendant — a toast
+   *     nested INSIDE it would be positioned relative to that animated box
+   *     instead of the viewport, not stay pinned to the bottom of the screen.
+   */
+  toast?: React.ReactNode;
 }
 
 /**
- * `.mask` / `.modal` chrome — backdrop blur, rounded-22, shadow-gty-modal,
- * max-width 440px, max-height 90vh scrollable (tech spec §4.3). Wraps Radix
- * Dialog for the focus trap and Escape/backdrop-click-to-close, with
- * Framer Motion driving enter/exit (`forceMount` + `AnimatePresence` so the
- * exit animation gets to run before unmount).
+ * `.mask` / `.modal` chrome — backdrop blur, max-height 90vh scrollable
+ * (tech spec §4.3). Wraps Radix Dialog for the focus trap and
+ * Escape/backdrop-click-to-close, with Framer Motion driving enter/exit
+ * (`forceMount` + `AnimatePresence` so the exit animation gets to run
+ * before unmount).
+ *
+ * New brief (2026-11-15), item 2: the card chrome now matches the
+ * reference popup exactly — a WHITE card, 32px radius, 1px `#eadfdb`
+ * border, the reference's own shadow recipe, ~560px max-width. This is
+ * the only consumer of `ModalShell` (both lead-modal variants), so these
+ * are scoped arbitrary values rather than a sitewide token change — the
+ * site's own `rounded-22`/`shadow-gty-modal`/`bg-gty-white` tokens this
+ * used to carry stay defined and in use elsewhere (buttons, cards) and are
+ * untouched.
  */
-export function ModalShell({ open, onOpenChange, title, description, children }: ModalShellProps) {
+export function ModalShell({ open, onOpenChange, title, description, children, toast }: ModalShellProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -60,7 +86,7 @@ export function ModalShell({ open, onOpenChange, title, description, children }:
               */}
               <DialogContent asChild forceMount onCloseAutoFocus={(event) => event.preventDefault()}>
                 <motion.div
-                  className="max-h-[90vh] w-[440px] max-w-full overflow-auto rounded-22 bg-gty-white shadow-gty-modal focus:outline-none"
+                  className="max-h-[90vh] w-[560px] max-w-full overflow-auto rounded-[32px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none"
                   initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={shouldReduceMotion ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
@@ -72,6 +98,7 @@ export function ModalShell({ open, onOpenChange, title, description, children }:
                 </motion.div>
               </DialogContent>
             </div>
+            {toast}
           </DialogPortal>
         )}
       </AnimatePresence>
