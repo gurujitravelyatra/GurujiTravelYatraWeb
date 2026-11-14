@@ -313,9 +313,16 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
   return (
     <div className="bg-redux-cream">
       <div className="flex items-start justify-between gap-3 border-b border-stone-200 p-6 pb-5">
+        {/*
+          Brief §E3 (2026-11-14): this form is one screen, not a numbered
+          wizard — "sending"/"done" are submission OUTCOMES, not steps a
+          visitor walks through — so the eyebrow a previous round added
+          here ("The first step", implying more steps follow) is exactly
+          the decorative step-count language the brief says to drop when
+          there are no real steps.
+        */}
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-widest2 text-redux-crimson">The first step</span>
-          <h2 className="mt-1.5 font-redux-display text-2xl font-medium tracking-tight text-stone-900">{copy.title}</h2>
+          <h2 className="font-redux-display text-2xl font-medium tracking-tight text-stone-900">{copy.title}</h2>
         </div>
         {/* Brief §13 ("ACCEPTANCE") requires every tap target >= 44px — `-m-[11px]` + `p-[11px]` keeps the visible 18px icon compact while the actual hit area is 44x44. */}
         <button

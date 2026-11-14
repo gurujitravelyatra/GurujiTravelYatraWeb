@@ -54,7 +54,12 @@ export function PhoneField({
   const looksIncomplete = localNumber.length > 0 && !isValidLocalNumber(callingCode, localNumber);
 
   return (
-    <div className={cn('flex items-stretch overflow-hidden', className)}>
+    // `Field` normally puts its red keyboard-focus ring on the single input
+    // it clones `className` onto directly (`:focus-visible` matches the
+    // focused element itself) — this wrapper is never itself focused, so
+    // `focus-within` is what has to carry that same red ring here, as an
+    // addition alongside (not instead of) the cloned border/background.
+    <div className={cn('flex items-stretch overflow-hidden focus-within:ring-2 focus-within:ring-redux-crimson/10', className)}>
       <label htmlFor={codeSelectId} className="sr-only">
         Country code
       </label>
@@ -62,7 +67,7 @@ export function PhoneField({
         id={codeSelectId}
         value={callingCode}
         onChange={(event) => update(event.target.value, localNumber)}
-        className="shrink-0 border-r border-stone-200 bg-stone-50 pl-2.5 pr-1 text-[13px] text-stone-900 focus-visible:outline-none"
+        className="shrink-0 border-r border-stone-200 bg-stone-50 pl-2.5 pr-1 text-[13px] text-stone-900 focus-visible:bg-redux-crimson-tint focus-visible:outline-none"
       >
         {CALLING_CODES.map((entry) => (
           <option key={entry.code} value={entry.code}>
