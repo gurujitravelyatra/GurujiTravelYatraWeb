@@ -1,6 +1,6 @@
 import type { LeadSubmissionInput } from '@/server/leads/lead-schema';
 
-/** Shared by `LeadModal` and `InlineEnquiryForm` — reads `?utm_*=` off the current URL at submit time, never during render (no hydration mismatch, no forced-dynamic route). */
+/** Reads `?utm_*=` off the current URL at submit time, never during render (no hydration mismatch, no forced-dynamic route). */
 export function extractUtm(search: string): LeadSubmissionInput['utm'] {
   const params = new URLSearchParams(search);
   const utm = {

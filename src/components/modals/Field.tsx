@@ -14,11 +14,9 @@ export interface FieldProps {
 }
 
 /**
- * Extracted out of `LeadModal.tsx` (new brief, Part 4, 2026-11-14) so the
- * new inline enquiry form (`InlineEnquiryForm.tsx`) can share the exact
- * same field chrome/error-wiring instead of a second, drifting copy — the
- * `aria-describedby`/`className` clone below is the one place that logic
- * lives now.
+ * `LeadModal.tsx`'s field chrome/error-wiring, extracted into its own
+ * module — the `aria-describedby`/`className` clone below is the one
+ * place that logic lives.
  *
  * Brief §12 wanted an explicit "(Optional)" chip next to optional field
  * labels — tried as a child of the `<Label>` itself, but

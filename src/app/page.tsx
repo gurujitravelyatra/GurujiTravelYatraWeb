@@ -7,7 +7,6 @@ import { Hero } from '@/components/home/Hero';
 import { RouteMarquee } from '@/components/home/RouteMarquee';
 import { TripFinderBar } from '@/components/home/TripFinderBar';
 import { PopularDestinationsSection } from '@/components/home/PopularDestinationsSection';
-import { InlineEnquiryForm } from '@/components/home/InlineEnquiryForm';
 import { DestinationsRail } from '@/components/home/InternationalDestinationsRail';
 import { JourneyVideoBlock } from '@/components/home/JourneyVideoBlock';
 import { WhyGtyBand } from '@/components/home/WhyGtyBand';
@@ -147,8 +146,15 @@ export default async function HomePage() {
         the component is untouched and still renders on `/about-us`.
       */}
       <WhyGtyBand stats={stats} />
-      {/* New brief, Part 4A (2026-11-14): the reference's inline enquiry card — placed right after "Why Travel With GTY?" and before the Instagram strip, per that brief's own instruction. */}
-      <InlineEnquiryForm happyTravellersLabel={stats.happyTravellers} />
+      {/*
+        New brief (2026-11-15): the inline enquiry card this section used to
+        hold (`InlineEnquiryForm`, brief Part 4A, 2026-11-14) is removed —
+        the redesigned lead form now lives ONLY in the "Enquire Now" /
+        "Download brochure" popup (`LeadModal.tsx`), which both triggers
+        share. Two separate, drifting copies of the same form was exactly
+        the thing that brief's own `Field`/`extract-utm` extraction out of
+        `LeadModal.tsx` was trying to avoid.
+      */}
       <InstagramStrip instagramUrl={contact.instagramUrl} />
       <WhatsAppCtaSection contact={contact} />
     </SiteShell>
