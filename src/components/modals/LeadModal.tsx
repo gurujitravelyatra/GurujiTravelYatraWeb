@@ -315,11 +315,12 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
           <span className="text-[11px] font-bold uppercase tracking-widest2 text-redux-crimson">The first step</span>
           <h2 className="mt-1.5 font-redux-display text-2xl font-medium tracking-tight text-stone-900">{copy.title}</h2>
         </div>
+        {/* Brief §13 ("ACCEPTANCE") requires every tap target >= 44px — `-m-[11px]` + `p-[11px]` keeps the visible 18px icon compact while the actual hit area is 44x44. */}
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded-full p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-redux-crimson"
+          className="-m-[11px] grid h-11 w-11 flex-none place-items-center rounded-full p-[11px] text-stone-400 transition-colors hover:bg-stone-100 hover:text-redux-crimson"
         >
           <X size={18} />
         </button>
@@ -350,7 +351,12 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
           >
             <div className="flex items-start justify-between gap-3">
               <p className="leading-relaxed">{errorMessage}</p>
-              <button type="button" onClick={onDismissError} aria-label="Dismiss" className="shrink-0 text-redux-crimson-dark">
+              <button
+                type="button"
+                onClick={onDismissError}
+                aria-label="Dismiss"
+                className="-m-[14px] grid h-11 w-11 flex-none place-items-center p-[14px] text-redux-crimson-dark"
+              >
                 <X size={16} />
               </button>
             </div>
