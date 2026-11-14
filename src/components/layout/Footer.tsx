@@ -100,7 +100,13 @@ export function Footer({ contact }: FooterProps) {
             <ContactRow label={contact.email} href={`mailto:${contact.email}`}>
               <path d="M3 5h18a1 1 0 0 1 1 1v.4l-10 6.1L2 6.4V6a1 1 0 0 1 1-1zm-1 3.9 10 6.1 10-6.1V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
             </ContactRow>
-            <ContactRow label={contact.address}>
+            <ContactRow
+              label={contact.address}
+              href={contact.addressMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              ariaLabel="Open our office location in Google Maps"
+            >
               <path d="M12 2c3.9 0 7 3.1 7 7 0 5.3-7 13-7 13S5 14.3 5 9c0-3.9 3.1-7 7-7zm0 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" />
             </ContactRow>
           </ul>
@@ -129,7 +135,21 @@ function FooterDecor() {
   );
 }
 
-function ContactRow({ label, href, children }: { label: string; href?: string; children: ReactNode }) {
+function ContactRow({
+  label,
+  href,
+  target,
+  rel,
+  ariaLabel,
+  children,
+}: {
+  label: string;
+  href?: string;
+  target?: string;
+  rel?: string;
+  ariaLabel?: string;
+  children: ReactNode;
+}) {
   const content = (
     <>
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 transition-colors group-hover:bg-white/20">
@@ -143,7 +163,7 @@ function ContactRow({ label, href, children }: { label: string; href?: string; c
   return (
     <li className="group flex items-start gap-3.5">
       {href ? (
-        <a href={href} className="group flex items-start gap-3.5 hover:underline">
+        <a href={href} target={target} rel={rel} aria-label={ariaLabel} className="group flex items-start gap-3.5 hover:underline">
           {content}
         </a>
       ) : (

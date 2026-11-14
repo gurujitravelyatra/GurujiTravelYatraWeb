@@ -46,7 +46,7 @@ describe('Footer', () => {
     }
   });
 
-  it('renders the real phone/email as actionable tel: and mailto: links, plus a non-link address', () => {
+  it('renders the real phone/email as actionable tel: and mailto: links', () => {
     render(<Footer contact={contact} />);
 
     expect(screen.getByRole('link', { name: new RegExp(PHONE_DISPLAY.replace(/\+/g, '\\+')) })).toHaveAttribute(
@@ -54,9 +54,17 @@ describe('Footer', () => {
       `tel:${contact.phoneTel}`
     );
     expect(screen.getByRole('link', { name: new RegExp(EMAIL) })).toHaveAttribute('href', `mailto:${EMAIL}`);
+  });
 
-    const address = screen.getByText(contact.address);
-    expect(address.closest('a')).toBeNull();
+  /** Brief §D (2026-11-14): the address is now a Google Maps link, built from the CRM address text (no lat/long field exists on `CrmSiteSettings`). */
+  it('links the address to a Google Maps search for it, opened in a new tab', () => {
+    render(<Footer contact={contact} />);
+
+    const mapsLink = screen.getByRole('link', { name: 'Open our office location in Google Maps' });
+    expect(mapsLink).toHaveAttribute('href', contact.addressMapsUrl);
+    expect(mapsLink).toHaveAttribute('target', '_blank');
+    expect(mapsLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(mapsLink).toHaveTextContent(contact.address);
   });
 
   /**

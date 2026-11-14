@@ -30,6 +30,14 @@ export interface SiteContact {
   whatsappUrl: string;
   email: string;
   address: string;
+  /**
+   * A Google Maps link for `address` (brief §D, 2026-11-14). The CRM
+   * contract has no latitude/longitude field on `CrmSiteSettings` — only
+   * `address` free text — so this is always the documented
+   * `maps.google.com` text-search fallback the brief itself names for that
+   * case, never a pin built from coordinates that do not exist here.
+   */
+  addressMapsUrl: string;
   instagramUrl: string;
   /** `null` when the CRM has not set one — never invented. */
   heroHeadline: string | null;
@@ -43,13 +51,19 @@ function normalizedWhatsappUrl(phone: string | null): string | null {
   return digits.length > 0 ? `https://wa.me/${digits}` : null;
 }
 
+function buildAddressMapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 export function resolveSiteContact(settings: CrmSiteSettings | null): SiteContact {
+  const address = settings?.address ?? GTY_ADDRESS;
   return {
     phoneTel: settings?.phone ?? GTY_PHONE_TEL,
     phoneDisplay: settings?.phone ?? GTY_PHONE_DISPLAY,
     whatsappUrl: normalizedWhatsappUrl(settings?.whatsappNumber ?? null) ?? GTY_WHATSAPP_URL,
     email: settings?.email ?? GTY_EMAIL,
-    address: settings?.address ?? GTY_ADDRESS,
+    address,
+    addressMapsUrl: buildAddressMapsUrl(address),
     instagramUrl: settings?.instagramUrl ?? GTY_INSTAGRAM_URL,
     heroHeadline: settings?.heroHeadline ?? null,
     heroSubtext: settings?.heroSubtext ?? null,
