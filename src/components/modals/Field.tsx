@@ -11,6 +11,10 @@ export interface FieldProps {
   error?: string;
   className?: string;
   children: React.ReactNode;
+  /** Red " *" appended to the label — item 6's own audited-required fields only (Name, Mobile Number). */
+  required?: boolean;
+  /** Red " (Optional)" appended to the label — every other field, per the same audit. */
+  optional?: boolean;
 }
 
 /**
@@ -18,23 +22,22 @@ export interface FieldProps {
  * module — the `aria-describedby`/`className` clone below is the one
  * place that logic lives.
  *
- * Brief §12 wanted an explicit "(Optional)" chip next to optional field
- * labels — tried as a child of the `<Label>` itself, but
- * `@testing-library/dom`'s `getByLabelText` matches a label's raw
- * `textContent`, which includes `aria-hidden` descendants too (that
- * attribute only affects the accessibility tree, not plain DOM text), so
- * it silently turned `getByLabelText('City')` into
- * `getByLabelText('City(Optional)')` and broke existing, unrelated test
- * coverage. Not worth the churn for a cosmetic addition — dropped; the
- * existing "no asterisk means optional" convention (already how required
- * fields are marked) stays as the only signal.
+ * New brief (2026-11-15, final corrections), item 6: "(Optional)" is back,
+ * in red, as part of the real `<Label>` text (not `aria-hidden`) — this
+ * DOES change `getByLabelText('City')`'s accessible name to
+ * `'City (Optional)'`, which is exactly the earlier round's own documented
+ * reason for dropping it. That tradeoff is accepted explicitly this time:
+ * every test asserting on one of these labels was updated to the new name
+ * rather than this component working around the brief a second time.
  */
-export function Field({ label, htmlFor, error, className, children }: FieldProps) {
+export function Field({ label, htmlFor, error, className, children, required, optional }: FieldProps) {
   const errorId = `${htmlFor}-error`;
   return (
     <div className={cn('flex flex-col gap-[clamp(4px,1vh,7px)]', className)}>
       <Label htmlFor={htmlFor} className="text-[10px] font-bold uppercase tracking-[0.1em] text-redux-ink-mute">
         {label}
+        {required && <span className="text-[#d92d32]"> *</span>}
+        {optional && <span className="text-[#d92d32]"> (Optional)</span>}
       </Label>
       {React.isValidElement(children)
         ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
@@ -52,8 +55,17 @@ export function Field({ label, htmlFor, error, className, children }: FieldProps
             // scaled one instead — part of the height budget `FormStep`'s
             // own header explains; at a normal-height viewport it clamps
             // right back up near 44px, so nothing changes there.
+            //
+            // New brief (2026-11-15, final corrections), item 7: the whole
+            // bordered box turns red on an invalid field, including the
+            // `PhoneField`/`DateField` wrapper DIVs that have no
+            // `aria-invalid` of their own to key off (only their inner
+            // `<input>` does) — those two instead carry a plain
+            // `data-invalid="true"` attribute for exactly this selector to
+            // catch; `Input`/`Textarea` already set real `aria-invalid`
+            // themselves, so `aria-[invalid=true]:` covers them for free.
             className:
-              'min-h-[clamp(32px,6vh,44px)] rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08]',
+              'min-h-[clamp(32px,6vh,44px)] rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08] aria-[invalid=true]:border-[#d92d32] data-[invalid=true]:border-[#d92d32]',
           })
         : children}
       {error && (

@@ -37,7 +37,6 @@ async function submitWith(result: unknown, options: { variant?: 'enquiry' | 'bro
   render(<LeadModal variant={options.variant ?? 'enquiry'} open context={context} onClose={jest.fn()} />);
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
-  await user.click(screen.getByLabelText(/I agree to be contacted/));
   await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
   return user;
@@ -91,14 +90,13 @@ describe('LeadModal — field-level 400s', () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
     await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
-    await user.type(screen.getByLabelText('City'), 'Ahmedabad');
-    await user.click(screen.getByLabelText(/I agree to be contacted/));
+    await user.type(screen.getByLabelText('City (Optional)'), 'Ahmedabad');
     await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
     expect(await screen.findByText('Please keep this under 120 characters.')).toBeInTheDocument();
     expect(screen.getByLabelText('Name *')).toHaveValue('Asha Patel');
     expect(screen.getByLabelText('Mobile Number *')).toHaveValue('9876543210');
-    expect(screen.getByLabelText('City')).toHaveValue('Ahmedabad');
+    expect(screen.getByLabelText('City (Optional)')).toHaveValue('Ahmedabad');
   });
 
   it('shows the form-level banner alongside the inline errors, with a working retry', async () => {

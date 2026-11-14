@@ -20,7 +20,6 @@ const context = { label: 'Package', value: 'Spiti Valley Circuit' };
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
-  await user.click(screen.getByLabelText(/I agree to be contacted/));
 }
 
 describe('LeadModal variant="brochure"', () => {

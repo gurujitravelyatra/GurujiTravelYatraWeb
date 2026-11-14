@@ -1,4 +1,4 @@
-import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { EnquiryModal } from '../EnquiryModal';
@@ -44,7 +44,11 @@ describe('LeadModal — keyboard behaviour', () => {
     // `AnimatePresence` + `forceMount` keeps the dialog mounted, fading out,
     // for its own 0.18s exit transition — Radix flips `data-state="closed"`
     // immediately, but the node itself is only removed once that finishes.
-    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    // `waitFor` (not `waitForElementToBeRemoved`, which throws if the
+    // element is already gone by its first check) tolerates either timing:
+    // the exit transition still in flight, or already finished by the time
+    // `user.keyboard()`'s own await resolves.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     expect(trigger).toHaveFocus();
   });

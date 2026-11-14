@@ -85,6 +85,12 @@ export function PhoneField({
     // wrapper, so the border is one continuous box rather than a padded
     // outer box around two already-padded children.
     <div
+      // New brief (2026-11-15, final corrections), item 7: "the whole
+      // bordered box turns red" — this plain `<div>` has no `aria-invalid`
+      // of its own to key a CSS selector off (only the inner `<input>`
+      // does, which is a real form control), so a `data-invalid` attribute
+      // carries the same signal for `Field`'s `data-[invalid=true]:` rule.
+      data-invalid={ariaInvalid || looksIncomplete || undefined}
       className={cn(
         'flex min-h-[44px] items-stretch overflow-hidden focus-within:border-[#d92d32] focus-within:ring-[3px] focus-within:ring-[#d92d32]/[0.08]',
         className

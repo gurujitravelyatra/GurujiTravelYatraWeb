@@ -98,7 +98,18 @@ export function ModalShell({ open, onOpenChange, title, description, children, t
               */}
               <DialogContent asChild forceMount onCloseAutoFocus={(event) => event.preventDefault()}>
                 <motion.div
-                  className="w-full min-[781px]:w-[min(1120px,calc(100vw-64px))] max-h-[calc(100dvh-36px)] overflow-y-auto min-[781px]:max-h-none min-[781px]:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[32px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none"
+                  // New brief (2026-11-15, final corrections), item 1: the
+                  // rounding bug was `overflow-visible` at desktop — with
+                  // nothing clipping it, `FormStep`/`DoneStep`'s own
+                  // edge-to-edge white background (square corners, no
+                  // radius of its own) sat flush on top of this element's
+                  // rounded one and fully hid it. `overflow-hidden` (never
+                  // `-auto`/`-visible`) is what actually makes `rounded-*`
+                  // visible on an element with a background-filling child —
+                  // the height-budget work is what makes `hidden` safe here
+                  // (nothing is expected to overflow this box at the
+                  // measured desktop viewports to begin with).
+                  className="w-full min-[781px]:w-[min(1120px,calc(100vw-64px))] max-h-[calc(100dvh-36px)] overflow-y-auto min-[781px]:max-h-none min-[781px]:overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none min-[781px]:rounded-[32px]"
                   initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={shouldReduceMotion ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.96, y: 8 }}

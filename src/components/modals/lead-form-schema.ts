@@ -34,23 +34,30 @@ export const leadFormSchema = z.object({
   email: z.union([z.literal(''), z.string().trim().email('Please enter a valid email address.')]).optional(),
   travelDate: z.string().optional(),
   travellers: z
-    .union([z.literal(''), z.coerce.number().int().min(1, 'Enter at least 1 traveller.')])
+    .union([z.literal(''), z.coerce.number().int().min(1, 'Enter at least 1 traveller.').max(99, 'Enter at most 99 travellers.')])
     .optional(),
   city: z.string().trim().optional(),
   message: z.string().trim().optional(),
   /**
    * CRM-migration Step 3 — `POST /public/enquiries` requires all three
-   * (documentation/technical-specification/public-website.md). `consent` is
-   * a visible, required checkbox; `turnstileToken` is set by
-   * `TurnstileWidget`'s `onVerify` callback via `form.setValue`, never typed
-   * — it has no visible input of its own, so the empty-string default below
-   * is what a submit attempt sees before the widget resolves, and the
-   * message below is what the visitor sees for it. `honeypot` is a hidden
-   * decoy input a real visitor's browser never touches.
+   * (documentation/technical-specification/public-website.md).
+   * `turnstileToken` is set by `TurnstileWidget`'s `onVerify` callback via
+   * `form.setValue`, never typed — it has no visible input of its own, so
+   * the empty-string default below is what a submit attempt sees before
+   * the widget resolves, and the message below is what the visitor sees
+   * for it. `honeypot` is a hidden decoy input a real visitor's browser
+   * never touches.
+   *
+   * New brief (2026-11-15, final corrections), item 4: `consent` is no
+   * longer a visible checkbox the visitor has to tick — it is sent as
+   * `true` implicitly on every submit (the disclosure moved to a note
+   * line under the submit button instead). Defaults to `true` for exactly
+   * that reason; nothing in the UI ever sets it to anything else anymore,
+   * so the refinement below can never actually fail in practice, but it
+   * stays (rather than simplifying to `z.literal(true)`) as a safety net —
+   * if some future change ever threads a real value into this field
+   * again, the check is still there to catch it.
    */
-  // Modelled as `boolean` (not `z.literal(true)`) so an unchecked checkbox
-  // is a representable, default-able form VALUE (`false`) rather than a
-  // type error — the refinement is what actually enforces "must be true".
   consent: z.boolean().refine((value) => value === true, { message: 'Please agree to be contacted to continue.' }),
   turnstileToken: z.string().min(1, 'Please complete the verification challenge.'),
   honeypot: z.string().optional(),
@@ -66,7 +73,7 @@ export const leadFormDefaultValues: LeadFormValues = {
   travellers: '',
   city: '',
   message: '',
-  consent: false,
+  consent: true,
   turnstileToken: '',
   honeypot: '',
 };

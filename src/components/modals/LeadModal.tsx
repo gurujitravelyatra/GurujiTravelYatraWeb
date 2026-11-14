@@ -15,6 +15,7 @@ import { buildLeadRequest } from './build-lead-request';
 import { submitLeadRequest } from '@/lib/leads/lead-api-client';
 import { leadFormDefaultValues, leadFormSchema, type LeadFormValues } from './lead-form-schema';
 import { PhoneField } from './PhoneField';
+import { DateField } from './DateField';
 import { TurnstileWidget } from './TurnstileWidget';
 import { GTY_PHONE_DISPLAY, GTY_PHONE_TEL } from '@/lib/gty-contact';
 import { Button } from '@/components/ui/button';
@@ -247,11 +248,10 @@ export function LeadModal({
           city: values.city,
           message: values.message,
         },
-        // `leadFormSchema`'s resolver only lets `runSubmit` be called once
-        // `consent` has validated to `true` — the cast documents that
-        // guarantee rather than re-deriving it, since the form models
-        // `consent` as a plain `boolean` so an unchecked box has a
-        // representable default (see `lead-form-schema.ts`).
+        // `consent` is implicit, not a checkbox the visitor ticks (item 4,
+        // 2026-11-15) — `leadFormSchema`'s own default is `true` and
+        // nothing in the UI ever sets it otherwise, so this is always a
+        // real `true`, not a cast papering over an unconfirmed value.
         security: { consent: true, turnstileToken: values.turnstileToken, honeypot: values.honeypot },
         interestedIn: context?.value,
         // sourcePageUrl / utm are read ONLY here, inside the submit event
@@ -489,17 +489,27 @@ function FormStep({
               bottom) below 781px, where scrolling is allowed again.
             */}
             <div className="grid grid-cols-1 gap-[clamp(6px,1.2vh,14px)] min-[781px]:grid-cols-2 min-[781px]:gap-x-5">
-              <Field label="Name *" htmlFor="lead-name" error={errors.name?.message}>
+              {/*
+                New brief (2026-11-15, final corrections), item 6: audited
+                against the real contract (`src/server/leads/lead-schema.ts`
+                and the CRM's own documented `POST /public/enquiries`
+                fields, `city`/`travelDate`/`travellers`/`email`/`message`
+                are ALL optional end to end — `city` has no CRM field at
+                all, it is folded into `message` text by
+                `crm-enquiry-mapper.ts`). Name and Mobile Number are the
+                only two fields either layer actually requires.
+              */}
+              <Field label="Name" required htmlFor="lead-name" error={errors.name?.message}>
                 <Input id="lead-name" autoComplete="name" aria-invalid={!!errors.name} {...register('name')} />
               </Field>
-              <Field label="City" htmlFor="lead-city" error={errors.city?.message}>
+              <Field label="City" optional htmlFor="lead-city" error={errors.city?.message}>
                 <Input id="lead-city" autoComplete="address-level2" aria-invalid={!!errors.city} {...register('city')} />
               </Field>
 
-              <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
+              <Field label="Mobile Number" required htmlFor="lead-mobile" error={errors.mobile?.message}>
                 <PhoneField control={control} id="lead-mobile" aria-invalid={!!errors.mobile} />
               </Field>
-              <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
+              <Field label="Email" optional htmlFor="lead-email" error={errors.email?.message}>
                 <Input
                   id="lead-email"
                   type="email"
@@ -509,22 +519,62 @@ function FormStep({
                 />
               </Field>
 
-              <Field label="Travel Date" htmlFor="lead-travel-date" error={errors.travelDate?.message}>
-                <Input id="lead-travel-date" type="date" aria-invalid={!!errors.travelDate} {...register('travelDate')} />
+              {/* Item 8: wrapped in a `DateField` — a click anywhere on the box, not only the native calendar icon, opens the picker. */}
+              <Field label="Travel Date" optional htmlFor="lead-travel-date" error={errors.travelDate?.message}>
+                <DateField id="lead-travel-date" aria-invalid={!!errors.travelDate} {...register('travelDate')} />
               </Field>
-              <Field label="Travellers" htmlFor="lead-travellers" error={errors.travellers?.message}>
+              {/*
+                Item 9: digits only. `type="text"` (not `"number"`) is
+                deliberate — a `number` input lets the browser's own spinner
+                and `e`/`+`/`-`/`.` keys through regardless of `pattern`,
+                which is exactly what this is trying to rule out.
+                `onChange` strips every non-digit as it is typed; `onPaste`
+                replaces the field's value outright with the digits-only
+                version of whatever was pasted (bypassing the native paste
+                insertion entirely, so there is no cursor-position
+                bookkeeping to get wrong); `onBlur` clamps to 1-99 — not
+                onChange, so typing "1" then "0" to reach "10" is never
+                fought by a premature clamp to "1".
+              */}
+              <Field label="Travellers" optional htmlFor="lead-travellers" error={errors.travellers?.message}>
                 <Input
                   id="lead-travellers"
-                  type="number"
-                  min={1}
+                  type="text"
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 4"
                   aria-invalid={!!errors.travellers}
-                  {...register('travellers')}
+                  {...register('travellers', {
+                    // react-hook-form composes a custom `onChange`/`onBlur`
+                    // passed in `register`'s OWN options with its internal
+                    // handler — passing these as separate JSX props after
+                    // the spread instead would silently overwrite (not
+                    // compose with) RHF's own handler.
+                    onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+                      const digitsOnly = event.target.value.replace(/\D/g, '');
+                      if (digitsOnly !== event.target.value) {
+                        setValue('travellers', digitsOnly === '' ? '' : Number(digitsOnly), { shouldValidate: true });
+                      }
+                    },
+                    onBlur: (event: React.FocusEvent<HTMLInputElement>) => {
+                      const raw = event.target.value;
+                      if (raw !== '') {
+                        const clamped = Math.min(99, Math.max(1, Number.parseInt(raw, 10) || 1));
+                        setValue('travellers', clamped, { shouldValidate: true });
+                      }
+                    },
+                  })}
+                  onPaste={(event) => {
+                    event.preventDefault();
+                    const digitsOnly = event.clipboardData.getData('text').replace(/\D/g, '');
+                    setValue('travellers', digitsOnly === '' ? '' : Number(digitsOnly), { shouldValidate: true });
+                  }}
                 />
               </Field>
 
               <Field
                 label="Message"
+                optional
                 htmlFor="lead-message"
                 error={errors.message?.message}
                 className="min-[781px]:col-span-2"
@@ -550,47 +600,35 @@ function FormStep({
               <input id="lead-company" type="text" tabIndex={-1} autoComplete="off" {...register('honeypot')} />
             </div>
 
-            <div className="flex flex-col gap-[6px]">
-              <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-[13px] leading-relaxed text-redux-ink-soft">
-                <input
-                  id="lead-consent"
-                  type="checkbox"
-                  className="mt-[2px] accent-[#d92d32]"
-                  aria-invalid={!!errors.consent}
-                  aria-describedby={errors.consent ? 'lead-consent-error' : undefined}
-                  {...register('consent')}
-                />
-                <span>I agree to be contacted by Guruji Travel Yatra about this enquiry. *</span>
-              </label>
-              {errors.consent && (
-                <p id="lead-consent-error" role="alert" className="text-xs text-[#d92d32]">
-                  {errors.consent.message}
-                </p>
-              )}
-            </div>
+            {/*
+              New brief (2026-11-15, final corrections), item 4: the
+              checkbox is gone — `consent` is sent as `true` implicitly on
+              every submit (`runSubmit`'s own `security: { consent: true,
+              ... }`, unchanged — it was already hardcoded, never actually
+              read from this checkbox's own state even before this edit).
+              The disclosure the checkbox used to carry now lives in the
+              note line under the submit button instead of a control the
+              visitor has to act on.
+            */}
 
             {/*
-              New brief (2026-11-15, "horizontal card"): "compact/invisible if
-              allowed ... without adding height" — `TurnstileWidget` renders
-              Cloudflare's `size: 'invisible'` mode (zero visible footprint,
-              still runs the real challenge) rather than the normal/compact
-              visual widget this card used to show.
+              New brief (2026-11-15, final corrections), item 5: no site
+              key configured renders NOTHING here — not an explanatory
+              placeholder. `POST /public/enquiries` still rejects an empty
+              `turnstileToken` regardless (see the module-level comment on
+              `TURNSTILE_SITE_KEY`), so omitting the explanation changes
+              nothing about whether a submission can succeed, only what is
+              shown in this slot while it cannot.
             */}
-            <div className="flex justify-center">
-              {TURNSTILE_SITE_KEY ? (
+            {TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center">
                 <TurnstileWidget
                   siteKey={TURNSTILE_SITE_KEY}
                   onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
                   onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
                 />
-              ) : (
-                // UNSET IS SUPPORTED (see the module-level comment on
-                // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
-                // not a loading flicker, so it says so rather than rendering
-                // nothing with no explanation for why submit never succeeds.
-                <p className="text-[11px] text-redux-ink-mute">Verification is not configured in this environment.</p>
-              )}
-            </div>
+              </div>
+            )}
             {errors.turnstileToken && (
               <p role="alert" className="text-center text-xs text-[#d92d32]">
                 {errors.turnstileToken.message}
@@ -625,6 +663,10 @@ function FormStep({
             <p className="text-center text-[11px] leading-relaxed text-redux-ink-mute">
               No pressure, no spam, just thoughtful travel ideas.
             </p>
+            {/* Item 4's replacement for the removed consent checkbox — the disclosure, not a control. */}
+            <p className="text-center text-[10px] leading-relaxed text-redux-ink-mute">
+              By sending, you agree to be contacted by Guruji Travel Yatra about this enquiry.
+            </p>
           </form>
         </div>
       </div>
@@ -639,50 +681,63 @@ interface IntroColumnProps {
 }
 
 /**
- * The left column of the horizontal card. `justify-between` so the proof
- * pill sits at the column's own bottom edge (matching the reference, and
- * naturally aligning with the form column's own height) rather than
- * directly under the context chip with a fixed gap.
+ * The left column of the horizontal card.
  *
- * Mobile (<781px): the kicker and proof pill are dropped — "intro compact:
- * heading + one line, no proof pill" — leaving the heading, the intro
- * paragraph and the context chip. The brief named the proof pill's removal
- * explicitly; dropping the kicker too is this component's own call, to
- * keep the compact mobile intro to the heading plus a single supporting
- * line as asked, documented here rather than silently.
+ * New brief (2026-11-15, final corrections):
+ *  - Item 2: a true 3-line heading (`Tell us where` / `your heart` /
+ *    `leads.`), near-black first line, red italic last two, sized/spaced
+ *    exactly as specified — but with every margin ALSO `vh`-clamped (the
+ *    literal pixel value is the clamp's own upper bound, so a tall
+ *    viewport renders pixel-identical to the spec) to protect the
+ *    height-budget work `FormStep`'s own header explains: this heading is
+ *    markedly taller than the previous 2-line one, and its `5vw`
+ *    font-size does not shrink for a viewport that is short but WIDE
+ *    (1440x700 etc.) the way a `vh`-based value would.
+ *  - Item 3: linear order now — kicker, heading, intro, context chip,
+ *    proof pill — no more `justify-between` pinning the pill to the
+ *    column's bottom edge.
+ *
+ * Mobile (<781px): the kicker and proof pill are still dropped — "intro
+ * compact: heading + one line, no proof pill" (brief, 2026-11-15 "wide"
+ * round) — leaving the heading, the intro paragraph and the context chip.
  */
 function IntroColumn({ copy, context, happyTravellersLabel }: IntroColumnProps) {
   return (
-    <div className="flex flex-col min-[781px]:justify-between">
-      <div>
-        <span className="hidden text-[11px] font-bold uppercase tracking-[0.28em] text-[#d92d32] min-[781px]:inline-block">
-          The first step
-        </span>
-        <h2
-          className="mt-0 font-redux-display font-medium text-stone-900 min-[781px]:mt-3"
-          style={{ fontSize: 'clamp(2.4rem, 4vw, 3.6rem)', lineHeight: 0.98, letterSpacing: '-0.055em' }}
-        >
-          Tell us where
+    <div className="flex flex-col">
+      <span className="hidden text-[11px] font-bold uppercase tracking-[0.28em] text-[#d92d32] min-[781px]:inline-block">
+        The first step
+      </span>
+      <h2
+        className="font-redux-display font-medium text-[#211c1c]"
+        style={{
+          fontSize: 'clamp(3rem, 5vw, 4.8rem)',
+          lineHeight: 0.98,
+          letterSpacing: '-0.055em',
+          margin: 'clamp(6px,1.6vh,18px) 0 clamp(8px,2vh,22px)',
+        }}
+      >
+        Tell us where
+        <br />
+        <em className="italic text-[#d92d32]">
+          your heart
           <br />
-          <em className="italic text-[#d92d32]">your heart leads.</em>
-        </h2>
-        <p className="mt-3 max-w-[340px] text-[15px] leading-relaxed text-redux-ink-mute min-[781px]:mt-4">
-          {copy.description}
-        </p>
+          leads.
+        </em>
+      </h2>
+      <p className="max-w-[360px] text-[15px] leading-[1.7] text-[#786d6a]">{copy.description}</p>
 
-        {context && (
-          <div className="mt-4 max-w-[340px] rounded-2xl border border-[#eadfdb] bg-white p-3 text-[13px]">
-            <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
-            <br />
-            <b className="text-stone-900">{context.value}</b>{' '}
-            <span className="text-redux-ink-mute">· pre-filled from this page</span>
-          </div>
-        )}
-      </div>
+      {context && (
+        <div className="mt-[clamp(10px,2vh,20px)] max-w-[340px] rounded-[18px] border border-[#f6d8d3] bg-[#fff5f2] p-3 text-[13px]">
+          <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
+          <br />
+          <b className="text-stone-900">{context.value}</b>{' '}
+          <span className="text-redux-ink-mute">· pre-filled from this page</span>
+        </div>
+      )}
 
       {/* Brief (2026-11-15): real `happyTravellersLabel` only — no invented rating/"this month" claim, and no pill at all once the CRM has not set a figure. */}
       {happyTravellersLabel && (
-        <div className="mt-8 hidden max-w-[340px] items-center gap-4 rounded-2xl border border-[#eadfdb] bg-white px-5 py-4 shadow-[0_20px_40px_-30px_rgba(217,45,50,0.4)] min-[781px]:flex">
+        <div className="mt-[clamp(14px,3vh,45px)] hidden max-w-[340px] items-center gap-4 rounded-[18px] border border-[#f6d8d3] bg-[#fff5f2] px-5 py-4 shadow-[0_20px_40px_-30px_rgba(217,45,50,0.25)] min-[781px]:flex">
           <div className="flex -space-x-2" aria-hidden="true">
             {['bg-[#d92d32]', 'bg-[#e3b29a]', 'bg-stone-800'].map((bg, index) => (
               <span

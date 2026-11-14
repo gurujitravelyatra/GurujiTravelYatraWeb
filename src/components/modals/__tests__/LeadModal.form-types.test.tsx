@@ -39,7 +39,6 @@ async function submitModal(details: LeadDetails, context: { label: string; value
 
   await user.type(screen.getByLabelText('Name *'), 'Asha Patel');
   await user.type(screen.getByLabelText('Mobile Number *'), '9876543210');
-  await user.click(screen.getByLabelText(/I agree to be contacted/));
   await user.click(screen.getByRole('button', { name: /Send my enquiry/ }));
 
   await screen.findByText(/Thank you,/);
