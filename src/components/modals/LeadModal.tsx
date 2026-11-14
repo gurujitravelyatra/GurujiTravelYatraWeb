@@ -49,6 +49,15 @@ export interface LeadModalProps {
    * more. See `detailsForVariant` for the fallback.
    */
   details?: LeadDetails;
+  /**
+   * `GET /public/site`'s `happyTravellersLabel` — the intro column's proof
+   * pill. `null`/omitted hides the pill entirely rather than showing an
+   * invented figure (see `layout.tsx` for where the real two call sites,
+   * `EnquiryModal`/`BrochureModal`, get it from). Optional only so the
+   * many existing unit tests that render `<LeadModal>` directly, without
+   * a proof pill in scope at all, don't all have to pass it.
+   */
+  happyTravellersLabel?: string | null;
   onClose: () => void;
 }
 
@@ -172,7 +181,14 @@ function toastCopy(variant: LeadModalVariant): string {
  * The shared Enquiry/Brochure form + step machine (tech spec §4.3). Both
  * `EnquiryModal` and `BrochureModal` are thin wrappers around this.
  */
-export function LeadModal({ variant, open, context, details, onClose }: LeadModalProps) {
+export function LeadModal({
+  variant,
+  open,
+  context,
+  details,
+  happyTravellersLabel = null,
+  onClose,
+}: LeadModalProps) {
   const copy = COPY[variant];
   const [step, setStep] = React.useState<Step>('form');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -313,6 +329,7 @@ export function LeadModal({ variant, open, context, details, onClose }: LeadModa
         <FormStep
           copy={copy}
           context={context}
+          happyTravellersLabel={happyTravellersLabel}
           form={form}
           errorMessage={errorMessage}
           onDismissError={() => setErrorMessage(null)}
@@ -344,6 +361,7 @@ export function LeadModal({ variant, open, context, details, onClose }: LeadModa
 interface FormStepProps {
   copy: (typeof COPY)[LeadModalVariant];
   context?: ModalContext;
+  happyTravellersLabel: string | null;
   form: UseFormReturn<LeadFormValues>;
   errorMessage: string | null;
   onDismissError: () => void;
@@ -352,12 +370,36 @@ interface FormStepProps {
 }
 
 /**
- * New brief (2026-11-15), item 2 — the popup's layout now matches the
- * reference exactly: a plain white card (heading, intro, context chip),
- * then an INNER CREAM BOX holding every field. See `ModalShell.tsx` for
- * the outer card's own radius/border/shadow/width.
+ * New brief (2026-11-15, "horizontal card") — the popup is now a genuine
+ * horizontal `.enquiry-card`, not a narrow scrolling column: a two-column
+ * CSS grid from 781px up (`IntroColumn` | the cream-box form), collapsing
+ * to a single stacked column below that. See `ModalShell.tsx` for the
+ * outer card's own radius/border/shadow/width/breakpoint.
+ *
+ * ## The height budget (desktop only)
+ *
+ * The brief requires the WHOLE card to fit under 92vh at four specific
+ * desktop viewports, several of them short (600-700px tall), with NO
+ * scrollbar anywhere — not a max-height-and-clip trick, the content
+ * itself has to be short enough. Every vertical measurement below that
+ * matters for that budget (outer card padding, the cream box's own
+ * padding, the gap between field rows, each field's own height) is a
+ * `clamp()` keyed partly to `vh`, so it shrinks on a SHORT viewport
+ * without needing a separate "very short" breakpoint — confirmed against
+ * real screenshots at 1920x1080/1440x700/1366x640/1280x600 (see
+ * `scratch/capture-popup-wide.mjs` and `design-review/popup-wide/`), not
+ * just computed by eye.
  */
-function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit, onClose }: FormStepProps) {
+function FormStep({
+  copy,
+  context,
+  happyTravellersLabel,
+  form,
+  errorMessage,
+  onDismissError,
+  onSubmit,
+  onClose,
+}: FormStepProps) {
   const {
     register,
     setValue,
@@ -366,7 +408,7 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
   } = form;
 
   return (
-    <div className="relative bg-white p-5 font-redux-sans sm:p-7">
+    <div className="relative bg-white p-[clamp(16px,4vh,28px)] font-redux-sans min-[781px]:p-[clamp(20px,4vh,48px)]">
       {/* Brief §13 ("ACCEPTANCE") requires every tap target >= 44px — `-m-[11px]` + `p-[11px]` keeps the visible 18px icon compact while the actual hit area is 44x44. */}
       <button
         type="button"
@@ -377,210 +419,286 @@ function FormStep({ copy, context, form, errorMessage, onDismissError, onSubmit,
         <X size={18} />
       </button>
 
-      <h2 className="max-w-[88%] font-redux-display text-[26px] font-medium leading-[1.15] tracking-tight text-stone-900 sm:text-[30px]">
-        Tell us where
-        <br />
-        <em className="italic text-[#d92d32]">your heart leads.</em>
-      </h2>
-      <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-redux-ink-mute">{copy.description}</p>
+      <div className="grid grid-cols-1 gap-8 min-[781px]:grid-cols-[0.9fr_1.1fr] min-[781px]:gap-12">
+        <IntroColumn copy={copy} context={context} happyTravellersLabel={happyTravellersLabel} />
 
-      {context && (
-        <div className="mt-4 rounded-2xl border border-[#eadfdb] bg-white p-3 text-[13px]">
-          <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
-          <br />
-          <b className="text-stone-900">{context.value}</b>{' '}
-          <span className="text-redux-ink-mute">· pre-filled from this page</span>
-        </div>
-      )}
+        {/* The cream box — `.enquiry-form` in the reference. */}
+        <div className="rounded-[22px] border border-[#eadfdb] bg-[#fffaf7] p-[clamp(12px,2.2vh,24px)]">
+          <div className="mb-[clamp(6px,1.2vh,16px)] border-b border-[#eadfdb] pb-[clamp(6px,1vh,12px)]">
+            <h3 className="font-redux-display text-[17px] font-medium tracking-tight text-stone-900">
+              Let&rsquo;s make it personal.
+            </h3>
+          </div>
 
-      {/* The cream box — `.enquiry-form` in the reference. */}
-      <div className="mt-5 rounded-[22px] border border-[#eadfdb] bg-[#fffaf7] p-5 sm:p-7">
-        <div className="mb-4 border-b border-[#eadfdb] pb-3">
-          <h3 className="font-redux-display text-lg font-medium tracking-tight text-stone-900">Let&rsquo;s make it personal.</h3>
-        </div>
-
-        {/* `method`/`action` are belt-and-braces (item 3): the REAL guard is that `handleSubmit` always calls `preventDefault()` before anything else runs, on every submit attempt, valid or not. */}
-        <form onSubmit={onSubmit} noValidate method="post" action="#" className="flex flex-col gap-[14px]">
-          {errorMessage && (
-            <div
-              role="alert"
-              // The per-field messages below are `role="alert"` too (they have to
-              // be — that is how a screen reader hears a validation failure), so
-              // "the banner" is no longer addressable by role alone now that both
-              // can be on screen at once. Tests target this id rather than
-              // `getByRole('alert')`, which silently matched the only alert there
-              // used to be.
-              data-testid="lead-form-error"
-              className="flex flex-col gap-2 rounded-2xl border border-[#d92d32]/30 bg-[#d92d32]/10 p-3 text-[13px] text-[#d92d32]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="leading-relaxed">
-                  <p>{errorMessage}</p>
-                  {/*
-                    New brief (2026-11-15), item 4: a clear phone-number
-                    fallback on every failure. Appended alongside — not in
-                    place of — the specific server/network message above:
-                    `LeadModal.server-errors.test.tsx` depends on that exact
-                    message reaching the field it is about (a 400 on
-                    `batchDate`/`sourcePageUrl`/etc. has nowhere inline to
-                    render and would otherwise vanish with no explanation),
-                    so a visitor always sees both what went wrong AND a way
-                    to get help regardless.
-                  */}
-                  <p className="mt-1">
-                    Please try again or call{' '}
-                    <a href={`tel:${GTY_PHONE_TEL}`} className="font-semibold underline">
-                      {GTY_PHONE_DISPLAY}
-                    </a>
-                    .
-                  </p>
+          {/* `method`/`action` are belt-and-braces (item 3): the REAL guard is that `handleSubmit` always calls `preventDefault()` before anything else runs, on every submit attempt, valid or not. */}
+          <form onSubmit={onSubmit} noValidate method="post" action="#" className="flex flex-col gap-[clamp(6px,1.2vh,14px)]">
+            {errorMessage && (
+              <div
+                role="alert"
+                // The per-field messages below are `role="alert"` too (they have to
+                // be — that is how a screen reader hears a validation failure), so
+                // "the banner" is no longer addressable by role alone now that both
+                // can be on screen at once. Tests target this id rather than
+                // `getByRole('alert')`, which silently matched the only alert there
+                // used to be.
+                data-testid="lead-form-error"
+                className="flex flex-col gap-2 rounded-2xl border border-[#d92d32]/30 bg-[#d92d32]/10 p-3 text-[13px] text-[#d92d32]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="leading-relaxed">
+                    <p>{errorMessage}</p>
+                    {/*
+                      New brief (2026-11-15), item 4: a clear phone-number
+                      fallback on every failure. Appended alongside — not in
+                      place of — the specific server/network message above:
+                      `LeadModal.server-errors.test.tsx` depends on that exact
+                      message reaching the field it is about (a 400 on
+                      `batchDate`/`sourcePageUrl`/etc. has nowhere inline to
+                      render and would otherwise vanish with no explanation),
+                      so a visitor always sees both what went wrong AND a way
+                      to get help regardless.
+                    */}
+                    <p className="mt-1">
+                      Please try again or call{' '}
+                      <a href={`tel:${GTY_PHONE_TEL}`} className="font-semibold underline">
+                        {GTY_PHONE_DISPLAY}
+                      </a>
+                      .
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onDismissError}
+                    aria-label="Dismiss"
+                    className="-m-[14px] grid h-11 w-11 flex-none place-items-center p-[14px] text-[#d92d32]"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={onDismissError}
-                  aria-label="Dismiss"
-                  className="-m-[14px] grid h-11 w-11 flex-none place-items-center p-[14px] text-[#d92d32]"
-                >
-                  <X size={16} />
-                </button>
+                <Button type="submit" variant="default" size="sm" className="self-start">
+                  Try Again
+                </Button>
               </div>
-              <Button type="submit" variant="default" size="sm" className="self-start">
-                Try Again
-              </Button>
+            )}
+
+            {/*
+              New brief (2026-11-15, "horizontal card"): a compact 2-column
+              field grid so the whole form fits the height budget — Name |
+              City, Mobile | Email, Travel date | Travellers, then Message
+              full-width. Single column (unchanged field order top-to-
+              bottom) below 781px, where scrolling is allowed again.
+            */}
+            <div className="grid grid-cols-1 gap-[clamp(6px,1.2vh,14px)] min-[781px]:grid-cols-2 min-[781px]:gap-x-5">
+              <Field label="Name *" htmlFor="lead-name" error={errors.name?.message}>
+                <Input id="lead-name" autoComplete="name" aria-invalid={!!errors.name} {...register('name')} />
+              </Field>
+              <Field label="City" htmlFor="lead-city" error={errors.city?.message}>
+                <Input id="lead-city" autoComplete="address-level2" aria-invalid={!!errors.city} {...register('city')} />
+              </Field>
+
+              <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
+                <PhoneField control={control} id="lead-mobile" aria-invalid={!!errors.mobile} />
+              </Field>
+              <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
+                <Input
+                  id="lead-email"
+                  type="email"
+                  autoComplete="email"
+                  aria-invalid={!!errors.email}
+                  {...register('email')}
+                />
+              </Field>
+
+              <Field label="Travel Date" htmlFor="lead-travel-date" error={errors.travelDate?.message}>
+                <Input id="lead-travel-date" type="date" aria-invalid={!!errors.travelDate} {...register('travelDate')} />
+              </Field>
+              <Field label="Travellers" htmlFor="lead-travellers" error={errors.travellers?.message}>
+                <Input
+                  id="lead-travellers"
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  aria-invalid={!!errors.travellers}
+                  {...register('travellers')}
+                />
+              </Field>
+
+              <Field
+                label="Message"
+                htmlFor="lead-message"
+                error={errors.message?.message}
+                className="min-[781px]:col-span-2"
+              >
+                <Textarea id="lead-message" rows={2} aria-invalid={!!errors.message} {...register('message')} />
+              </Field>
             </div>
-          )}
 
-          <Field label="Name *" htmlFor="lead-name" error={errors.name?.message}>
-            <Input id="lead-name" autoComplete="name" aria-invalid={!!errors.name} {...register('name')} />
-          </Field>
+            {/*
+              Honeypot: a decoy field a real visitor never sees (off-screen, not
+              `display:none`/`hidden` — some bots skip those two specifically —
+              and `tabIndex={-1}`/`aria-hidden` so it is unreachable by keyboard
+              or a screen reader) or fills in. `name="company"` is a plausible-
+              looking label for a scraping bot that fills every input it finds;
+              a real visitor's browser autofill has no reason to touch it either,
+              since it matches no real autofill token. `POST /api/leads` forwards
+              whatever this holds to the CRM untouched — see
+              `crm-enquiry-mapper.ts`'s own comment on why it is not validated to
+              be empty HERE.
+            */}
+            <div aria-hidden="true" className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden">
+              <label htmlFor="lead-company">Company</label>
+              <input id="lead-company" type="text" tabIndex={-1} autoComplete="off" {...register('honeypot')} />
+            </div>
 
-          {/* Phone + email side by side; stacked on mobile (item 2). */}
-          <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2">
-            <Field label="Mobile Number *" htmlFor="lead-mobile" error={errors.mobile?.message}>
-              <PhoneField control={control} id="lead-mobile" aria-invalid={!!errors.mobile} />
-            </Field>
-            <Field label="Email" htmlFor="lead-email" error={errors.email?.message}>
-              <Input id="lead-email" type="email" autoComplete="email" aria-invalid={!!errors.email} {...register('email')} />
-            </Field>
-          </div>
+            <div className="flex flex-col gap-[6px]">
+              <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-[13px] leading-relaxed text-redux-ink-soft">
+                <input
+                  id="lead-consent"
+                  type="checkbox"
+                  className="mt-[2px] accent-[#d92d32]"
+                  aria-invalid={!!errors.consent}
+                  aria-describedby={errors.consent ? 'lead-consent-error' : undefined}
+                  {...register('consent')}
+                />
+                <span>I agree to be contacted by Guruji Travel Yatra about this enquiry. *</span>
+              </label>
+              {errors.consent && (
+                <p id="lead-consent-error" role="alert" className="text-xs text-[#d92d32]">
+                  {errors.consent.message}
+                </p>
+              )}
+            </div>
 
-          <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2">
-            <Field label="Travel Date" htmlFor="lead-travel-date" error={errors.travelDate?.message}>
-              <Input
-                id="lead-travel-date"
-                type="date"
-                aria-invalid={!!errors.travelDate}
-                {...register('travelDate')}
-              />
-            </Field>
-            <Field label="Travellers" htmlFor="lead-travellers" error={errors.travellers?.message}>
-              <Input
-                id="lead-travellers"
-                type="number"
-                min={1}
-                inputMode="numeric"
-                aria-invalid={!!errors.travellers}
-                {...register('travellers')}
-              />
-            </Field>
-          </div>
-
-          <Field label="City" htmlFor="lead-city" error={errors.city?.message}>
-            <Input id="lead-city" autoComplete="address-level2" aria-invalid={!!errors.city} {...register('city')} />
-          </Field>
-
-          <Field label="Message" htmlFor="lead-message" error={errors.message?.message}>
-            <Textarea id="lead-message" rows={3} aria-invalid={!!errors.message} {...register('message')} />
-          </Field>
-
-          {/*
-            Honeypot: a decoy field a real visitor never sees (off-screen, not
-            `display:none`/`hidden` — some bots skip those two specifically —
-            and `tabIndex={-1}`/`aria-hidden` so it is unreachable by keyboard
-            or a screen reader) or fills in. `name="company"` is a plausible-
-            looking label for a scraping bot that fills every input it finds;
-            a real visitor's browser autofill has no reason to touch it either,
-            since it matches no real autofill token. `POST /api/leads` forwards
-            whatever this holds to the CRM untouched — see
-            `crm-enquiry-mapper.ts`'s own comment on why it is not validated to
-            be empty HERE.
-          */}
-          <div aria-hidden="true" className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden">
-            <label htmlFor="lead-company">Company</label>
-            <input id="lead-company" type="text" tabIndex={-1} autoComplete="off" {...register('honeypot')} />
-          </div>
-
-          <div className="flex flex-col gap-[6px]">
-            <label htmlFor="lead-consent" className="flex items-start gap-[8px] text-[13px] leading-relaxed text-redux-ink-soft">
-              <input
-                id="lead-consent"
-                type="checkbox"
-                className="mt-[2px] accent-[#d92d32]"
-                aria-invalid={!!errors.consent}
-                aria-describedby={errors.consent ? 'lead-consent-error' : undefined}
-                {...register('consent')}
-              />
-              <span>I agree to be contacted by Guruji Travel Yatra about this enquiry. *</span>
-            </label>
-            {errors.consent && (
-              <p id="lead-consent-error" role="alert" className="text-xs text-[#d92d32]">
-                {errors.consent.message}
+            {/*
+              New brief (2026-11-15, "horizontal card"): "compact/invisible if
+              allowed ... without adding height" — `TurnstileWidget` renders
+              Cloudflare's `size: 'invisible'` mode (zero visible footprint,
+              still runs the real challenge) rather than the normal/compact
+              visual widget this card used to show.
+            */}
+            <div className="flex justify-center">
+              {TURNSTILE_SITE_KEY ? (
+                <TurnstileWidget
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
+                  onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
+                />
+              ) : (
+                // UNSET IS SUPPORTED (see the module-level comment on
+                // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
+                // not a loading flicker, so it says so rather than rendering
+                // nothing with no explanation for why submit never succeeds.
+                <p className="text-[11px] text-redux-ink-mute">Verification is not configured in this environment.</p>
+              )}
+            </div>
+            {errors.turnstileToken && (
+              <p role="alert" className="text-center text-xs text-[#d92d32]">
+                {errors.turnstileToken.message}
               </p>
             )}
-          </div>
 
-          {/* Turnstile sits above the submit button, centered, inside the cream box. */}
-          <div className="flex justify-center">
-            {TURNSTILE_SITE_KEY ? (
-              <TurnstileWidget
-                siteKey={TURNSTILE_SITE_KEY}
-                onVerify={(token) => setValue('turnstileToken', token, { shouldValidate: true })}
-                onExpire={() => setValue('turnstileToken', '', { shouldValidate: true })}
-              />
-            ) : (
-              // UNSET IS SUPPORTED (see the module-level comment on
-              // `TURNSTILE_SITE_KEY`) — this is the honest state of the control,
-              // not a loading flicker, so it says so rather than rendering
-              // nothing with no explanation for why submit never succeeds.
-              <p className="text-[11px] text-redux-ink-mute">Verification is not configured in this environment.</p>
-            )}
-          </div>
-          {errors.turnstileToken && (
-            <p role="alert" className="text-center text-xs text-[#d92d32]">
-              {errors.turnstileToken.message}
+            {/*
+              New brief (2026-11-15), item 4: the spinner lives INSIDE the
+              button (disabled while sending) — the form stays on screen, it
+              does not get swapped out for a separate "sending" screen. That
+              also means a double submit is simply impossible: the button is
+              `disabled` for the whole in-flight window react-hook-form's own
+              `formState.isSubmitting` already tracks.
+            */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-shine mt-1 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                  Sending…
+                </>
+              ) : (
+                <>
+                  {copy.cta}
+                  <Send size={16} aria-hidden="true" />
+                </>
+              )}
+            </button>
+            <p className="text-center text-[11px] leading-relaxed text-redux-ink-mute">
+              No pressure, no spam, just thoughtful travel ideas.
             </p>
-          )}
-
-          {/*
-            New brief (2026-11-15), item 4: the spinner lives INSIDE the
-            button (disabled while sending) — the form stays on screen, it
-            does not get swapped out for a separate "sending" screen. That
-            also means a double submit is simply impossible: the button is
-            `disabled` for the whole in-flight window react-hook-form's own
-            `formState.isSubmitting` already tracks.
-          */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-shine mt-1.5 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#d92d32] px-6 py-3.5 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                Sending…
-              </>
-            ) : (
-              <>
-                {copy.cta}
-                <Send size={16} aria-hidden="true" />
-              </>
-            )}
-          </button>
-          <p className="text-center text-[11px] leading-relaxed text-redux-ink-mute">
-            No pressure, no spam, just thoughtful travel ideas.
-          </p>
-        </form>
+          </form>
+        </div>
       </div>
+    </div>
+  );
+}
+
+interface IntroColumnProps {
+  copy: (typeof COPY)[LeadModalVariant];
+  context?: ModalContext;
+  happyTravellersLabel: string | null;
+}
+
+/**
+ * The left column of the horizontal card. `justify-between` so the proof
+ * pill sits at the column's own bottom edge (matching the reference, and
+ * naturally aligning with the form column's own height) rather than
+ * directly under the context chip with a fixed gap.
+ *
+ * Mobile (<781px): the kicker and proof pill are dropped — "intro compact:
+ * heading + one line, no proof pill" — leaving the heading, the intro
+ * paragraph and the context chip. The brief named the proof pill's removal
+ * explicitly; dropping the kicker too is this component's own call, to
+ * keep the compact mobile intro to the heading plus a single supporting
+ * line as asked, documented here rather than silently.
+ */
+function IntroColumn({ copy, context, happyTravellersLabel }: IntroColumnProps) {
+  return (
+    <div className="flex flex-col min-[781px]:justify-between">
+      <div>
+        <span className="hidden text-[11px] font-bold uppercase tracking-[0.28em] text-[#d92d32] min-[781px]:inline-block">
+          The first step
+        </span>
+        <h2
+          className="mt-0 font-redux-display font-medium text-stone-900 min-[781px]:mt-3"
+          style={{ fontSize: 'clamp(2.4rem, 4vw, 3.6rem)', lineHeight: 0.98, letterSpacing: '-0.055em' }}
+        >
+          Tell us where
+          <br />
+          <em className="italic text-[#d92d32]">your heart leads.</em>
+        </h2>
+        <p className="mt-3 max-w-[340px] text-[15px] leading-relaxed text-redux-ink-mute min-[781px]:mt-4">
+          {copy.description}
+        </p>
+
+        {context && (
+          <div className="mt-4 max-w-[340px] rounded-2xl border border-[#eadfdb] bg-white p-3 text-[13px]">
+            <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
+            <br />
+            <b className="text-stone-900">{context.value}</b>{' '}
+            <span className="text-redux-ink-mute">· pre-filled from this page</span>
+          </div>
+        )}
+      </div>
+
+      {/* Brief (2026-11-15): real `happyTravellersLabel` only — no invented rating/"this month" claim, and no pill at all once the CRM has not set a figure. */}
+      {happyTravellersLabel && (
+        <div className="mt-8 hidden max-w-[340px] items-center gap-4 rounded-2xl border border-[#eadfdb] bg-white px-5 py-4 shadow-[0_20px_40px_-30px_rgba(217,45,50,0.4)] min-[781px]:flex">
+          <div className="flex -space-x-2" aria-hidden="true">
+            {['bg-[#d92d32]', 'bg-[#e3b29a]', 'bg-stone-800'].map((bg, index) => (
+              <span
+                key={index}
+                className={`grid h-9 w-9 place-items-center rounded-full border-2 border-white text-xs font-bold text-white ${bg}`}
+              >
+                {['R', 'A', 'S'][index]}
+              </span>
+            ))}
+            <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-[#eadfdb] text-xs font-bold text-[#d92d32]">
+              +
+            </span>
+          </div>
+          <p className="text-[13px] font-bold text-stone-900">{happyTravellersLabel} happy travellers</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -599,47 +717,55 @@ function DoneStep({
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <div className="flex flex-col items-center gap-3 bg-white p-7 text-center font-redux-sans sm:p-8">
-      <motion.div
-        initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.6 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-        className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600"
-      >
-        <Check size={26} aria-hidden="true" />
-      </motion.div>
-      <h2 className="font-redux-display text-2xl font-medium leading-[1.15] tracking-tight text-stone-900">{heading}</h2>
-      <p className="max-w-sm text-[13px] leading-relaxed text-redux-ink-mute">{body}</p>
-      <div className="mt-2 flex w-full flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-stone-300 bg-white px-6 py-3 text-[15px] font-bold text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d92d32]/50 hover:text-[#d92d32]"
+    // New brief (2026-11-15, "horizontal card"): "the card switches to a
+    // centred confirmation ... keeping the same card size" — same outer
+    // padding scheme as `FormStep` (so the card's own overall size/padding
+    // doesn't jump between steps), with its own content constrained to a
+    // readable column width instead of stretching across the full
+    // 1120px-wide desktop card.
+    <div className="relative flex flex-col items-center gap-3 bg-white p-[clamp(16px,4vh,28px)] text-center font-redux-sans min-[781px]:p-[clamp(20px,4vh,48px)]">
+      <div className="mx-auto flex w-full max-w-[480px] flex-col items-center gap-3">
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+          className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600"
         >
-          Close
-        </button>
-        {variant === 'brochure' ? (
-          // TODO(brochure-unlock): no real PDF/file host exists yet
-          // (BLOCKERS.md Open Question 3) — this stays an inert UI stub,
-          // same as before this redesign; only the surrounding panel (and
-          // the 3 now-removed sibling stub buttons it used to sit beside)
-          // changed.
-          <button
-            type="button"
-            onClick={noop}
-            className="btn-shine flex flex-1 items-center justify-center gap-2 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95"
-          >
-            Download brochure <span aria-hidden="true">↓</span>
-          </button>
-        ) : (
+          <Check size={26} aria-hidden="true" />
+        </motion.div>
+        <h2 className="font-redux-display text-2xl font-medium leading-[1.15] tracking-tight text-stone-900">{heading}</h2>
+        <p className="max-w-sm text-[13px] leading-relaxed text-redux-ink-mute">{body}</p>
+        <div className="mt-2 flex w-full flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
-            className="btn-shine flex flex-1 items-center justify-center gap-2 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-stone-300 bg-white px-6 py-3 text-[15px] font-bold text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d92d32]/50 hover:text-[#d92d32]"
           >
-            Continue exploring <span aria-hidden="true">→</span>
+            Close
           </button>
-        )}
+          {variant === 'brochure' ? (
+            // TODO(brochure-unlock): no real PDF/file host exists yet
+            // (BLOCKERS.md Open Question 3) — this stays an inert UI stub,
+            // same as before this redesign; only the surrounding panel (and
+            // the 3 now-removed sibling stub buttons it used to sit beside)
+            // changed.
+            <button
+              type="button"
+              onClick={noop}
+              className="btn-shine flex flex-1 items-center justify-center gap-2 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95"
+            >
+              Download brochure <span aria-hidden="true">↓</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-shine flex flex-1 items-center justify-center gap-2 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95"
+            >
+              Continue exploring <span aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

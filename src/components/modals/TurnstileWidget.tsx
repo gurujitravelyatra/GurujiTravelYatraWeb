@@ -52,7 +52,22 @@ declare global {
     turnstile?: {
       render: (
         container: HTMLElement,
-        options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void }
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          'expired-callback': () => void;
+          /**
+           * New brief (2026-11-15, "horizontal card"): "Turnstile
+           * (compact/invisible if allowed) sits above the button without
+           * adding height" — Cloudflare's own 3 widget sizes are
+           * `'normal'` (300×65), `'compact'` (150×142, actually TALLER)
+           * and `'invisible'` (zero visible footprint; the real challenge
+           * still runs, it simply never renders a box). `'invisible'` is
+           * the only one that genuinely adds no height, so that is what
+           * `TurnstileWidget` always requests now.
+           */
+          size?: 'normal' | 'compact' | 'invisible';
+        }
       ) => string;
       remove: (widgetId: string) => void;
     };
@@ -115,6 +130,7 @@ export function TurnstileWidget({ siteKey, onVerify, onExpire }: TurnstileWidget
           sitekey: siteKey,
           callback: (token) => onVerifyRef.current(token),
           'expired-callback': () => onExpireRef.current(),
+          size: 'invisible',
         });
       })
       .catch((error: unknown) => {

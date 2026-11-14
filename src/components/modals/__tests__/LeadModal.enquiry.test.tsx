@@ -253,26 +253,38 @@ describe('LeadModal variant="enquiry"', () => {
   });
 
   /**
-   * New brief (2026-11-15), item 2: "Phone + Email in two columns (stack on
-   * mobile)" and the same for "Travel date + Travellers" — i.e. a
-   * responsive grid, not a grid that is always 2 columns regardless of
-   * viewport (what shipped before this redesign).
+   * New brief (2026-11-15, "horizontal card"): every field (Name, City,
+   * Mobile, Email, Travel date, Travellers) now shares ONE compact 2-column
+   * grid — Name|City, Mobile|Email, Travel date|Travellers — collapsing to
+   * a single stacked column below the card's own 781px breakpoint, not
+   * Tailwind's default `sm:`.
    */
-  it('stacks the Phone/Email and Travel-date/Travellers rows on mobile, 2 columns from sm: up', () => {
+  it('lays out every field in one shared 2-column grid from 781px up, stacked below it', () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
-    const mobileRow = screen.getByLabelText('Mobile Number *').closest('.grid');
-    const travelDateRow = screen.getByLabelText('Travel Date').closest('.grid');
-    expect(mobileRow).toHaveClass('grid-cols-1', 'sm:grid-cols-2');
-    expect(travelDateRow).toHaveClass('grid-cols-1', 'sm:grid-cols-2');
+    const fieldGrid = screen.getByLabelText('Mobile Number *').closest('.grid');
+    expect(fieldGrid).toHaveClass('grid-cols-1', 'min-[781px]:grid-cols-2');
+    // Name, City, Mobile, Email, Travel date and Travellers are all direct
+    // children of that SAME grid — not four separate 2-up sub-grids.
+    expect(screen.getByLabelText('Travel Date').closest('.grid')).toBe(fieldGrid);
+    expect(screen.getByLabelText('Name *').closest('.grid')).toBe(fieldGrid);
   });
 
-  /** New brief (2026-11-15), item 2: phone field matches the Name field's own box height exactly, rather than a narrower, differently-padded control. */
+  /**
+   * New brief (2026-11-15, "horizontal card"): both the Name field's own
+   * `Input` and the phone field's wrapper now share the SAME `vh`-clamped
+   * min-height (via `Field`'s cloned className, for the height-budget
+   * work — see `LeadModal.tsx`'s own header) rather than a fixed 44px, so
+   * this now compares their rendered heights directly instead of pinning
+   * one shared class string.
+   */
   it("the phone field's box is the same height as the Name field's", () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
     const phoneBox = screen.getByLabelText('Mobile Number *').closest('div');
-    expect(phoneBox).toHaveClass('min-h-[44px]');
+    const nameInput = screen.getByLabelText('Name *');
+    expect(phoneBox).toHaveClass('min-h-[clamp(32px,6vh,44px)]');
+    expect(nameInput).toHaveClass('min-h-[clamp(32px,6vh,44px)]');
   });
 
   /** New brief (2026-11-15), item 3: belt-and-braces — never a native GET-reload submit, on an empty OR a filled form. */

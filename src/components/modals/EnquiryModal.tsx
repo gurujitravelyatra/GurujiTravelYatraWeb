@@ -16,7 +16,11 @@ import { useModal } from './modal-context';
  * distinguishes them at submit time; it is simply forwarded, never interpreted
  * here.
  */
-export function EnquiryModal() {
+export interface EnquiryModalProps {
+  happyTravellersLabel?: string | null;
+}
+
+export function EnquiryModal({ happyTravellersLabel = null }: EnquiryModalProps) {
   const { modal, close } = useModal();
   const isOpen = modal?.variant === 'enquiry';
 
@@ -26,6 +30,7 @@ export function EnquiryModal() {
       open={isOpen}
       context={isOpen ? modal?.context : undefined}
       details={isOpen ? modal?.details : undefined}
+      happyTravellersLabel={happyTravellersLabel}
       onClose={close}
     />
   );

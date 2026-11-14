@@ -32,7 +32,7 @@ export interface FieldProps {
 export function Field({ label, htmlFor, error, className, children }: FieldProps) {
   const errorId = `${htmlFor}-error`;
   return (
-    <div className={cn('flex flex-col gap-[7px]', className)}>
+    <div className={cn('flex flex-col gap-[clamp(4px,1vh,7px)]', className)}>
       <Label htmlFor={htmlFor} className="text-[10px] font-bold uppercase tracking-[0.1em] text-redux-ink-mute">
         {label}
       </Label>
@@ -45,8 +45,15 @@ export function Field({ label, htmlFor, error, className, children }: FieldProps
             // #d92d32`, scoped to this one arbitrary value, not the
             // sitewide `redux-crimson` token (`#dc2626`), which stays
             // untouched everywhere else on the site.
+            //
+            // New brief (2026-11-15, "horizontal card"): `min-h-[...]`
+            // overrides `Input`'s own fixed 44px / `Textarea`'s own fixed
+            // 56px (tailwind-merge lets this later value win) with a `vh`-
+            // scaled one instead — part of the height budget `FormStep`'s
+            // own header explains; at a normal-height viewport it clamps
+            // right back up near 44px, so nothing changes there.
             className:
-              'rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08]',
+              'min-h-[clamp(32px,6vh,44px)] rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08]',
           })
         : children}
       {error && (

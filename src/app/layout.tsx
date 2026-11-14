@@ -4,6 +4,8 @@ import './globals.css';
 
 import { ModalProvider } from '@/components/modals/modal-context';
 import { ModalHost } from '@/components/modals/ModalHost';
+import { getSite } from '@/server/crm/client';
+import { toSiteStatsSummary } from '@/lib/site-stats';
 
 /**
  * Typography, per the design export's font loading:
@@ -110,9 +112,23 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // New brief (2026-11-15, "horizontal card"): the popup's proof pill needs
+  // the real `happyTravellersLabel` CRM figure, but `ModalHost`/`LeadModal`
+  // are mounted here, at the root, outside any one page's own `SiteShell`
+  // call — so this is the one additional `getSite()` read needed to reach
+  // them. Next's automatic fetch request memoization (separate from, and
+  // unaffected by, `force-dynamic`'s Data-Cache opt-out on individual pages)
+  // dedupes this against the SAME call `SiteShell`/`page.tsx` already make
+  // for the very same request within one render pass — this does not add a
+  // second real network round-trip per page view. Never throws either way:
+  // `getSite()`'s own `withFallbackAlways()` degrades to the safe `null`
+  // shape on a CRM outage, same as everywhere else that reads it.
+  const site = await getSite();
+  const happyTravellersLabel = toSiteStatsSummary(site.settings).happyTravellers ?? null;
+
   return (
     <html
       lang="en"
@@ -133,7 +149,7 @@ export default function RootLayout({
         */}
         <ModalProvider>
           {children}
-          <ModalHost />
+          <ModalHost happyTravellersLabel={happyTravellersLabel} />
         </ModalProvider>
       </body>
     </html>

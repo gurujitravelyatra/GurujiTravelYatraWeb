@@ -9,7 +9,11 @@ import { useModal } from './modal-context';
  * Mount once (alongside `<EnquiryModal />`) near the app root, inside
  * `<ModalProvider>`.
  */
-export function BrochureModal() {
+export interface BrochureModalProps {
+  happyTravellersLabel?: string | null;
+}
+
+export function BrochureModal({ happyTravellersLabel = null }: BrochureModalProps) {
   const { modal, close } = useModal();
   const isOpen = modal?.variant === 'brochure';
 
@@ -19,6 +23,7 @@ export function BrochureModal() {
       open={isOpen}
       context={isOpen ? modal?.context : undefined}
       details={isOpen ? modal?.details : undefined}
+      happyTravellersLabel={happyTravellersLabel}
       onClose={close}
     />
   );

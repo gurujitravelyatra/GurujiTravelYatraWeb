@@ -42,11 +42,10 @@ export interface ModalShellProps {
 }
 
 /**
- * `.mask` / `.modal` chrome — backdrop blur, max-height 90vh scrollable
- * (tech spec §4.3). Wraps Radix Dialog for the focus trap and
- * Escape/backdrop-click-to-close, with Framer Motion driving enter/exit
- * (`forceMount` + `AnimatePresence` so the exit animation gets to run
- * before unmount).
+ * `.mask` / `.modal` chrome — backdrop blur (tech spec §4.3). Wraps Radix
+ * Dialog for the focus trap and Escape/backdrop-click-to-close, with
+ * Framer Motion driving enter/exit (`forceMount` + `AnimatePresence` so
+ * the exit animation gets to run before unmount).
  *
  * New brief (2026-11-15), item 2: the card chrome now matches the
  * reference popup exactly — a WHITE card, 32px radius, 1px `#eadfdb`
@@ -56,6 +55,19 @@ export interface ModalShellProps {
  * site's own `rounded-22`/`shadow-gty-modal`/`bg-gty-white` tokens this
  * used to carry stay defined and in use elsewhere (buttons, cards) and are
  * untouched.
+ *
+ * Newest brief (2026-11-15, "horizontal card"): the card is now
+ * `min(1120px, 100vw - 64px)` wide from 781px up, with NO scrollbar at all
+ * at that width (the content inside is sized with `clamp()`/`vh` units —
+ * see `LeadModal.tsx` — to fit the required height budgets on its own,
+ * rather than this shell clipping/scrolling it). Below 781px it goes back
+ * to a near-full-width card with an 18px margin, where scrolling IS
+ * allowed — but with its scrollbar hidden (`scrollbar-width`/
+ * `::-webkit-scrollbar`), since the brief asks for scroll behaviour
+ * without a visible scrollbar specifically on mobile. 781px is this
+ * component's own breakpoint (arbitrary Tailwind variant), not the
+ * sitewide `--gx` gutter's 760px one — that token drives page gutters
+ * elsewhere and was not changed for this one component's needs.
  */
 export function ModalShell({ open, onOpenChange, title, description, children, toast }: ModalShellProps) {
   const shouldReduceMotion = useReducedMotion();
@@ -74,7 +86,7 @@ export function ModalShell({ open, onOpenChange, title, description, children, t
                 transition={MODAL_TRANSITION}
               />
             </DialogOverlay>
-            <div className="fixed inset-0 z-[60] flex items-center justify-center px-gx py-8">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-[18px] min-[781px]:p-8">
               {/*
                 Radix's own onCloseAutoFocus restore is disabled here because
                 focus restoration is owned explicitly by modal-context.tsx
@@ -86,7 +98,7 @@ export function ModalShell({ open, onOpenChange, title, description, children, t
               */}
               <DialogContent asChild forceMount onCloseAutoFocus={(event) => event.preventDefault()}>
                 <motion.div
-                  className="max-h-[90vh] w-[560px] max-w-full overflow-auto rounded-[32px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none"
+                  className="w-full min-[781px]:w-[min(1120px,calc(100vw-64px))] max-h-[calc(100dvh-36px)] overflow-y-auto min-[781px]:max-h-none min-[781px]:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[32px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none"
                   initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={shouldReduceMotion ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.96, y: 8 }}

@@ -77,7 +77,12 @@ const BrochureModal = dynamic(() => import('./BrochureModal').then((mod) => mod.
  * make the modal vanish instantly instead of fading out. A mounted-but-closed
  * modal renders `null`.
  */
-export function ModalHost() {
+export interface ModalHostProps {
+  /** `GET /public/site`'s `happyTravellersLabel`, read once at the root layout — see `layout.tsx`'s own comment. Forwarded to both modal variants' proof pill. */
+  happyTravellersLabel: string | null;
+}
+
+export function ModalHost({ happyTravellersLabel }: ModalHostProps) {
   const { modal } = useModal();
   const [openedVariants, setOpenedVariants] = React.useState<readonly ModalVariant[]>([]);
 
@@ -95,8 +100,8 @@ export function ModalHost() {
 
   return (
     <>
-      {openedVariants.includes('enquiry') && <EnquiryModal />}
-      {openedVariants.includes('brochure') && <BrochureModal />}
+      {openedVariants.includes('enquiry') && <EnquiryModal happyTravellersLabel={happyTravellersLabel} />}
+      {openedVariants.includes('brochure') && <BrochureModal happyTravellersLabel={happyTravellersLabel} />}
     </>
   );
 }
