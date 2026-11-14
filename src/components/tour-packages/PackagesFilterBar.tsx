@@ -3,6 +3,8 @@
 import type { CrmCategory, CrmPlace } from '@/server/crm/types';
 import { cn } from '@/lib/utils';
 
+export type TourScope = 'Domestic' | 'International' | 'All';
+
 export interface PackagesFilterBarProps {
   categories: CrmCategory[];
   selectedCategory: CrmCategory | 'All';
@@ -13,6 +15,8 @@ export interface PackagesFilterBarProps {
   months: string[];
   selectedMonth: string | 'All';
   onSelectMonth: (month: string | 'All') => void;
+  selectedScope: TourScope;
+  onSelectScope: (scope: TourScope) => void;
   visibleCount: number;
   totalCount: number;
   onClear: () => void;
@@ -41,12 +45,29 @@ export function PackagesFilterBar({
   months,
   selectedMonth,
   onSelectMonth,
+  selectedScope,
+  onSelectScope,
   visibleCount,
   totalCount,
   onClear,
 }: PackagesFilterBarProps) {
   return (
     <div className="rounded-20 bg-gty-white shadow-gty-header">
+      {/*
+        Brief §C2 (2026-11-14): the CRM audit found no domestic/international
+        flag anywhere except the `International` tour category itself, so
+        this toggle IS that category underneath — picking "International"
+        here is equivalent to (and clears) the category chip below, and
+        picking "Domestic" means "not categorised International" (the
+        category chips below then offer only the other four).
+      */}
+      <div role="group" aria-label="Filter by domestic or international" className="flex flex-wrap items-center gap-[10px] border-b border-gty-border-5 px-6 py-4">
+        <span className="text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-ink-soft">Destination type</span>
+        {(['All', 'Domestic', 'International'] as const).map((scope) => (
+          <CategoryChip key={scope} label={scope} isActive={selectedScope === scope} onClick={() => onSelectScope(scope)} />
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-5 p-6">
         <FieldFrame
           label="Destination"
@@ -106,23 +127,27 @@ export function PackagesFilterBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-gty-border-5 px-6 py-4">
-        <span className="flex items-center gap-[9px] text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-ink-soft">
-          <span aria-hidden="true" className="text-gty-primary">▦</span> Travel Category
-        </span>
+        {selectedScope !== 'International' && (
+          <>
+            <span className="flex items-center gap-[9px] text-11-5 font-extrabold uppercase tracking-eyebrow-3 text-gty-ink-soft">
+              <span aria-hidden="true" className="text-gty-primary">▦</span> Travel Category
+            </span>
 
-        <div role="group" aria-label="Filter by travel category" className="flex flex-1 flex-wrap gap-[10px]">
-          <CategoryChip label="All" isActive={selectedCategory === 'All'} onClick={() => onSelectCategory('All')} />
-          {categories.map((category) => (
-            <CategoryChip
-              key={category}
-              label={category}
-              isActive={selectedCategory === category}
-              onClick={() => onSelectCategory(category)}
-            />
-          ))}
-        </div>
+            <div role="group" aria-label="Filter by travel category" className="flex flex-1 flex-wrap gap-[10px]">
+              <CategoryChip label="All" isActive={selectedCategory === 'All'} onClick={() => onSelectCategory('All')} />
+              {categories.map((category) => (
+                <CategoryChip
+                  key={category}
+                  label={category}
+                  isActive={selectedCategory === category}
+                  onClick={() => onSelectCategory(category)}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
-        <p aria-live="polite" className="text-12 font-semibold text-gty-subtle">
+        <p aria-live="polite" className="ml-auto text-12 font-semibold text-gty-subtle">
           {visibleCount} of {totalCount} {totalCount === 1 ? 'journey' : 'journeys'}
         </p>
       </div>

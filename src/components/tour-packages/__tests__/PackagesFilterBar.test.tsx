@@ -1,10 +1,15 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PackagesFilterBar } from '../PackagesFilterBar';
 import type { CrmCategory, CrmPlace } from '@/server/crm/types';
 
-const categories: CrmCategory[] = ['Spiritual', 'Adventure', 'International', 'Family', 'Group'];
+// `PackagesCatalogue` (the real caller) always drops 'International' from
+// this prop before it reaches here — it is superseded by the "Destination
+// type" scope toggle (brief §C2, 2026-11-14) — so this fixture mirrors what
+// `PackagesFilterBar` actually ever receives in the app, not the full CRM
+// taxonomy.
+const categories: CrmCategory[] = ['Spiritual', 'Adventure', 'Family', 'Group'];
 const places: CrmPlace[] = [
   {
     name: 'Maldives',
@@ -45,6 +50,8 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof PackagesFilter
     months,
     selectedMonth: 'All' as const,
     onSelectMonth: jest.fn(),
+    selectedScope: 'All' as const,
+    onSelectScope: jest.fn(),
     visibleCount: 12,
     totalCount: 12,
     onClear: jest.fn(),
@@ -57,26 +64,62 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof PackagesFilter
 describe('PackagesFilterBar', () => {
   it('renders a chip for every CRM category, plus All', () => {
     renderBar();
+    const categoryGroup = screen.getByRole('group', { name: 'Filter by travel category' });
 
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(within(categoryGroup).getByRole('button', { name: 'All' })).toBeInTheDocument();
     for (const category of categories) {
-      expect(screen.getByRole('button', { name: category })).toBeInTheDocument();
+      expect(within(categoryGroup).getByRole('button', { name: category })).toBeInTheDocument();
     }
   });
 
   it('toggles aria-pressed correctly as the selected chip changes', () => {
-    renderBar({ selectedCategory: 'International' });
+    renderBar({ selectedCategory: 'Family' });
 
-    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'International' })).toHaveAttribute('aria-pressed', 'true');
+    const categoryGroup = screen.getByRole('group', { name: 'Filter by travel category' });
+    expect(within(categoryGroup).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(categoryGroup).getByRole('button', { name: 'Family' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('calls onSelectCategory with the clicked category', async () => {
     const user = userEvent.setup();
     const { onSelectCategory } = renderBar();
 
-    await user.click(screen.getByRole('button', { name: 'Family' }));
+    await user.click(within(screen.getByRole('group', { name: 'Filter by travel category' })).getByRole('button', { name: 'Family' }));
     expect(onSelectCategory).toHaveBeenCalledWith('Family');
+  });
+
+  /**
+   * Brief §C2 (2026-11-14): the audit found no CRM domestic/international
+   * flag anywhere except the `International` tour category itself — this
+   * toggle IS that category, surfaced as its own control rather than one
+   * chip buried among five.
+   */
+  describe('destination-type scope toggle', () => {
+    it('renders All/Domestic/International, reporting the clicked one', async () => {
+      const user = userEvent.setup();
+      const { onSelectScope } = renderBar();
+      const scopeGroup = screen.getByRole('group', { name: 'Filter by domestic or international' });
+
+      for (const label of ['All', 'Domestic', 'International']) {
+        expect(within(scopeGroup).getByRole('button', { name: label })).toBeInTheDocument();
+      }
+
+      await user.click(within(scopeGroup).getByRole('button', { name: 'International' }));
+      expect(onSelectScope).toHaveBeenCalledWith('International');
+    });
+
+    it('marks the active scope chip pressed', () => {
+      renderBar({ selectedScope: 'Domestic' });
+      const scopeGroup = screen.getByRole('group', { name: 'Filter by domestic or international' });
+
+      expect(within(scopeGroup).getByRole('button', { name: 'Domestic' })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(scopeGroup).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('hides the category chips while International scope is active — the scope already pins the category', () => {
+      renderBar({ selectedScope: 'International' });
+      expect(screen.queryByRole('group', { name: 'Filter by travel category' })).not.toBeInTheDocument();
+    });
   });
 
   it('announces the visible/total count via an aria-live region', () => {

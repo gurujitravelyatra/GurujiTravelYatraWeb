@@ -8,6 +8,8 @@ import { gridColumnsForCount } from '@/lib/card-grid';
 import { cn } from '@/lib/utils';
 import { PackagesFilterBar } from './PackagesFilterBar';
 
+export type TourScope = 'Domestic' | 'International' | 'All';
+
 export interface PackagesCatalogueProps {
   tours: CrmTourCard[];
   total: number;
@@ -19,6 +21,7 @@ export interface PackagesCatalogueProps {
   selectedCategory: CrmCategory | 'All';
   selectedPlace: string | 'All';
   selectedMonth: string | 'All';
+  selectedScope: TourScope;
 }
 
 /**
@@ -41,6 +44,7 @@ export function PackagesCatalogue({
   selectedCategory,
   selectedPlace,
   selectedMonth,
+  selectedScope,
 }: PackagesCatalogueProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,6 +58,12 @@ export function PackagesCatalogue({
     // Any filter change restarts pagination — page 2 of the OLD filter is
     // not a meaningful place to land on the new one.
     if (!('page' in next)) params.delete('page');
+    // Brief §C2 (2026-11-14): scope and category can disagree (e.g. "Domestic"
+    // was active, then International got picked directly) — scope always
+    // wins server-side, so clear the other one here rather than send a
+    // contradictory query string.
+    if ('scope' in next) params.delete('category');
+    if ('category' in next) params.delete('scope');
 
     // `.size` is not reliably implemented across every URLSearchParams
     // polyfill/jsdom version this project's test suite runs under — a
@@ -68,7 +78,7 @@ export function PackagesCatalogue({
     <div>
       <div className="relative z-[4] -mt-[70px] px-gx">
         <PackagesFilterBar
-          categories={categories}
+          categories={categories.filter((category) => category !== 'International')}
           selectedCategory={selectedCategory}
           onSelectCategory={(category) => pushParams({ category: category === 'All' ? undefined : category })}
           places={places}
@@ -77,6 +87,8 @@ export function PackagesCatalogue({
           months={months}
           selectedMonth={selectedMonth}
           onSelectMonth={(month) => pushParams({ month: month === 'All' ? undefined : month })}
+          selectedScope={selectedScope}
+          onSelectScope={(scope) => pushParams({ scope: scope === 'All' ? undefined : scope.toLowerCase() })}
           visibleCount={tours.length}
           totalCount={total}
           onClear={() => router.push('/tour-packages')}

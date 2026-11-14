@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PackagesCatalogue } from '../PackagesCatalogue';
@@ -57,6 +57,7 @@ function renderCatalogue(overrides: Partial<React.ComponentProps<typeof Packages
       selectedCategory="All"
       selectedPlace="All"
       selectedMonth="All"
+      selectedScope="All"
       {...overrides}
     />
   );
@@ -85,9 +86,45 @@ describe('PackagesCatalogue', () => {
     const user = userEvent.setup();
     renderCatalogue();
 
-    await user.click(screen.getByRole('button', { name: 'International' }));
+    await user.click(screen.getByRole('button', { name: 'Spiritual' }));
 
-    expect(push).toHaveBeenCalledWith('/tour-packages?category=International');
+    expect(push).toHaveBeenCalledWith('/tour-packages?category=Spiritual');
+  });
+
+  /**
+   * Brief §C2 (2026-11-14): the audit found no CRM domestic/international
+   * flag other than the `International` tour category — `PackagesCatalogue`
+   * drops it from the regular category chips (superseded by the scope
+   * toggle) and treats "International" scope as equivalent to that category.
+   */
+  describe('destination-type scope', () => {
+    it('does not render an "International" category chip — it is superseded by the scope toggle', () => {
+      renderCatalogue();
+      const categoryGroup = screen.getByRole('group', { name: 'Filter by travel category' });
+      expect(within(categoryGroup).queryByRole('button', { name: 'International' })).not.toBeInTheDocument();
+    });
+
+    it('selecting the International scope pushes scope=international and clears any category', async () => {
+      currentSearchParams = new URLSearchParams({ category: 'Spiritual' });
+      const user = userEvent.setup();
+      renderCatalogue({ selectedCategory: 'Spiritual' });
+      const scopeGroup = screen.getByRole('group', { name: 'Filter by domestic or international' });
+
+      await user.click(within(scopeGroup).getByRole('button', { name: 'International' }));
+
+      expect(push).toHaveBeenCalledWith('/tour-packages?scope=international');
+    });
+
+    it('selecting a category clears any scope already in the URL', async () => {
+      currentSearchParams = new URLSearchParams({ scope: 'domestic' });
+      const user = userEvent.setup();
+      renderCatalogue({ selectedScope: 'Domestic' });
+      const categoryGroup = screen.getByRole('group', { name: 'Filter by travel category' });
+
+      await user.click(within(categoryGroup).getByRole('button', { name: 'Spiritual' }));
+
+      expect(push).toHaveBeenCalledWith('/tour-packages?category=Spiritual');
+    });
   });
 
   it('selecting a place pushes a new URL with that place', async () => {

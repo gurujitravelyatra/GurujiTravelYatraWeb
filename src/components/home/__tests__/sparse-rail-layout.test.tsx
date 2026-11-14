@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 
 import { PopularDestinationsSection } from '../PopularDestinationsSection';
 import { DestinationsRail } from '../InternationalDestinationsRail';
-import type { CrmPlace, CrmTourCard } from '@/server/crm/types';
+import type { CrmTourCard } from '@/server/crm/types';
 
 /**
  * F4 — the rails render fewer cards than the design assumed, and the layout
@@ -12,10 +12,10 @@ import type { CrmPlace, CrmTourCard } from '@/server/crm/types';
  * gone — `/tour-packages` is now one server-filtered grid, not a rail
  * layout, so its own scroll-arrow behaviour has nothing left to test here.
  * What remains is `PopularDestinationsSection`'s adaptive grid/dots (Home)
- * and `DestinationsRail`'s measured-overflow scroll arrow (also Home,
- * renamed from "International Destinations" — CRM-migration Step 2 removed
- * the fixture-only `isInternational` curation flag this rail used to filter
- * by, since `GET /public/places` has no such field).
+ * and `DestinationsRail`'s measured-overflow scroll arrow (also Home;
+ * brief §C2, 2026-11-14 repointed it at real International tours —
+ * `category: 'International'` — after confirming `GET /public/places` has
+ * no domestic/international field of its own).
  */
 
 /** jsdom reports 0 for every layout measurement, so overflow must be simulated. */
@@ -55,18 +55,10 @@ function tour(slug: string): CrmTourCard {
   };
 }
 
-const fiveTours: CrmTourCard[] = ['a', 'b', 'c', 'd', 'e'].map(tour);
+const fiveTours: CrmTourCard[] = ['a', 'b', 'c', 'd', 'e'].map((slug) => tour(slug));
 
-function place(slug: string): CrmPlace {
-  return {
-    name: `Place ${slug}`,
-    slug,
-    region: 'Region',
-    description: 'A place.',
-    imageUrl: 'https://res.cloudinary.com/place-images/abc.jpg',
-    showInCustomBuilder: true,
-    liveTourCount: 1,
-  };
+function internationalTour(slug: string): CrmTourCard {
+  return { ...tour(slug), category: 'International' };
 }
 
 /**
@@ -106,23 +98,28 @@ describe('Popular Destinations renders a fixed responsive grid regardless of car
   });
 });
 
+/**
+ * Brief §C2 (2026-11-14): this rail now reads real International tours
+ * (`category: 'International'`), not CRM places — see
+ * `InternationalDestinationsRail`'s own header for the audit behind that.
+ */
 describe('DestinationsRail offers a scroll arrow only when there is somewhere to scroll', () => {
-  const places = [place('a'), place('b')];
+  const internationalTours = [internationalTour('x'), internationalTour('y')];
 
   it('hides the arrow when the row fits on screen', () => {
-    render(<DestinationsRail places={places} />);
+    render(<DestinationsRail tours={internationalTours} />);
     expect(screen.queryByRole('button', { name: /scroll destinations/i })).not.toBeInTheDocument();
   });
 
   it('shows it once the row genuinely overflows', () => {
     withRowOverflow(1400, 500, () => {
-      render(<DestinationsRail places={places} />);
+      render(<DestinationsRail tours={internationalTours} />);
       expect(screen.getByRole('button', { name: /scroll destinations/i })).toBeInTheDocument();
     });
   });
 
-  it('renders nothing at all for an empty place list', () => {
-    const { container } = render(<DestinationsRail places={[]} />);
+  it('renders nothing at all for an empty tour list', () => {
+    const { container } = render(<DestinationsRail tours={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

@@ -43,6 +43,7 @@ function renderPage(tours: CrmTourCard[] = [tour('a')]) {
         selectedCategory="All"
         selectedPlace="All"
         selectedMonth="All"
+        selectedScope="All"
       />
     </>
   );

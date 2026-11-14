@@ -2,40 +2,40 @@
 
 import Link from 'next/link';
 
-import type { CrmPlace } from '@/server/crm/types';
-import { DestinationCard } from '@/components/cards/DestinationCard';
+import type { CrmTourCard } from '@/server/crm/types';
 import { useHorizontalOverflow } from '@/hooks/use-horizontal-overflow';
+import { PopularDestinationCard } from './PopularDestinationCard';
 
 export interface DestinationsRailProps {
-  places: CrmPlace[];
+  tours: CrmTourCard[];
 }
 
 /** How far the row scrolls per arrow click — one card width + its gap. */
 const SCROLL_AMOUNT_PX = 268;
 
 /**
- * CRM-migration Step 2: this used to be the "International Destinations"
- * rail, selected by a fixture-only `isInternational` flag with no CRM
- * equivalent. `GET /public/places` has no such flag — only
- * `showInCustomBuilder`, which answers a different question (is this place
- * offered in the Customize Tours builder, not "is it international"). So
- * this renders every active place the CRM returns, in the CRM's own saved
- * display order, under a neutral heading instead of a curation this site
- * can no longer make.
+ * Brief §C2 (2026-11-14), after the audit confirmed `category:
+ * 'International'` is the only real domestic/international signal the CRM
+ * exposes (no flag on `CrmPlace`): this section — "Explore Destinations",
+ * what used to be "International Tours" — now shows the real INTERNATIONAL
+ * tours themselves (cover, title, price, duration, seats — the exact same
+ * `PopularDestinationCard` the Popular Destinations grid uses, reused
+ * rather than re-built), not a generic list of CRM places. Hidden entirely
+ * when there are none, never a curated/guessed subset.
  *
- * `use client` only for the scroll-arrow button — `DestinationCard` itself
- * stays presentational. The arrow is gated on MEASURED overflow, not just a
- * breakpoint, since the real place count varies with what the CRM has
- * configured.
+ * `use client` only for the scroll-arrow button — the cards themselves stay
+ * presentational. The arrow is gated on MEASURED overflow, not just a
+ * breakpoint, since the real International-tour count varies with what the
+ * CRM has published.
  */
-export function DestinationsRail({ places }: DestinationsRailProps) {
-  const { ref: rowRef, hasOverflow: canScroll } = useHorizontalOverflow<HTMLDivElement>([places]);
+export function DestinationsRail({ tours }: DestinationsRailProps) {
+  const { ref: rowRef, hasOverflow: canScroll } = useHorizontalOverflow<HTMLDivElement>([tours]);
 
   const scrollNext = () => {
     rowRef.current?.scrollBy({ left: SCROLL_AMOUNT_PX, behavior: 'smooth' });
   };
 
-  if (places.length === 0) return null;
+  if (tours.length === 0) return null;
 
   return (
     <section
@@ -47,17 +47,19 @@ export function DestinationsRail({ places }: DestinationsRailProps) {
           Explore <span className="text-gty-primary">Destinations</span>
         </h2>
         <Link
-          href="/tour-packages"
+          href="/tour-packages?scope=international"
           className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary"
         >
-          View All Tour Packages →
+          View All International Tours →
         </Link>
       </div>
 
       <div className="flex items-center gap-3">
         <div ref={rowRef} className="no-scrollbar flex gap-4 overflow-x-auto px-px py-1 pb-2">
-          {places.map((place) => (
-            <DestinationCard key={place.slug} place={place} />
+          {tours.map((tour) => (
+            <div key={tour.slug} className="w-[252px] flex-none sm:w-[280px]">
+              <PopularDestinationCard tour={tour} />
+            </div>
           ))}
         </div>
         {canScroll && (

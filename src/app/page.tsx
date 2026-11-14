@@ -61,9 +61,6 @@ export const dynamic = 'force-dynamic';
  * old fixture/database content layer. Sections with no CRM-sourced
  * equivalent were removed rather than kept rendering stale/fixture data:
  *
- *  - "International Destinations" (a fixture-only curation flag with no
- *    CRM field) → replaced by `DestinationsRail`, every active place the
- *    CRM returns, under a neutral heading.
  *  - The 4 themed catalogue rails on the old Home/Tour-Packages model have
  *    no CRM concept of "rail membership" either — Popular Destinations
  *    here is simply the CRM's own first page of tours.
@@ -74,17 +71,36 @@ export const dynamic = 'force-dynamic';
  *  - "Let's Travel Together" newsletter signup — removed per design review
  *    2026-11-01 (never connected to a real backend; see the deleted
  *    `src/lib/newsletter-adapter.ts`'s own header for why).
+ *
+ * Brief §C1/C2 (2026-11-14), after a fresh CRM-contract audit: "Popular
+ * Destinations" now shows DOMESTIC tours only, and "International
+ * Destinations" is back (renamed "Explore Destinations") showing real
+ * International tours — `category: 'International'` turned out to be the
+ * one real domestic/international signal the contract has, superseding
+ * the "no such field exists" note the bullet above used to carry (`CrmPlace`
+ * genuinely has none; `CrmTourCard.category` does). See
+ * `InternationalDestinationsRail`'s own header for the rest of that story.
  */
+const POPULAR_TOURS_CAP = 8;
+/** The CRM has no "exclude category" query — overfetch, filter out International client-side, then slice back to the real cap. */
+const POPULAR_TOURS_OVERFETCH = POPULAR_TOURS_CAP * 2;
+
 export default async function HomePage() {
-  const [site, places, popularTours] = await Promise.all([
+  const [site, places, domesticPageTours, internationalTours] = await Promise.all([
     getSite(),
     getPlaces(),
-    getTours({ pageSize: 8 }),
+    getTours({ pageSize: POPULAR_TOURS_OVERFETCH }),
+    // Brief §C2 (2026-11-14): "Explore Destinations" now shows real
+    // International tours (see `InternationalDestinationsRail`'s header) —
+    // `category: 'International'` is the only domestic/international signal
+    // the CRM audit found anywhere in the contract.
+    getTours({ category: 'International', pageSize: 8 }),
   ]);
 
   const contact = resolveSiteContact(site.settings);
   const stats = toSiteStatsSummary(site.settings);
   const exploreDestinations = places.filter((place) => place.liveTourCount > 0).slice(0, 6);
+  const popularTours = domesticPageTours.tours.filter((tour) => tour.category !== 'International').slice(0, POPULAR_TOURS_CAP);
   const heroImageUrl = site.images.HERO_BACKGROUND[0]?.url;
 
   return (
@@ -96,12 +112,14 @@ export default async function HomePage() {
       */}
       <Hero headline={contact.heroHeadline} subtext={contact.heroSubtext} heroImageUrl={heroImageUrl} stats={stats} />
       {/*
-        Filtered to the SAME liveTourCount > 0 subset `DestinationsRail`
-        further down the page uses, not every CRM place — the rest of this
-        page already treats "no live tours" as "do not promote this
-        destination right now" (see home.fake-server.test.tsx's "a place
-        with zero live tours does not crash the Explore Destinations rail"),
-        and this scrolling strip is promotional, not a neutral directory.
+        Filtered to the same liveTourCount > 0 rule this page has always
+        applied to place promotion — not every CRM place — since this
+        scrolling strip is promotional, not a neutral directory. (As of
+        brief §C2, 2026-11-14, `DestinationsRail` further down no longer
+        shares this filter — it reads International TOURS now, not places —
+        but the "don't promote a place with nothing live" rule stays here.
+        See home.fake-server.test.tsx's "a place with zero live tours does
+        not crash the route marquee".)
 
         Only rendered with NO real destinations when the CRM has configured
         NO places at all (`places.length === 0`) — `RouteMarquee` then shows
@@ -114,8 +132,8 @@ export default async function HomePage() {
         <RouteMarquee places={exploreDestinations.map((place) => place.name)} />
       )}
       <TripFinderBar />
-      <PopularDestinationsSection tours={popularTours.tours} />
-      <DestinationsRail places={exploreDestinations} />
+      <PopularDestinationsSection tours={popularTours} />
+      <DestinationsRail tours={internationalTours.tours} />
       <JourneyVideoBlock profileVideoUrl={contact.profileVideoUrl} />
       {/*
         "Redux" redesign (brief §8, 2026-11-14): the stats band that used to

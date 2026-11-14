@@ -93,7 +93,13 @@ describe('/ against the real-shaped (sparse) fake CRM payloads', () => {
     expect(html).not.toContain('section-11-stats');
   });
 
-  it('a place with zero live tours does not crash the Explore Destinations rail', async () => {
+  /**
+   * Brief §C2 (2026-11-14): this rail (`DestinationsRail`) now reads real
+   * International tours, not places — this test was written against the
+   * old place-based rail and is now about the route marquee, which still
+   * filters places by `liveTourCount > 0` the same way it always did.
+   */
+  it('a place with zero live tours does not crash the route marquee', async () => {
     const sparsePlace: CrmPlace = {
       name: 'Kedarnath',
       slug: 'kedarnath',
@@ -108,8 +114,8 @@ describe('/ against the real-shaped (sparse) fake CRM payloads', () => {
     const element = await HomePage();
     const html = renderToStaticMarkup(element);
 
-    // The Home "Explore Destinations" rail DOES filter to liveTourCount > 0
-    // (a real, legitimate design choice — "only show destinations you can
+    // The route marquee DOES filter to liveTourCount > 0 (a real,
+    // legitimate design choice — "only promote destinations you can
     // actually book right now"), unlike the customize-tours builder grid,
     // which must not filter by it at all. A zero-live-tour place is
     // correctly absent HERE without that absence being a crash.
@@ -161,5 +167,54 @@ describe('/ against the real-shaped (sparse) fake CRM payloads', () => {
 
     expect(html).toContain('src="https://media.gurujitravelyatra.com/site-images/hero.webp"');
     expect(html).not.toContain('Image placeholder — Himalayan landscape');
+  });
+
+  /**
+   * Brief §C1/C2 (2026-11-14): Popular Destinations shows DOMESTIC tours
+   * only (not categorised International) and "Explore Destinations" now
+   * shows the real International tours themselves.
+   */
+  describe('domestic vs international split (brief §C2)', () => {
+    const INTERNATIONAL_TOUR: CrmTourCard = {
+      ...REAL_SPARSE_TOUR,
+      slug: 'international-tour',
+      name: 'An International Tour',
+      category: 'International',
+    };
+
+    it('excludes an International tour from Popular Destinations', async () => {
+      server.setState({ tours: [REAL_SPARSE_TOUR, INTERNATIONAL_TOUR] });
+
+      const html = renderToStaticMarkup(await HomePage());
+
+      // Both sections render on the same page and the International tour
+      // legitimately appears in the OTHER one (Explore Destinations, see
+      // the next test) — slice out just the Popular Destinations section
+      // (it always renders before Explore Destinations in page.tsx) so
+      // this assertion can't pass by accident from that second, correct
+      // appearance.
+      const popularSectionHtml = html.slice(
+        html.indexOf('data-testid="popular-destinations-grid"'),
+        html.indexOf('data-testid="section-6b-destinations"')
+      );
+      expect(popularSectionHtml).toContain('A Real Tour');
+      expect(popularSectionHtml).not.toContain('An International Tour');
+    });
+
+    it('shows a real International tour in the Explore Destinations rail', async () => {
+      server.setState({ tours: [REAL_SPARSE_TOUR, INTERNATIONAL_TOUR] });
+
+      const html = renderToStaticMarkup(await HomePage());
+
+      expect(html).toContain('An International Tour');
+    });
+
+    it('hides the Explore Destinations section entirely when there are no International tours', async () => {
+      server.setState({ tours: [REAL_SPARSE_TOUR] });
+
+      const html = renderToStaticMarkup(await HomePage());
+
+      expect(html).not.toContain('section-6b-destinations');
+    });
   });
 });
