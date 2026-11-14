@@ -55,16 +55,30 @@ function buildAddressMapsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
+/**
+ * `?? GTY_X` only catches `null`/`undefined` — a CRM field that comes back
+ * as `""` or `"   "` (the Owner cleared a field in the CRM UI without
+ * actually unsetting it, or a backend quirk serialises "not set" as an
+ * empty string rather than `null`) sailed straight through as a blank
+ * value, which is exactly the "never render an empty phone row" failure
+ * this treats identically to `null` instead.
+ */
+function blankToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export function resolveSiteContact(settings: CrmSiteSettings | null): SiteContact {
+  const phone = blankToNull(settings?.phone);
   const address = settings?.address ?? GTY_ADDRESS;
   return {
-    phoneTel: settings?.phone ?? GTY_PHONE_TEL,
-    phoneDisplay: settings?.phone ?? GTY_PHONE_DISPLAY,
-    whatsappUrl: normalizedWhatsappUrl(settings?.whatsappNumber ?? null) ?? GTY_WHATSAPP_URL,
+    phoneTel: phone ?? GTY_PHONE_TEL,
+    phoneDisplay: phone ?? GTY_PHONE_DISPLAY,
+    whatsappUrl: normalizedWhatsappUrl(blankToNull(settings?.whatsappNumber)) ?? GTY_WHATSAPP_URL,
     email: settings?.email ?? GTY_EMAIL,
     address,
     addressMapsUrl: buildAddressMapsUrl(address),
-    instagramUrl: settings?.instagramUrl ?? GTY_INSTAGRAM_URL,
+    instagramUrl: blankToNull(settings?.instagramUrl) ?? GTY_INSTAGRAM_URL,
     heroHeadline: settings?.heroHeadline ?? null,
     heroSubtext: settings?.heroSubtext ?? null,
     profileVideoUrl: settings?.profileVideoUrl ?? null,
