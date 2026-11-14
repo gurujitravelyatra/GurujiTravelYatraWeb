@@ -45,9 +45,21 @@ const placeOptions: CrmPlace[] = [
 const [placeA, placeB] = placeOptions;
 const WHATSAPP_URL = 'https://wa.me/919099957658';
 
-function renderBuilder(children?: React.ReactNode) {
+/**
+ * The summary card's `<dt>Label</dt><dd>Value</dd>` pair — `getByText(value)`
+ * alone is ambiguous against a `<select>`'s own matching `<option>` text,
+ * and `getByText(label)` alone is ambiguous against the builder's own
+ * `<label for="...">Label</label>` elsewhere on the page.
+ */
+function getSummaryValue(label: string): string {
+  const dt = screen.getAllByText(label).find((element) => element.tagName === 'DT');
+  if (!dt) throw new Error(`No <dt> found for label "${label}"`);
+  return dt.nextElementSibling!.textContent!;
+}
+
+function renderBuilder(children?: React.ReactNode, prefill?: React.ComponentProps<typeof TripBuilder>['prefill']) {
   return render(
-    <TripBuilder placeOptions={placeOptions} whatsappUrl={WHATSAPP_URL}>
+    <TripBuilder placeOptions={placeOptions} whatsappUrl={WHATSAPP_URL} prefill={prefill}>
       {children}
     </TripBuilder>
   );
@@ -319,5 +331,61 @@ describe('TripBuilder — Budget control and step-4 preference chips are inert',
       const chip = within(group).getByRole('button', { name: `${label} — coming soon` });
       expect(chip).toBeDisabled();
     }
+  });
+});
+
+/**
+ * Brief §B (2026-11-14): the Trip Finder (or a direct link) can hand this
+ * page a `prefill` — visible and editable here, never auto-submitted.
+ */
+describe('TripBuilder — Trip Finder prefill', () => {
+  it('auto-adds the destination as a real trip stop when it matches a known place by name', () => {
+    renderBuilder(undefined, { destination: 'manali' }); // case-insensitive on purpose
+
+    expect(screen.queryByText('No places added yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Manali from your trip' })).toBeInTheDocument();
+  });
+
+  it('carries an UNMATCHED destination into the notes field instead of inventing a place pick', () => {
+    renderBuilder(undefined, { destination: 'Bali' });
+
+    expect(screen.getByText('No places added yet')).toBeInTheDocument();
+    expect(screen.getByLabelText('Any special requests?')).toHaveValue('Interested in: Bali');
+  });
+
+  it('prefills a real travel month', () => {
+    renderBuilder(undefined, { month: 'November' });
+    expect(getSummaryValue('Travel Month')).toBe('November');
+  });
+
+  it('ignores a month that is not one of the real options, falling back to "Any month"', () => {
+    renderBuilder(undefined, { month: 'Not A Month' });
+    expect(getSummaryValue('Travel Month')).toBe('Any month');
+  });
+
+  it.each([
+    ['1', '1 Adult'],
+    ['2', '2 Adults'],
+    ['3-4', '4 Adults'],
+    ['5+', '5 Adults'],
+  ])('maps the Trip Finder travellers option %s to %s', (travellers, expectedLabel) => {
+    renderBuilder(undefined, { travellers });
+    expect(getSummaryValue('Travellers')).toBe(expectedLabel);
+  });
+
+  it('every prefilled field stays visible AND editable — not locked', async () => {
+    const user = userEvent.setup();
+    renderBuilder(undefined, { destination: 'Manali', month: 'November', travellers: '2' });
+
+    await user.click(screen.getByRole('button', { name: /Remove Manali/i }));
+    expect(screen.getByText('No places added yet')).toBeInTheDocument();
+  });
+
+  it('with no prefill at all, behaves exactly as the untouched defaults always have', () => {
+    renderBuilder();
+
+    expect(screen.getByText('No places added yet')).toBeInTheDocument();
+    expect(getSummaryValue('Travel Month')).toBe('Any month');
+    expect(getSummaryValue('Travellers')).toBe('2 Adults');
   });
 });

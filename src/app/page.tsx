@@ -102,6 +102,10 @@ export default async function HomePage() {
   const exploreDestinations = places.filter((place) => place.liveTourCount > 0).slice(0, 6);
   const popularTours = domesticPageTours.tours.filter((tour) => tour.category !== 'International').slice(0, POPULAR_TOURS_CAP);
   const heroImageUrl = site.images.HERO_BACKGROUND[0]?.url;
+  // Brief §B item 3 (2026-11-14): Trip Finder destination suggestions are
+  // real CRM place names + states (`region`) — no tour titles (would need
+  // a separate, unbounded fetch; see `resolveTripFinder`'s own header).
+  const destinationSuggestions = Array.from(new Set(places.flatMap((place) => [place.name, place.region])));
 
   return (
     <SiteShell activePath="/" pageLabel="Home">
@@ -131,7 +135,7 @@ export default async function HomePage() {
       {(exploreDestinations.length > 0 || places.length === 0) && (
         <RouteMarquee places={exploreDestinations.map((place) => place.name)} />
       )}
-      <TripFinderBar />
+      <TripFinderBar destinationSuggestions={destinationSuggestions} />
       <PopularDestinationsSection tours={popularTours} />
       <DestinationsRail tours={internationalTours.tours} />
       <JourneyVideoBlock profileVideoUrl={contact.profileVideoUrl} />

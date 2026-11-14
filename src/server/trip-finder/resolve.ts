@@ -78,7 +78,13 @@ export function resolveMonthKey(monthName: string, now: Date = new Date()): stri
   return `${year}-${String(index + 1).padStart(2, '0')}`;
 }
 
-function matchesDestination(tour: CrmTourCard, placesBySlug: Map<string, CrmPlace>, needle: string): boolean {
+/**
+ * Shared with `/group-tours` (`GroupToursPage`), which filters its own
+ * departures list by the same `?destination=` text this resolver used to
+ * find them in the first place — one matching rule, not two that could
+ * silently drift apart.
+ */
+export function matchesDestination(tour: CrmTourCard, placesBySlug: Map<string, CrmPlace>, needle: string): boolean {
   if (tour.name.toLowerCase().includes(needle)) return true;
   if (tour.primaryPlace?.name.toLowerCase().includes(needle)) return true;
   const place = tour.primaryPlace ? placesBySlug.get(tour.primaryPlace.slug) : undefined;
@@ -94,8 +100,16 @@ function resolvePlaceSlugForListing(matches: CrmTourCard[], places: CrmPlace[], 
   return distinctSlugs.size === 1 ? [...distinctSlugs][0] : undefined;
 }
 
-function tourDetailUrl(slug: string): string {
-  return `/tour-packages/${slug}`;
+/**
+ * `note` (the Group-tab month-mismatch message, rule 2) rides along AS a
+ * query param on the URL itself, not only as `TripFinderResult.
+ * monthMismatchNote` — a client-side `router.push()` discards whatever the
+ * search bar was showing the instant the page changes, so the only way the
+ * visitor actually SEES this note is for the landing page itself to read
+ * and render it (`/group-tours` and the tour detail page both do).
+ */
+function tourDetailUrl(slug: string, note: string | undefined): string {
+  return note ? `/tour-packages/${slug}?${new URLSearchParams({ note }).toString()}` : `/tour-packages/${slug}`;
 }
 
 function tourPackagesUrl(category: CrmCategory, place: string | undefined, month: string | undefined): string {
@@ -105,9 +119,12 @@ function tourPackagesUrl(category: CrmCategory, place: string | undefined, month
   return `/tour-packages?${params.toString()}`;
 }
 
-function groupToursUrl(destination: string | undefined): string {
-  if (!destination) return '/group-tours';
-  return `/group-tours?${new URLSearchParams({ destination }).toString()}`;
+function groupToursUrl(destination: string | undefined, note: string | undefined): string {
+  const params = new URLSearchParams();
+  if (destination) params.set('destination', destination);
+  if (note) params.set('note', note);
+  const query = params.toString();
+  return query ? `/group-tours?${query}` : '/group-tours';
 }
 
 /** Prefills the enquiry form on `/customize-tours` — fields stay visible/editable there, never auto-submitted. */
@@ -134,7 +151,7 @@ export async function resolveTripFinder(input: TripFinderInput): Promise<TripFin
   // filter, and (rule 1/5) no month/travellers filter applied either.
   if (destination === '') {
     return {
-      url: input.tab === 'group' ? groupToursUrl(undefined) : tourPackagesUrl(category, undefined, undefined),
+      url: input.tab === 'group' ? groupToursUrl(undefined, undefined) : tourPackagesUrl(category, undefined, undefined),
       isFallbackToCustom: false,
     };
   }
@@ -166,7 +183,7 @@ export async function resolveTripFinder(input: TripFinderInput): Promise<TripFin
   const monthMismatchNote = monthMismatch ? `No departure in ${month}, here are the upcoming dates` : undefined;
 
   if (matches.length === 1) {
-    return { url: tourDetailUrl(matches[0].slug), isFallbackToCustom: false, monthMismatchNote };
+    return { url: tourDetailUrl(matches[0].slug, monthMismatchNote), isFallbackToCustom: false, monthMismatchNote };
   }
-  return { url: groupToursUrl(destination), isFallbackToCustom: false, monthMismatchNote };
+  return { url: groupToursUrl(destination, monthMismatchNote), isFallbackToCustom: false, monthMismatchNote };
 }

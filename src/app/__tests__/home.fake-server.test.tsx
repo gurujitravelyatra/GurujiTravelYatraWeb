@@ -26,6 +26,14 @@ jest.mock('@/components/layout/SiteShell', () => ({
   SiteShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
 }));
 
+// `TripFinderBar` ('use client') calls useRouter() — outside a real App
+// Router context (this test calls the page function directly, no real
+// Next render tree), that throws. Same reason `tour-packages-list.fake-
+// server.test.tsx` mocks this for `PackagesCatalogue`.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const server = new FakeCrmServer();
 const originalApiUrl = process.env.CRM_API_URL;
 
@@ -112,7 +120,13 @@ describe('/ against the real-shaped (sparse) fake CRM payloads', () => {
     server.setState({ places: [sparsePlace] });
 
     const element = await HomePage();
-    const html = renderToStaticMarkup(element);
+    // Brief §B item 3 (2026-11-14): the Trip Finder's destination
+    // `<datalist>` legitimately suggests EVERY real CRM place regardless of
+    // live-tour count (typing a zero-live-tour name is exactly what the
+    // "let's design one for you" fallback is for) — strip it out before
+    // asserting, since this test is specifically about the PROMOTIONAL
+    // route marquee, a different rule for a different purpose.
+    const html = renderToStaticMarkup(element).replace(/<datalist[\s\S]*?<\/datalist>/g, '');
 
     // The route marquee DOES filter to liveTourCount > 0 (a real,
     // legitimate design choice — "only promote destinations you can

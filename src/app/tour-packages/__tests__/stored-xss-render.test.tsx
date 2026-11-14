@@ -131,7 +131,7 @@ describe('a tour whose CRM response is full of XSS payloads', () => {
   });
 
   it('renders a detail page a browser will execute nothing from', async () => {
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }), searchParams: Promise.resolve({}) });
 
     expect(executableFindings(renderToStaticMarkup(element))).toEqual([]);
   });
@@ -141,7 +141,7 @@ describe('a tour whose CRM response is full of XSS payloads', () => {
   });
 
   it('escapes the payload into visible text rather than dropping it silently', async () => {
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }), searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('&lt;script&gt;alert(&quot;name&quot;)&lt;/script&gt;');
@@ -162,7 +162,7 @@ describe('a tour whose CRM response is full of XSS payloads', () => {
   });
 
   it('renders the one legitimate gallery image and drops the hostile ones', async () => {
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }), searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('res.cloudinary.com/demo/image/upload');
@@ -182,7 +182,7 @@ describe('a tour whose CRM response is full of XSS payloads', () => {
   });
 
   it('falls back to the placeholder for a hostile COVER url rather than emitting it', async () => {
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: PLANTED.slug }), searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(element);
 
     expect(html).not.toContain('src="javascript:');

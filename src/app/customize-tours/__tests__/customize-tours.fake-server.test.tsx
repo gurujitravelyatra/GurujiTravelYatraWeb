@@ -43,6 +43,10 @@ jest.mock('@/components/layout/SiteShell', () => ({
   SiteShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
 }));
 
+function emptySearchParams() {
+  return Promise.resolve({});
+}
+
 const server = new FakeCrmServer();
 const originalApiUrl = process.env.CRM_API_URL;
 
@@ -83,7 +87,7 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
   it('renders the Kedarnath card, surviving both the liveTours field-name drift and the missing description', async () => {
     server.setState({ places: [KEDARNATH_REAL_PAYLOAD], site: defaultFakeCrmState().site });
 
-    const element = await CustomizeToursPage();
+    const element = await CustomizeToursPage({ searchParams: emptySearchParams() });
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('Kedarnath');
@@ -101,7 +105,7 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
     };
     server.setState({ places: [zeroLiveTours] });
 
-    const element = await CustomizeToursPage();
+    const element = await CustomizeToursPage({ searchParams: emptySearchParams() });
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('Kedarnath');
@@ -110,7 +114,7 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
   it('a place with showInCustomBuilder: false is correctly absent — the one filter this page is supposed to apply', async () => {
     server.setState({ places: [{ ...KEDARNATH_REAL_PAYLOAD, showInCustomBuilder: false }] });
 
-    const element = await CustomizeToursPage();
+    const element = await CustomizeToursPage({ searchParams: emptySearchParams() });
     const html = renderToStaticMarkup(element);
 
     expect(html).not.toContain('Kedarnath');
@@ -119,7 +123,7 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
   it('renders successfully with an entirely empty places list, not a crash', async () => {
     server.setState({ places: [] });
 
-    const element = await CustomizeToursPage();
+    const element = await CustomizeToursPage({ searchParams: emptySearchParams() });
     expect(() => renderToStaticMarkup(element)).not.toThrow();
   });
 
@@ -134,7 +138,7 @@ describe('/customize-tours against the real-shaped Kedarnath payload', () => {
   it('renders Kedarnath\'s real card photo as an <img>, not the placeholder box — round 2', async () => {
     server.setState({ places: [KEDARNATH_REAL_PAYLOAD], site: defaultFakeCrmState().site });
 
-    const element = await CustomizeToursPage();
+    const element = await CustomizeToursPage({ searchParams: emptySearchParams() });
     const html = renderToStaticMarkup(element);
 
     // The real <img> for Kedarnath's card specifically — proving the

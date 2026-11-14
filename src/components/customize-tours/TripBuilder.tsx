@@ -11,7 +11,7 @@ import { TripRouteStep } from './TripRouteStep';
 import { TripPreferencesStep } from './TripPreferencesStep';
 import { AdditionalPreferencesStep } from './AdditionalPreferencesStep';
 import { TripSummaryCard } from './TripSummaryCard';
-import { defaultTravelStyle, type TravelStyle } from './trip-constants';
+import { defaultTravelStyle, TRAVEL_MONTHS, type TravelStyle } from './trip-constants';
 
 /**
  * Aliased to the lead payload's own stop type rather than re-declared, so the
@@ -21,12 +21,21 @@ import { defaultTravelStyle, type TravelStyle } from './trip-constants';
  */
 export type TripStop = LeadTripStop;
 
+/** Brief §B (2026-11-14) — what the Trip Finder (or a direct link) can hand this page via the URL. Every field is optional and still visible/editable once applied. */
+export interface TripBuilderPrefill {
+  destination?: string;
+  month?: string;
+  /** The Trip Finder's own option values — '1' | '2' | '3-4' | '5+'. */
+  travellers?: string;
+}
+
 export interface TripBuilderProps {
   placeOptions: CrmPlace[];
   /** Resolved by the page from `GET /public/site` (with a static fallback) — see `resolveSiteContact`. */
   whatsappUrl: string;
   /** Server-rendered cards for the rest of the right column (Need Help / Explore Destinations) — kept as Server Components by passing them in as children rather than importing them into this client module. */
   children?: React.ReactNode;
+  prefill?: TripBuilderPrefill;
 }
 
 const MIN_NIGHTS = 1;
@@ -42,6 +51,22 @@ function travellersLabel(adults: number, childrenCount: number): string {
   return parts.join(', ');
 }
 
+/** The Trip Finder's traveller-count OPTION values have no 1:1 "adults" number for a range — '3-4' takes the more accommodating upper bound rather than under-booking. */
+function travellersOptionToAdults(travellers: string | undefined): number | undefined {
+  switch (travellers) {
+    case '1':
+      return 1;
+    case '2':
+      return 2;
+    case '3-4':
+      return 4;
+    case '5+':
+      return 5;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Owns all trip-builder state (export's `state.trip` / `state.tstyle` plus
  * the newly-real travel month and traveller count, product-spec §5.5) — one
@@ -53,13 +78,32 @@ function travellersLabel(adults: number, childrenCount: number): string {
  * Dedupe is by `slug` (the export dedupes by `name`; slug is the same
  * uniqueness guarantee and is what the rest of the codebase keys places by).
  */
-export function TripBuilder({ placeOptions, whatsappUrl, children }: TripBuilderProps) {
-  const [trip, setTrip] = useState<TripStop[]>([]);
+export function TripBuilder({ placeOptions, whatsappUrl, children, prefill }: TripBuilderProps) {
+  /**
+   * Brief §B (2026-11-14): a Trip Finder `destination` is free text — it is
+   * only auto-added as a real trip stop when it matches a REAL
+   * `placeOptions` entry by name (case-insensitive); a match inventing a
+   * place pick for text that doesn't correspond to one would be worse than
+   * not prefilling it at all. An unmatched destination is instead carried
+   * into the notes field, still visible and editable, so the team sees
+   * what the visitor originally searched for.
+   */
+  const matchedPlace = prefill?.destination
+    ? placeOptions.find((place) => place.name.toLowerCase() === prefill.destination!.trim().toLowerCase())
+    : undefined;
+  const initialTrip: TripStop[] = matchedPlace
+    ? [{ slug: matchedPlace.slug, name: matchedPlace.name, region: matchedPlace.region, nights: DEFAULT_NIGHTS }]
+    : [];
+  const initialNotes = !matchedPlace && prefill?.destination ? `Interested in: ${prefill.destination.trim()}` : '';
+  const initialMonth = prefill?.month && TRAVEL_MONTHS.includes(prefill.month) ? prefill.month : '';
+  const initialAdults = travellersOptionToAdults(prefill?.travellers) ?? DEFAULT_ADULTS;
+
+  const [trip, setTrip] = useState<TripStop[]>(initialTrip);
   const [travelStyle, setTravelStyle] = useState<TravelStyle>(defaultTravelStyle);
-  const [travelMonth, setTravelMonth] = useState('');
-  const [adults, setAdults] = useState(DEFAULT_ADULTS);
+  const [travelMonth, setTravelMonth] = useState(initialMonth);
+  const [adults, setAdults] = useState(initialAdults);
   const [childrenCount, setChildrenCount] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(initialNotes);
   const { openCustomTrip } = useModal();
 
   const addPlace = (place: CrmPlace) => {

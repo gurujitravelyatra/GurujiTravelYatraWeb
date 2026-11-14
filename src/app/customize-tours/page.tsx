@@ -31,6 +31,14 @@ export const metadata: Metadata = {
  */
 export const dynamic = 'force-dynamic';
 
+interface CustomizeToursPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function firstValue(param: string | string[] | undefined): string | undefined {
+  return Array.isArray(param) ? param[0] : param;
+}
+
 /**
  * `/customize-tours` — Server Component.
  *
@@ -43,16 +51,31 @@ export const dynamic = 'force-dynamic';
  * the client `TripBuilder` rather than imported by it, so they stay Server
  * Components even though they render inside the same right-hand column as
  * the (necessarily client) trip summary.
+ *
+ * Brief §B (2026-11-14): when the Trip Finder falls back here (no matching
+ * ready-made tour) or a visitor arrives via a Group-tab redirect, this page
+ * reads `?destination=&month=&travellers=` and prefills the builder below —
+ * visible and editable, never auto-submitted. See `TripBuilder`'s own
+ * header for how each field maps (`destination` is only auto-selected as a
+ * place when it matches a REAL `placeOptions` entry; otherwise it is
+ * carried into the notes field rather than inventing a place pick).
  */
-export default async function CustomizeToursPage() {
+export default async function CustomizeToursPage({ searchParams }: CustomizeToursPageProps) {
+  const query = await searchParams;
   const [places, site] = await Promise.all([getPlaces(), getSite()]);
   const placeOptions = places.filter((place) => place.showInCustomBuilder);
   const contact = resolveSiteContact(site.settings);
 
+  const prefill = {
+    destination: firstValue(query.destination),
+    month: firstValue(query.month),
+    travellers: firstValue(query.travellers),
+  };
+
   return (
     <SiteShell activePath="/customize-tours" pageLabel="Customized Tours">
       <CustomizeToursHero />
-      <TripBuilder placeOptions={placeOptions} whatsappUrl={contact.whatsappUrl}>
+      <TripBuilder placeOptions={placeOptions} whatsappUrl={contact.whatsappUrl} prefill={prefill}>
         <NeedHelpCard contact={contact} />
         <ExploreDestinationsCard />
       </TripBuilder>

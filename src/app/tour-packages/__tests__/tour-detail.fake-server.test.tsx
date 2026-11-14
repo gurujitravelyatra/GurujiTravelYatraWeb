@@ -107,7 +107,7 @@ describe('the tour detail page against a real fake CRM server, end to end', () =
   it('renders the real tour name, price and itinerary it got back from a real HTTP round trip', async () => {
     server.setState({ tourDetails: { 'spiti-valley-circuit': tourDetail }, places, site });
 
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: 'spiti-valley-circuit' }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: 'spiti-valley-circuit' }), searchParams: Promise.resolve({}) } );
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('Spiti Valley Circuit');
@@ -128,12 +128,12 @@ describe('the tour detail page against a real fake CRM server, end to end', () =
     });
 
     const withBrochure = renderToStaticMarkup(
-      await PackageDetailPage({ params: Promise.resolve({ slug: 'spiti-valley-circuit' }) })
+      await PackageDetailPage({ params: Promise.resolve({ slug: 'spiti-valley-circuit' }), searchParams: Promise.resolve({}) } )
     );
     expect(withBrochure).toContain('Download Brochure');
 
     const withoutBrochure = renderToStaticMarkup(
-      await PackageDetailPage({ params: Promise.resolve({ slug: 'no-brochure-tour' }) })
+      await PackageDetailPage({ params: Promise.resolve({ slug: 'no-brochure-tour' }), searchParams: Promise.resolve({}) } )
     );
     expect(withoutBrochure).not.toContain('Download Brochure');
   });
@@ -160,7 +160,7 @@ describe('the tour detail page against a real fake CRM server, end to end', () =
     };
     server.setState({ tourDetails: { 'live-to-website-test-tour-by-mann': r2TourDetail }, places, site });
 
-    const element = await PackageDetailPage({ params: Promise.resolve({ slug: 'live-to-website-test-tour-by-mann' }) });
+    const element = await PackageDetailPage({ params: Promise.resolve({ slug: 'live-to-website-test-tour-by-mann' }), searchParams: Promise.resolve({}) } );
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain(`src="${r2TourDetail.coverImageUrl}"`);
@@ -179,7 +179,7 @@ describe('the tour detail page against a real fake CRM server, end to end', () =
     // `{status:'not-found'}` outcome reached the page's own `notFound()`
     // call rather than being silently swallowed.
     await expect(
-      PackageDetailPage({ params: Promise.resolve({ slug: 'genuinely-does-not-exist' }) })
+      PackageDetailPage({ params: Promise.resolve({ slug: 'genuinely-does-not-exist' }), searchParams: Promise.resolve({}) } )
     ).rejects.toThrow('NEXT_HTTP_ERROR_FALLBACK;404');
   });
 });

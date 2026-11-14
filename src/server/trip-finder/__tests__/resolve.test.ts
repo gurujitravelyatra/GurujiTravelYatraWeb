@@ -214,7 +214,10 @@ describe('resolveTripFinder — Group Tour tab (rule 2: real departures)', () =>
 
     const result = await resolveTripFinder({ tab: 'group', destination: 'Char Dham', month: 'July', travellers: '2' });
 
-    expect(result.url).toBe('/tour-packages/char-dham');
+    // The note rides along as a query param too — `router.push()` discards
+    // whatever the search bar was showing, so the LANDING page is what has
+    // to read and render it.
+    expect(result.url).toBe('/tour-packages/char-dham?note=No+departure+in+July%2C+here+are+the+upcoming+dates');
     expect(result.isFallbackToCustom).toBe(false);
     expect(result.monthMismatchNote).toBe('No departure in July, here are the upcoming dates');
   });

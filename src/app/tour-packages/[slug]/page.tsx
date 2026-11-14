@@ -13,6 +13,11 @@ import { PackageDetailCtas } from '@/components/tour-packages/PackageDetailCtas'
 
 interface PackageDetailPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function firstValue(param: string | string[] | undefined): string | undefined {
+  return Array.isArray(param) ? param[0] : param;
 }
 
 /**
@@ -23,7 +28,7 @@ interface PackageDetailPageProps {
  * `getTourBySlug()` (cached/tagged for 60s via Next's fetch cache, same as
  * every other CRM read) and `dynamicParams` stays at its default `true`.
  */
-export async function generateMetadata({ params }: PackageDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const result = await getTourBySlug(slug);
   if (result.status !== 'found') return {};
@@ -45,8 +50,13 @@ export async function generateMetadata({ params }: PackageDetailPageProps): Prom
  *    the CRM's own design rule is that withheld/retired/absent are never
  *    distinguishable to a caller.
  */
-export default async function PackageDetailPage({ params }: PackageDetailPageProps) {
+export default async function PackageDetailPage({ params, searchParams }: PackageDetailPageProps) {
   const { slug } = await params;
+  const query = await searchParams;
+  // Brief §B (2026-11-14), Trip Finder business rule 2: the Group tab can
+  // land here with a "no departure in the chosen month" note — never a
+  // reason it was redirected away, just context for what's shown below.
+  const note = firstValue(query.note);
   const result = await getTourBySlug(slug);
 
   if (result.status === 'not-found') notFound();
@@ -73,6 +83,12 @@ export default async function PackageDetailPage({ params }: PackageDetailPagePro
             {tour.name}
           </span>
         </nav>
+
+        {note && tour.category === 'Group' && (
+          <p role="status" className="rounded-14 border border-gty-border-2 bg-gty-red-150 px-5 py-3 text-13-5 font-semibold text-gty-primary">
+            {note}
+          </p>
+        )}
 
         <PhotoPlaceholder
           photoKey={tour.name}
