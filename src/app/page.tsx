@@ -81,9 +81,14 @@ export const dynamic = 'force-dynamic';
  * genuinely has none; `CrmTourCard.category` does). See
  * `InternationalDestinationsRail`'s own header for the rest of that story.
  */
-const POPULAR_TOURS_CAP = 8;
+/**
+ * Round 3 (2026-11-17), Part 1b: each home tour row shows every published
+ * tour of its section, up to 12 — past that the row ends with a "View all
+ * tours" card instead (see `TourRailSection`). Was 8.
+ */
+const TOUR_ROW_CAP = 12;
 /** The CRM has no "exclude category" query — overfetch, filter out International client-side, then slice back to the real cap. */
-const POPULAR_TOURS_OVERFETCH = POPULAR_TOURS_CAP * 2;
+const POPULAR_TOURS_OVERFETCH = TOUR_ROW_CAP * 2;
 
 export default async function HomePage() {
   const [site, places, domesticPageTours, internationalTours] = await Promise.all([
@@ -94,13 +99,21 @@ export default async function HomePage() {
     // International tours (see `InternationalDestinationsRail`'s header) —
     // `category: 'International'` is the only domestic/international signal
     // the CRM audit found anywhere in the contract.
-    getTours({ category: 'International', pageSize: 8 }),
+    // One more than the cap, so "there are more than 12" is known without a second call.
+    getTours({ category: 'International', pageSize: TOUR_ROW_CAP + 1 }),
   ]);
 
   const contact = resolveSiteContact(site.settings);
   const stats = toSiteStatsSummary(site.settings);
   const exploreDestinations = places.filter((place) => place.liveTourCount > 0).slice(0, 6);
-  const popularTours = domesticPageTours.tours.filter((tour) => tour.category !== 'International').slice(0, POPULAR_TOURS_CAP);
+  const domesticTours = domesticPageTours.tours.filter((tour) => tour.category !== 'International');
+  const popularTours = domesticTours.slice(0, TOUR_ROW_CAP);
+  // More domestic tours than the row shows: either already in hand, or the
+  // CRM has further pages this overfetch did not reach.
+  const hasMorePopularTours =
+    domesticTours.length > TOUR_ROW_CAP || domesticPageTours.total > domesticPageTours.tours.length;
+  const hasMoreInternationalTours =
+    internationalTours.tours.length > TOUR_ROW_CAP || internationalTours.total > TOUR_ROW_CAP;
   const heroImageUrl = site.images.HERO_BACKGROUND[0]?.url;
   // Brief §B item 3 (2026-11-14): Trip Finder destination suggestions are
   // real CRM place names + states (`region`) — no tour titles (would need
@@ -136,8 +149,8 @@ export default async function HomePage() {
         <RouteMarquee places={exploreDestinations.map((place) => place.name)} />
       )}
       <TripFinderBar destinationSuggestions={destinationSuggestions} />
-      <PopularDestinationsSection tours={popularTours} />
-      <DestinationsRail tours={internationalTours.tours} />
+      <PopularDestinationsSection tours={popularTours} hasMore={hasMorePopularTours} />
+      <DestinationsRail tours={internationalTours.tours.slice(0, TOUR_ROW_CAP)} hasMore={hasMoreInternationalTours} />
       <JourneyVideoBlock profileVideoUrl={contact.profileVideoUrl} />
       {/*
         "Redux" redesign (brief §8, 2026-11-14): the stats band that used to

@@ -1,78 +1,48 @@
-'use client';
-
-import Link from 'next/link';
-
 import type { CrmTourCard } from '@/server/crm/types';
-import { useHorizontalOverflow } from '@/hooks/use-horizontal-overflow';
-import { PopularDestinationCard } from './PopularDestinationCard';
+import { TourRailSection } from './TourRailSection';
 
 export interface DestinationsRailProps {
   tours: CrmTourCard[];
+  /** True when the CRM has more International tours than `tours` holds — the row then ends with a "View all tours" card. */
+  hasMore?: boolean;
 }
-
-/** How far the row scrolls per arrow click — one card width + its gap. */
-const SCROLL_AMOUNT_PX = 268;
 
 /**
  * Brief §C2 (2026-11-14), after the audit confirmed `category:
  * 'International'` is the only real domestic/international signal the CRM
- * exposes (no flag on `CrmPlace`): this section — "Explore Destinations",
- * what used to be "International Tours" — now shows the real INTERNATIONAL
- * tours themselves (cover, title, price, duration, seats — the exact same
- * `PopularDestinationCard` the Popular Destinations grid uses, reused
- * rather than re-built), not a generic list of CRM places. Hidden entirely
- * when there are none, never a curated/guessed subset.
+ * exposes (no flag on `CrmPlace`): this section — "Explore Destinations" —
+ * shows the real INTERNATIONAL tours themselves, with the exact same card
+ * the Popular Destinations row uses. Hidden entirely when there are none,
+ * never a curated/guessed subset.
  *
- * `use client` only for the scroll-arrow button — the cards themselves stay
- * presentational. The arrow is gated on MEASURED overflow, not just a
- * breakpoint, since the real International-tour count varies with what the
- * CRM has published.
+ * Round 3 (2026-11-17), Part 2: this used to be its own layout — a
+ * full-bleed grey band (`px-gx`, no max-width container) with fixed
+ * 252/280px cards in a scroller whose 4px/8px vertical padding clipped the
+ * card shadow into a visible box. It now renders through the SAME
+ * `TourRailSection` as Popular Destinations, in the same 1320px container
+ * on the same white background, so both rows line up card for card and the
+ * shadow, radius and hover state are literally the same code.
+ *
+ * No top padding of its own: it sits directly under Popular Destinations
+ * (also white), whose bottom padding already provides the gap.
  */
-export function DestinationsRail({ tours }: DestinationsRailProps) {
-  const { ref: rowRef, hasOverflow: canScroll } = useHorizontalOverflow<HTMLDivElement>([tours]);
-
-  const scrollNext = () => {
-    rowRef.current?.scrollBy({ left: SCROLL_AMOUNT_PX, behavior: 'smooth' });
-  };
-
+export function DestinationsRail({ tours, hasMore = false }: DestinationsRailProps) {
   if (tours.length === 0) return null;
 
   return (
-    <section
-      data-testid="section-6b-destinations"
-      className="flex flex-col gap-4 border-t border-gty-border-6 bg-gty-surface-5 px-gx py-[26px] 760:py-[30px]"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-24 font-extrabold tracking-tightest text-gty-ink">
-          Explore <span className="text-gty-primary">Destinations</span>
-        </h2>
-        <Link
-          href="/tour-packages?scope=international"
-          className="text-14-5 font-medium text-gty-ink-soft transition-colors duration-gty-fast ease-gty hover:text-gty-primary"
-        >
-          View All International Tours →
-        </Link>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div ref={rowRef} className="no-scrollbar flex gap-4 overflow-x-auto px-px py-1 pb-2">
-          {tours.map((tour) => (
-            <div key={tour.slug} className="w-[252px] flex-none sm:w-[280px]">
-              <PopularDestinationCard tour={tour} />
-            </div>
-          ))}
-        </div>
-        {canScroll && (
-          <button
-            type="button"
-            onClick={scrollNext}
-            aria-label="Scroll destinations"
-            className="hidden h-[38px] w-[38px] flex-none items-center justify-center rounded-pill border border-gty-border-3 text-gty-primary transition-colors duration-gty-fast ease-gty hover:border-gty-primary hover:bg-gty-primary hover:text-gty-white 1180:flex"
-          >
-            ›
-          </button>
-        )}
-      </div>
-    </section>
+    <TourRailSection
+      title={
+        <>
+          Explore <em className="italic text-redux-crimson">Destinations</em>
+        </>
+      }
+      railLabel="International tours"
+      viewAllLabel="View All International Tours"
+      viewAllHref="/tour-packages?scope=international"
+      tours={tours}
+      hasMore={hasMore}
+      sectionTestId="section-6b-destinations"
+      className="bg-white px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8"
+    />
   );
 }

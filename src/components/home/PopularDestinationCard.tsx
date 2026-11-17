@@ -38,7 +38,14 @@ export function PopularDestinationCard({ tour }: PopularDestinationCardProps) {
       href={`/tour-packages/${tour.slug}`}
       className="group flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-white shadow-[0_20px_50px_-30px_rgba(28,25,23,0.25)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_35px_70px_-30px_rgba(127,18,22,0.45)]"
     >
-      <span className="relative block h-44 overflow-hidden sm:h-52">
+      {/*
+        Round 3 (2026-11-17): below 768px the card now sits in a ~66vw scroll
+        row instead of a full-width column, so a fixed image height would
+        change the photo's shape — 39:20 is the ratio the full-width mobile
+        card had (343 x 176). From 768px up the fixed 208px height is exactly
+        what it was.
+      */}
+      <span className="relative block aspect-[39/20] overflow-hidden md:aspect-auto md:h-52">
         <PhotoPlaceholder
           photoKey={tour.name}
           imageUrl={tour.coverImageUrl}
