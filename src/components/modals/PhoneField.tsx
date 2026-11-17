@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { type Control, useController } from 'react-hook-form';
 
 import { CALLING_CODES, combinePhone, isValidLocalNumber, parsePhone } from '@/lib/calling-codes';
-import { cn } from '@/lib/utils';
+import { FIELD_PADDING_CLASS, joinClasses } from './Field';
 import type { LeadFormValues } from './lead-form-schema';
 
 export interface PhoneFieldProps {
@@ -37,10 +37,11 @@ export interface PhoneFieldProps {
  *
  * New brief (2026-11-15), item 2: "the phone field must look exactly like
  * the Name field — one full-width white bordered box of the SAME HEIGHT".
- * The wrapper carries `min-h-[44px]` (Name's own `Input` component's
- * min-height) with no padding of its own — the select/input inside carry
- * `Input`'s own padding instead — so the box is one continuous border, not
- * a padded outer box around two already-padded children.
+ * The wrapper has no padding of its own — the select/input inside carry the
+ * same `FIELD_PADDING_CLASS` as the Name input (reference match,
+ * 2026-11-17: 49.5px tall at the reference size, never under 44px) — so the
+ * box is one continuous border, not a padded outer box around two
+ * already-padded children.
  *
  * `ref={numberInputRef}` (destructured off `field.ref` below, rather than
  * read as `field.ref` at the JSX call site — the latter trips the newer
@@ -79,11 +80,9 @@ export function PhoneField({
     // focused element itself) — this wrapper is never itself focused, so
     // `focus-within` is what has to carry that same red ring here, as an
     // addition alongside (not instead of) the cloned border/background.
-    // No padding/height utilities here on purpose — `min-h-[44px]` pins the
-    // box to the exact same height as the Name field's `Input`, and the
-    // select/input below carry `Input`'s own `px-4 py-[13px]` instead of the
-    // wrapper, so the border is one continuous box rather than a padded
-    // outer box around two already-padded children.
+    // No padding/height utilities here on purpose — the select/input below
+    // carry the Name input's own padding, so the box is the same height and
+    // one continuous border.
     <div
       // New brief (2026-11-15, final corrections), item 7: "the whole
       // bordered box turns red" — this plain `<div>` has no `aria-invalid`
@@ -91,8 +90,8 @@ export function PhoneField({
       // does, which is a real form control), so a `data-invalid` attribute
       // carries the same signal for `Field`'s `data-[invalid=true]:` rule.
       data-invalid={ariaInvalid || looksIncomplete || undefined}
-      className={cn(
-        'flex min-h-[44px] items-stretch overflow-hidden focus-within:border-[#d92d32] focus-within:ring-[3px] focus-within:ring-[#d92d32]/[0.08]',
+      className={joinClasses(
+        'flex items-stretch overflow-hidden focus-within:border-enquiry-red focus-within:[box-shadow:var(--shadow-enquiry-focus)]',
         className
       )}
     >
@@ -103,7 +102,7 @@ export function PhoneField({
         id={codeSelectId}
         value={callingCode}
         onChange={(event) => update(event.target.value, localNumber)}
-        className="shrink-0 border-r border-[#eadfdb] bg-stone-50 pl-3 pr-1.5 py-[13px] text-[13px] text-stone-900 focus-visible:bg-[#d92d32]/10 focus-visible:outline-none"
+        className="shrink-0 border-r border-enquiry-line bg-stone-50 py-enquiry-field-y pl-3 pr-1.5 text-13 leading-[19.5px] text-enquiry-ink focus-visible:bg-enquiry-red/10 focus-visible:outline-none"
       >
         {CALLING_CODES.map((entry) => (
           <option key={entry.code} value={entry.code}>
@@ -124,7 +123,7 @@ export function PhoneField({
         aria-describedby={ariaDescribedBy}
         onBlur={onBlur}
         onChange={(event) => update(callingCode, event.target.value.replace(/[^\d\s-]/g, ''))}
-        className="min-w-0 flex-1 bg-transparent px-4 py-[13px] text-[13px] text-stone-900 focus-visible:outline-none"
+        className={`min-w-0 flex-1 bg-transparent ${FIELD_PADDING_CLASS} text-13 leading-[19.5px] text-enquiry-ink placeholder:text-enquiry-placeholder focus-visible:outline-none`}
       />
     </div>
   );

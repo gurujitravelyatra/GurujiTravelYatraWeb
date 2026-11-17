@@ -2,9 +2,6 @@
 
 import * as React from 'react';
 
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-
 export interface FieldProps {
   label: string;
   htmlFor: string;
@@ -17,59 +14,68 @@ export interface FieldProps {
   optional?: boolean;
 }
 
+/** Joins class strings WITHOUT tailwind-merge: the `enquiry-*` token classes are unknown to it and it would drop the wrong ones. */
+export function joinClasses(...classes: Array<string | false | null | undefined>): string {
+  return classes.filter(Boolean).join(' ');
+}
+
+/**
+ * The reference card's input box (reference match, 2026-11-17; see
+ * design-review/enquiry-card/reference-spec.md §3.3): white, 1px line
+ * border, 10px radius, 13px/19.5px ink text, red border + 3px soft ring on
+ * focus, no transition. Cloned onto `Field`'s single child — a plain
+ * input/textarea, or the `PhoneField`/`DateField` wrapper box.
+ *
+ * Invalid state (kept from the earlier brief, not in the reference): the
+ * whole box turns red. `PhoneField`/`DateField`'s wrapper divs have no
+ * `aria-invalid` of their own, so they carry `data-invalid="true"` instead.
+ */
+export const FIELD_BOX_CLASS =
+  'rounded-10 border border-enquiry-line bg-white text-13 leading-[19.5px] text-enquiry-ink outline-none focus:border-enquiry-red focus:[box-shadow:var(--shadow-enquiry-focus)] aria-[invalid=true]:border-enquiry-red data-[invalid=true]:border-enquiry-red';
+
+/** The inner padding of a text entry: 14px 15px at the reference size, never under 44px total height (see `--spacing-enquiry-field-y`). */
+export const FIELD_PADDING_CLASS = 'px-3.75 py-enquiry-field-y';
+
+/** A plain text input or textarea inside a `Field`. */
+export const FIELD_INPUT_CLASS = `block w-full ${FIELD_PADDING_CLASS} placeholder:text-enquiry-placeholder`;
+
 /**
  * `LeadModal.tsx`'s field chrome/error-wiring, extracted into its own
  * module — the `aria-describedby`/`className` clone below is the one
  * place that logic lives.
  *
  * New brief (2026-11-15, final corrections), item 6: "(Optional)" is back,
- * in red, as part of the real `<Label>` text (not `aria-hidden`) — this
- * DOES change `getByLabelText('City')`'s accessible name to
- * `'City (Optional)'`, which is exactly the earlier round's own documented
- * reason for dropping it. That tradeoff is accepted explicitly this time:
- * every test asserting on one of these labels was updated to the new name
- * rather than this component working around the brief a second time.
+ * in red, as part of the real `<label>` text (not `aria-hidden`), so
+ * `getByLabelText('City')`'s accessible name is `'City (Optional)'`.
+ *
+ * Reference match (2026-11-17): a block label (10px/15px, 700, 0.1em,
+ * uppercase, muted) 7px above the box, a 9px red marker, and 17px below
+ * every field. Vertical spacing uses the `enquiry-*` spacing tokens, which
+ * shrink on short desktop screens (see `--enquiry-fit` in globals.css).
  */
 export function Field({ label, htmlFor, error, className, children, required, optional }: FieldProps) {
   const errorId = `${htmlFor}-error`;
   return (
-    <div className={cn('flex flex-col gap-[clamp(4px,1vh,7px)]', className)}>
-      <Label htmlFor={htmlFor} className="text-[10px] font-bold uppercase tracking-[0.1em] text-redux-ink-mute">
+    <div className={joinClasses('mb-enquiry-17', className)}>
+      <label
+        htmlFor={htmlFor}
+        className="mb-enquiry-7 block text-10 font-bold uppercase leading-[15px] tracking-th text-enquiry-muted"
+      >
         {label}
-        {required && <span className="text-[#d92d32]"> *</span>}
-        {optional && <span className="text-[#d92d32]"> (Optional)</span>}
-      </Label>
+        {required && <span className="text-9 leading-[1.5] text-enquiry-red"> *</span>}
+        {optional && <span className="text-9 leading-[1.5] text-enquiry-red"> (Optional)</span>}
+      </label>
       {React.isValidElement(children)
-        ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        ? React.cloneElement(children as React.ReactElement<{ className?: string; 'aria-describedby'?: string }>, {
             'aria-describedby': error ? errorId : undefined,
-            // New brief, Part 4B (2026-11-14), refined 2026-11-15: "inputs
-            // 10px radius with a red focus ring (border #d92d32 + 3px
-            // rgba(217,45,50,.08))" — the reference's own exact `--red:
-            // #d92d32`, scoped to this one arbitrary value, not the
-            // sitewide `redux-crimson` token (`#dc2626`), which stays
-            // untouched everywhere else on the site.
-            //
-            // New brief (2026-11-15, "horizontal card"): `min-h-[...]`
-            // overrides `Input`'s own fixed 44px / `Textarea`'s own fixed
-            // 56px (tailwind-merge lets this later value win) with a `vh`-
-            // scaled one instead — part of the height budget `FormStep`'s
-            // own header explains; at a normal-height viewport it clamps
-            // right back up near 44px, so nothing changes there.
-            //
-            // New brief (2026-11-15, final corrections), item 7: the whole
-            // bordered box turns red on an invalid field, including the
-            // `PhoneField`/`DateField` wrapper DIVs that have no
-            // `aria-invalid` of their own to key off (only their inner
-            // `<input>` does) — those two instead carry a plain
-            // `data-invalid="true"` attribute for exactly this selector to
-            // catch; `Input`/`Textarea` already set real `aria-invalid`
-            // themselves, so `aria-[invalid=true]:` covers them for free.
-            className:
-              'min-h-[clamp(32px,6vh,44px)] rounded-[10px] border-[#eadfdb] bg-white text-[13px] text-stone-900 focus-visible:border-[#d92d32] focus-visible:ring-[3px] focus-visible:ring-[#d92d32]/[0.08] aria-[invalid=true]:border-[#d92d32] data-[invalid=true]:border-[#d92d32]',
+            className: joinClasses(
+              (children as React.ReactElement<{ className?: string }>).props.className,
+              FIELD_BOX_CLASS
+            ),
           })
         : children}
       {error && (
-        <p id={errorId} role="alert" className="text-xs text-[#d92d32]">
+        <p id={errorId} role="alert" className="mt-1.5 text-xs text-enquiry-red">
           {error}
         </p>
       )}

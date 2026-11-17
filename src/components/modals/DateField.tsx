@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
+import { FIELD_PADDING_CLASS, joinClasses } from './Field';
 
 export type DateFieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'min'>;
 
@@ -59,8 +59,11 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(func
       // this wrapper has no `aria-invalid` of its own for `Field`'s
       // `data-[invalid=true]:` rule to key off.
       data-invalid={ariaInvalid || undefined}
-      className={cn(
-        'flex min-h-[44px] w-full cursor-pointer items-center rounded-[10px] border border-[#eadfdb] bg-white px-4 py-[13px] text-[13px] text-stone-900',
+      // Reference match (2026-11-17): the box look itself comes from
+      // `Field`'s cloned `FIELD_BOX_CLASS`; this adds the shared padding and
+      // the same red focus ring a plain input gets, via focus-within.
+      className={joinClasses(
+        `flex w-full cursor-pointer items-center ${FIELD_PADDING_CLASS} focus-within:border-enquiry-red focus-within:[box-shadow:var(--shadow-enquiry-focus)]`,
         className
       )}
     >
@@ -69,7 +72,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(func
         type="date"
         min={today}
         aria-invalid={ariaInvalid}
-        className="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-inherit outline-none"
+        className="h-[19.5px] w-full min-w-0 cursor-pointer border-none bg-transparent p-0 leading-[19.5px] text-inherit outline-none"
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             // Not preventDefault()ed — Space already opens the native

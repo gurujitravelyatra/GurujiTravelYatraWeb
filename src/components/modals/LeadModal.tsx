@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Loader2, Send, X } from 'lucide-react';
 
 import { ModalShell } from './ModalShell';
-import { Field } from './Field';
+import { Field, FIELD_INPUT_CLASS } from './Field';
 import { extractUtm } from './extract-utm';
 import type { ModalContext } from './modal-context';
 import type { LeadDetails } from './lead-details';
@@ -19,8 +19,9 @@ import { DateField } from './DateField';
 import { TurnstileWidget } from './TurnstileWidget';
 import { GTY_PHONE_DISPLAY, GTY_PHONE_TEL } from '@/lib/gty-contact';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+
+/** The reference's `.form-row`: two fields side by side with a 14px gap from 781px up, stacked (same 14px gap) below. */
+const FORM_ROW_CLASS = 'grid grid-cols-1 gap-3.5 enquiry:grid-cols-2';
 
 /**
  * CRM-migration Step 3: the public half of the Turnstile key pair — see
@@ -408,30 +409,35 @@ function FormStep({
   } = form;
 
   return (
-    <div className="relative bg-white p-[clamp(16px,4vh,28px)] font-redux-sans min-[781px]:p-[clamp(20px,4vh,48px)]">
+    // Reference match (2026-11-17): 64px card padding and a 70px column gap
+    // from 781px up, 30px 20px below; vertical spacing via the `enquiry-*`
+    // tokens (exact reference values on phones and on desktop screens
+    // 900px+ tall, proportionally less on shorter desktops).
+    <div className="relative bg-white px-5 py-enquiry-30 font-redux-sans enquiry:p-enquiry-64">
       {/* Brief §13 ("ACCEPTANCE") requires every tap target >= 44px — `-m-[11px]` + `p-[11px]` keeps the visible 18px icon compact while the actual hit area is 44x44. */}
       <button
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-3 top-3 -m-[11px] grid h-11 w-11 flex-none place-items-center rounded-full p-[11px] text-stone-400 transition-colors hover:bg-stone-100 hover:text-[#d92d32]"
+        className="absolute right-3 top-3 -m-[11px] grid h-11 w-11 flex-none place-items-center rounded-full p-[11px] text-stone-400 transition-colors hover:bg-stone-100 hover:text-enquiry-red"
       >
         <X size={18} />
       </button>
 
-      <div className="grid grid-cols-1 gap-8 min-[781px]:grid-cols-[0.9fr_1.1fr] min-[781px]:gap-12">
+      <div className="block enquiry:grid enquiry:grid-cols-[0.9fr_1.1fr] enquiry:gap-x-17.5">
         <IntroColumn copy={copy} context={context} happyTravellersLabel={happyTravellersLabel} />
 
         {/* The cream box — `.enquiry-form` in the reference. */}
-        <div className="rounded-[22px] border border-[#eadfdb] bg-[#fffaf7] p-[clamp(12px,2.2vh,24px)]">
-          <div className="mb-[clamp(6px,1.2vh,16px)] border-b border-[#eadfdb] pb-[clamp(6px,1vh,12px)]">
-            <h3 className="font-redux-display text-[17px] font-medium tracking-tight text-stone-900">
+        <div className="rounded-22 border border-enquiry-line bg-enquiry-cream px-4 py-5 enquiry:p-enquiry-30">
+          {/* `.form-heading`: decided deviation — no "01 / 03" step counter, heading left-aligned. */}
+          <div className="mb-enquiry-22 border-b border-enquiry-line pb-enquiry-17">
+            <h3 className="font-redux-display text-20 font-medium leading-[30px] text-enquiry-ink">
               Let&rsquo;s make it personal.
             </h3>
           </div>
 
           {/* `method`/`action` are belt-and-braces (item 3): the REAL guard is that `handleSubmit` always calls `preventDefault()` before anything else runs, on every submit attempt, valid or not. */}
-          <form onSubmit={onSubmit} noValidate method="post" action="#" className="flex flex-col gap-[clamp(6px,1.2vh,14px)]">
+          <form onSubmit={onSubmit} noValidate method="post" action="#" className="block">
             {errorMessage && (
               <div
                 role="alert"
@@ -442,7 +448,7 @@ function FormStep({
                 // `getByRole('alert')`, which silently matched the only alert there
                 // used to be.
                 data-testid="lead-form-error"
-                className="flex flex-col gap-2 rounded-2xl border border-[#d92d32]/30 bg-[#d92d32]/10 p-3 text-[13px] text-[#d92d32]"
+                className="mb-enquiry-17 flex flex-col gap-2 rounded-2xl border border-enquiry-red/30 bg-enquiry-red/10 p-3 text-[13px] text-enquiry-red"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="leading-relaxed">
@@ -470,7 +476,7 @@ function FormStep({
                     type="button"
                     onClick={onDismissError}
                     aria-label="Dismiss"
-                    className="-m-[14px] grid h-11 w-11 flex-none place-items-center p-[14px] text-[#d92d32]"
+                    className="-m-[14px] grid h-11 w-11 flex-none place-items-center p-[14px] text-enquiry-red"
                   >
                     <X size={16} />
                   </button>
@@ -487,8 +493,13 @@ function FormStep({
               City, Mobile | Email, Travel date | Travellers, then Message
               full-width. Single column (unchanged field order top-to-
               bottom) below 781px, where scrolling is allowed again.
+
+              Reference match (2026-11-17): each pair is the reference's
+              `.form-row` (two columns, 14px gap; one column below 781px),
+              and every field keeps 17px below it, exactly as the
+              reference's own label blocks do.
             */}
-            <div className="grid grid-cols-1 gap-[clamp(6px,1.2vh,14px)] min-[781px]:grid-cols-2 min-[781px]:gap-x-5">
+            <div className={FORM_ROW_CLASS} data-testid="lead-form-row">
               {/*
                 New brief (2026-11-15, final corrections), item 6: audited
                 against the real contract (`src/server/leads/lead-schema.ts`
@@ -500,25 +511,42 @@ function FormStep({
                 only two fields either layer actually requires.
               */}
               <Field label="Name" required htmlFor="lead-name" error={errors.name?.message}>
-                <Input id="lead-name" autoComplete="name" aria-invalid={!!errors.name} {...register('name')} />
+                <input
+                  id="lead-name"
+                  autoComplete="name"
+                  className={FIELD_INPUT_CLASS}
+                  aria-invalid={!!errors.name}
+                  {...register('name')}
+                />
               </Field>
               <Field label="City" optional htmlFor="lead-city" error={errors.city?.message}>
-                <Input id="lead-city" autoComplete="address-level2" aria-invalid={!!errors.city} {...register('city')} />
+                <input
+                  id="lead-city"
+                  autoComplete="address-level2"
+                  className={FIELD_INPUT_CLASS}
+                  aria-invalid={!!errors.city}
+                  {...register('city')}
+                />
               </Field>
+            </div>
 
+            <div className={FORM_ROW_CLASS} data-testid="lead-form-row">
               <Field label="Mobile Number" required htmlFor="lead-mobile" error={errors.mobile?.message}>
                 <PhoneField control={control} id="lead-mobile" aria-invalid={!!errors.mobile} />
               </Field>
               <Field label="Email" optional htmlFor="lead-email" error={errors.email?.message}>
-                <Input
+                <input
                   id="lead-email"
                   type="email"
                   autoComplete="email"
+                  className={FIELD_INPUT_CLASS}
                   aria-invalid={!!errors.email}
                   {...register('email')}
                 />
               </Field>
+            </div>
 
+            <div className={FORM_ROW_CLASS} data-testid="lead-form-row">
               {/* Item 8: wrapped in a `DateField` — a click anywhere on the box, not only the native calendar icon, opens the picker. */}
               <Field label="Travel Date" optional htmlFor="lead-travel-date" error={errors.travelDate?.message}>
                 <DateField id="lead-travel-date" aria-invalid={!!errors.travelDate} {...register('travelDate')} />
@@ -537,12 +565,13 @@ function FormStep({
                 fought by a premature clamp to "1".
               */}
               <Field label="Travellers" optional htmlFor="lead-travellers" error={errors.travellers?.message}>
-                <Input
+                <input
                   id="lead-travellers"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
                   placeholder="e.g. 4"
+                  className={FIELD_INPUT_CLASS}
                   aria-invalid={!!errors.travellers}
                   {...register('travellers', {
                     // react-hook-form composes a custom `onChange`/`onBlur`
@@ -571,17 +600,18 @@ function FormStep({
                   }}
                 />
               </Field>
-
-              <Field
-                label="Message"
-                optional
-                htmlFor="lead-message"
-                error={errors.message?.message}
-                className="min-[781px]:col-span-2"
-              >
-                <Textarea id="lead-message" rows={2} aria-invalid={!!errors.message} {...register('message')} />
-              </Field>
             </div>
+
+            {/* No reference counterpart: the reference input look, two lines tall (ESTIMATED, spec §4). */}
+            <Field label="Message" optional htmlFor="lead-message" error={errors.message?.message}>
+              <textarea
+                id="lead-message"
+                rows={2}
+                className={`${FIELD_INPUT_CLASS} resize-none`}
+                aria-invalid={!!errors.message}
+                {...register('message')}
+              />
+            </Field>
 
             {/*
               Honeypot: a decoy field a real visitor never sees (off-screen, not
@@ -630,7 +660,7 @@ function FormStep({
               </div>
             )}
             {errors.turnstileToken && (
-              <p role="alert" className="text-center text-xs text-[#d92d32]">
+              <p role="alert" className="mb-enquiry-17 text-center text-xs text-enquiry-red">
                 {errors.turnstileToken.message}
               </p>
             )}
@@ -642,11 +672,17 @@ function FormStep({
               also means a double submit is simply impossible: the button is
               `disabled` for the whole in-flight window react-hook-form's own
               `formState.isSubmitting` already tracks.
+
+              Reference match (2026-11-17): the reference's `.button-red`
+              (13px bold, 15px 22px padding, pill, solid red shadow; hover
+              darker red, bigger shadow, 3px lift, 0.25s ease). `transform`
+              is set as a plain property, as the reference does, so the
+              transition list matches it exactly.
             */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="btn-shine mt-1 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#d92d32] px-6 py-3 text-[15px] font-bold text-white shadow-[0_16px_30px_-16px_rgba(217,45,50,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+              className="mt-enquiry-6 flex w-full items-center justify-center gap-2.5 rounded-enquiry-btn bg-enquiry-red px-5.5 py-enquiry-btn-y text-13 font-bold leading-[19.5px] text-white [box-shadow:var(--shadow-enquiry-btn)] transition-[transform,box-shadow,background-color] duration-250 ease-gty hover:bg-enquiry-red-dark hover:[box-shadow:var(--shadow-enquiry-btn-hover)] hover:[transform:translateY(-3px)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-enquiry-red disabled:hover:[box-shadow:var(--shadow-enquiry-btn)] disabled:hover:[transform:none]"
             >
               {isSubmitting ? (
                 <>
@@ -660,11 +696,12 @@ function FormStep({
                 </>
               )}
             </button>
-            <p className="text-center text-[11px] leading-relaxed text-redux-ink-mute">
+            {/* The reference's `.form-note`. */}
+            <p className="mt-enquiry-12 text-center text-10 leading-[15px] text-enquiry-note">
               No pressure, no spam, just thoughtful travel ideas.
             </p>
-            {/* Item 4's replacement for the removed consent checkbox — the disclosure, not a control. */}
-            <p className="text-center text-[10px] leading-relaxed text-redux-ink-mute">
+            {/* Item 4's replacement for the removed consent checkbox — the disclosure, not a control. Form-note look, 4px below it (ESTIMATED, no reference counterpart). */}
+            <p className="mt-enquiry-4 text-center text-10 leading-[15px] text-enquiry-note">
               By sending, you agree to be contacted by Guruji Travel Yatra about this enquiry.
             </p>
           </form>
@@ -703,55 +740,61 @@ interface IntroColumnProps {
  */
 function IntroColumn({ copy, context, happyTravellersLabel }: IntroColumnProps) {
   return (
-    <div className="flex flex-col">
-      <span className="hidden text-[11px] font-bold uppercase tracking-[0.28em] text-[#d92d32] min-[781px]:inline-block">
+    // Below 781px the proof pill is hidden, so the reference pill's own 35px
+    // bottom margin is kept here instead, before the form box (ESTIMATED).
+    <div className="mb-8.75 leading-6 enquiry:mb-0">
+      {/* `.section-kicker`: inline 11px, 0.28em, red, in the column's 24px line box as in the reference. Hidden below 781px (decided deviation). */}
+      <span className="hidden text-11 font-bold uppercase leading-[1.5] tracking-enquiry-kicker text-enquiry-red enquiry:inline">
         The first step
       </span>
-      <h2
-        className="font-redux-display font-medium text-[#211c1c]"
-        style={{
-          fontSize: 'clamp(3rem, 5vw, 4.8rem)',
-          lineHeight: 0.98,
-          letterSpacing: '-0.055em',
-          margin: 'clamp(6px,1.6vh,18px) 0 clamp(8px,2vh,22px)',
-        }}
-      >
+      {/* Forced 3 lines at every width (decided deviation; the reference wraps to 2 lines at 768). */}
+      <h2 className="mt-enquiry-18 mb-enquiry-22 font-redux-display text-enquiry-display font-medium tracking-enquiry-display text-enquiry-ink">
         Tell us where
         <br />
-        <em className="italic text-[#d92d32]">
+        <em className="italic text-enquiry-red">
           your heart
           <br />
           leads.
         </em>
       </h2>
-      <p className="max-w-[360px] text-[15px] leading-[1.7] text-[#786d6a]">{copy.description}</p>
+      <p className="max-w-[360px] text-15 leading-[1.7] text-enquiry-muted">{copy.description}</p>
 
+      {/* No reference counterpart: the proof-pill look (ESTIMATED, spec §4). */}
       {context && (
-        <div className="mt-[clamp(10px,2vh,20px)] max-w-[340px] rounded-[18px] border border-[#f6d8d3] bg-[#fff5f2] p-3 text-[13px]">
-          <span className="text-[10px] font-bold uppercase tracking-widest2 text-redux-ink-mute">{copy.ctxLabel}</span>
+        <div className="mt-enquiry-22 rounded-18 border border-enquiry-blush-line bg-enquiry-blush p-3.5 text-12 leading-[18px]">
+          <span className="text-10 font-bold uppercase tracking-widest2 text-enquiry-muted">{copy.ctxLabel}</span>
           <br />
-          <b className="text-stone-900">{context.value}</b>{' '}
-          <span className="text-redux-ink-mute">· pre-filled from this page</span>
+          <b className="text-enquiry-ink">{context.value}</b>{' '}
+          <span className="text-enquiry-muted">· pre-filled from this page</span>
         </div>
       )}
 
-      {/* Brief (2026-11-15): real `happyTravellersLabel` only — no invented rating/"this month" claim, and no pill at all once the CRM has not set a figure. */}
+      {/*
+        The reference's `.proof-pill`. Real `happyTravellersLabel` only — no
+        "joined us this month" line, no star rating (decided deviation 7),
+        and no pill at all once the CRM has not set a figure. Hidden below
+        781px (decided deviation 4).
+      */}
       {happyTravellersLabel && (
-        <div className="mt-[clamp(14px,3vh,45px)] hidden max-w-[340px] items-center gap-4 rounded-[18px] border border-[#f6d8d3] bg-[#fff5f2] px-5 py-4 shadow-[0_20px_40px_-30px_rgba(217,45,50,0.25)] min-[781px]:flex">
-          <div className="flex -space-x-2" aria-hidden="true">
-            {['bg-[#d92d32]', 'bg-[#e3b29a]', 'bg-stone-800'].map((bg, index) => (
+        <div className="mt-enquiry-45 hidden items-center gap-3.25 rounded-18 border border-enquiry-blush-line bg-enquiry-blush p-3.5 enquiry:flex">
+          <div className="flex pl-1.75" aria-hidden="true">
+            {(
+              [
+                ['R', 'bg-enquiry-red text-white'],
+                ['A', 'bg-enquiry-avatar-2 text-white'],
+                ['S', 'bg-enquiry-avatar-3 text-white'],
+                ['+', 'bg-white text-enquiry-red'],
+              ] as const
+            ).map(([letter, colours]) => (
               <span
-                key={index}
-                className={`grid h-9 w-9 place-items-center rounded-full border-2 border-white text-xs font-bold text-white ${bg}`}
+                key={letter}
+                className={`-ml-1.75 grid size-7.75 place-items-center rounded-[50%] border-2 border-enquiry-blush text-10 font-bold leading-[15px] ${colours}`}
               >
-                {['R', 'A', 'S'][index]}
+                {letter}
               </span>
             ))}
-            <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-[#eadfdb] text-xs font-bold text-[#d92d32]">
-              +
-            </span>
           </div>
-          <p className="text-[13px] font-bold text-stone-900">{happyTravellersLabel} happy travellers</p>
+          <p className="text-12 font-bold leading-[18px] text-enquiry-ink">{happyTravellersLabel} happy travellers</p>
         </div>
       )}
     </div>

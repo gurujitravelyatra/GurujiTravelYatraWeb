@@ -86,7 +86,7 @@ export function ModalShell({ open, onOpenChange, title, description, children, t
                 transition={MODAL_TRANSITION}
               />
             </DialogOverlay>
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-[18px] min-[781px]:p-8">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-[18px] enquiry:p-8">
               {/*
                 Radix's own onCloseAutoFocus restore is disabled here because
                 focus restoration is owned explicitly by modal-context.tsx
@@ -109,7 +109,11 @@ export function ModalShell({ open, onOpenChange, title, description, children, t
                   // the height-budget work is what makes `hidden` safe here
                   // (nothing is expected to overflow this box at the
                   // measured desktop viewports to begin with).
-                  className="w-full min-[781px]:w-[min(1120px,calc(100vw-64px))] max-h-[calc(100dvh-36px)] overflow-y-auto min-[781px]:max-h-none min-[781px]:overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-[#eadfdb] bg-white shadow-[0_35px_80px_-48px_rgba(100,20,20,0.45)] focus:outline-none min-[781px]:rounded-[32px]"
+                  // Reference match (2026-11-17): same values as before, now
+                  // from the `enquiry-*` token group (globals.css). 24px
+                  // radius below 781px is a decided deviation (the
+                  // reference keeps 32px).
+                  className="w-full enquiry:w-[min(1120px,calc(100vw-64px))] max-h-[calc(100dvh-36px)] overflow-y-auto enquiry:max-h-none enquiry:overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-24 border border-enquiry-line bg-white [box-shadow:var(--shadow-enquiry-card)] focus:outline-none enquiry:rounded-enquiry-card"
                   initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={shouldReduceMotion ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.96, y: 8 }}

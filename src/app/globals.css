@@ -253,6 +253,54 @@
   --tracking-widest2: 0.3em;
   --duration-redux-400: 400ms;
 
+  /* --- Enquiry popup ONLY (reference match, 2026-11-17) --------------------
+     Measured from the reference enquiry card; see
+     design-review/enquiry-card/reference-spec.md. Used by
+     src/components/modals/* and nothing else. Values identical to an
+     existing token reuse that token instead (white, radius-10/18/22/24,
+     text-9..20, tracking-th, ease-gty, font-redux-display). */
+  --breakpoint-enquiry: 781px; /* the reference's single breakpoint: stacked <= 780px */
+  --color-enquiry-ink: #211c1c;
+  --color-enquiry-red: #d92d32;
+  --color-enquiry-red-dark: #a71921;
+  --color-enquiry-muted: #786d6a;
+  --color-enquiry-line: #eadfdb;
+  --color-enquiry-cream: #fffaf7;
+  --color-enquiry-blush: #fff5f2;
+  --color-enquiry-blush-line: #f6d8d3;
+  --color-enquiry-avatar-2: #d98671;
+  --color-enquiry-avatar-3: #403535;
+  --color-enquiry-note: #9c8d88;
+  --color-enquiry-placeholder: #9ca3af;
+  --text-enquiry-display: clamp(3rem, 5vw, 4.8rem);
+  --text-enquiry-display--line-height: 0.98;
+  --tracking-enquiry-kicker: 0.28em;
+  --tracking-enquiry-display: -0.055em;
+  --radius-enquiry-card: 32px;
+  --radius-enquiry-btn: 999px;
+  --shadow-enquiry-card: 0 35px 80px -48px rgba(100, 20, 20, 0.45);
+  --shadow-enquiry-btn: 0 16px 30px -16px #d92d32;
+  --shadow-enquiry-btn-hover: 0 20px 38px -15px #d92d32;
+  --shadow-enquiry-focus: 0 0 0 3px rgba(217, 45, 50, 0.08);
+  /* Vertical spacing. Each is the reference px value times --enquiry-fit
+     (1px on phones and on desktop screens 900px tall or more, so the
+     reference value exactly; less on short desktop screens, see below). */
+  --spacing-enquiry-4: calc(var(--enquiry-fit) * 4);
+  --spacing-enquiry-6: calc(var(--enquiry-fit) * 6);
+  --spacing-enquiry-7: calc(var(--enquiry-fit) * 7);
+  --spacing-enquiry-12: calc(var(--enquiry-fit) * 12);
+  --spacing-enquiry-17: calc(var(--enquiry-fit) * 17);
+  --spacing-enquiry-18: calc(var(--enquiry-fit) * 18);
+  --spacing-enquiry-22: calc(var(--enquiry-fit) * 22);
+  --spacing-enquiry-30: calc(var(--enquiry-fit) * 30);
+  --spacing-enquiry-45: calc(var(--enquiry-fit) * 45);
+  --spacing-enquiry-64: calc(var(--enquiry-fit) * 64);
+  /* Field and button inner padding: the reference 14px / 15px, never less
+     than 12.25px, which keeps every field and the button at least 44px tall
+     (19.5px line + 2 x 12.25px + 2 x 1px border). */
+  --spacing-enquiry-field-y: max(12.25px, calc(var(--enquiry-fit) * 14));
+  --spacing-enquiry-btn-y: max(12.25px, calc(var(--enquiry-fit) * 15));
+
   /* Brief §A8 (2026-11-14): duration is now per-instance (7s/name) via `RouteMarquee`'s inline `--marquee-duration`; 48s is only the fallback if that var is ever unset. */
   --animate-redux-marquee: redux-marquee var(--marquee-duration, 48s) linear infinite;
   --animate-redux-pulse-ring: redux-pulse-ring 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
@@ -367,6 +415,21 @@
 @media (max-width: 760px) {
   :root {
     --gx: 18px;
+  }
+}
+
+/* Enquiry popup height fit (reference match, 2026-11-17). The popup's
+   vertical spacing tokens (--spacing-enquiry-*) are reference px x this.
+   Phones: 1px, the reference values exactly (the card may scroll there).
+   Desktop: 1px from 900px tall up; shorter screens shrink every spacing by
+   the same factor (0.67 at 700px, 0.5 at 600px) so the card stays within
+   92vh with no scrollbar. Field heights have their own 44px floor. */
+:root {
+  --enquiry-fit: 1px;
+}
+@media (min-width: 781px) {
+  :root {
+    --enquiry-fit: clamp(0.5px, calc((100vh - 300px) / 600), 1px);
   }
 }
 
