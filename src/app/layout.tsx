@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Archivo, Caveat, Permanent_Marker, Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google';
+import {
+  Archivo,
+  Caveat,
+  Noto_Serif_Devanagari,
+  Permanent_Marker,
+  Playfair_Display,
+  Plus_Jakarta_Sans,
+} from 'next/font/google';
 import './globals.css';
 
 import { ModalProvider } from '@/components/modals/modal-context';
@@ -68,6 +75,27 @@ const playfairDisplay = Playfair_Display({
   display: 'swap',
 });
 
+/**
+ * Round 3 (2026-11-17), Part 5 — the home hero's decorative background word
+ * is now Hindi ("यात्रा"). Playfair Display has no Devanagari glyphs, so a
+ * Devanagari serif is loaded for that ONE word: the devanagari subset only,
+ * one weight, and `preload: false` (it is decoration, never worth a
+ * render-blocking preload). Self-hosted via next/font/google like every
+ * other family here. License: SIL Open Font License 1.1.
+ *
+ * Noto Serif Devanagari 700 was picked over Tiro Devanagari Hindi (400 only)
+ * because its weight is closer to the bold Playfair word it replaces; both
+ * are compared in design-review/round3/yatra-font-options/. Swapping is this
+ * one declaration plus the variable name in `Hero.tsx`.
+ */
+const notoSerifDevanagari = Noto_Serif_Devanagari({
+  subsets: ['devanagari'],
+  weight: ['700'],
+  variable: '--font-noto-serif-devanagari',
+  display: 'swap',
+  preload: false,
+});
+
 /** License: SIL Open Font License 1.1 (free, including commercial use). */
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -132,7 +160,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${caveat.variable} ${permanentMarker.variable} ${playfairDisplay.variable} ${plusJakartaSans.variable}`}
+      className={`${archivo.variable} ${caveat.variable} ${permanentMarker.variable} ${playfairDisplay.variable} ${plusJakartaSans.variable} ${notoSerifDevanagari.variable}`}
     >
       <body>
         {/*

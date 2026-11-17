@@ -199,19 +199,47 @@ export function Hero({ headline, heroImageUrl, stats }: HeroProps) {
       </motion.div>
 
       {/*
-        Owner fix 2: the reference's decorative outline word read "YATRI"
-        (a typo) and ran off the right edge of the viewport at 1280-1920px
-        (`right-0` with a fixed `text-[13rem]`). Fixed to "YATRA", moved in
-        from the edge (`right-6 lg:right-10`), and sized with `clamp()`
-        instead of a fixed size so it stays inside the viewport across
-        1280/1440/1920px rather than only looking right at one width.
+        Round 3 (2026-11-17), Part 5: the decorative outline word is now
+        Hindi — "यात्रा" — in a Devanagari serif (Playfair Display has no
+        Hindi glyphs; see `layout.tsx`). Same stroke colour and opacity as
+        the Latin "YATRA" it replaces.
+
+        It used to sit at `-top-6` with `leading-none`, which pushed its top
+        under the floating header and off the section. It now starts below
+        the header, and Devanagari needs real room above (the top line and
+        vowel signs) and below (conjunct tails) the Latin cap-height box —
+        hence the taller line-height — so nothing is clipped. Shown at every
+        width now (was desktop-only), sized with `clamp()`. Still purely
+        decorative: `aria-hidden`, absolutely positioned (no layout shift),
+        behind the hero text.
+
+        The outline is drawn by an SVG filter rather than `-webkit-text-stroke`:
+        Devanagari letters are built from overlapping shapes joined by the
+        top line, and a text stroke outlines every one of those shapes
+        separately, leaving stray lines INSIDE the word. The filter outlines
+        the merged silhouette instead - one clean 2px line, same red at the
+        same 22% opacity. If a browser ignores the filter the word simply
+        shows as a faint solid fill.
       */}
+      <svg aria-hidden="true" width="0" height="0" className="absolute">
+        <filter id="hero-word-outline">
+          <feComponentTransfer in="SourceAlpha" result="solid">
+            <feFuncA type="linear" slope="8" />
+          </feComponentTransfer>
+          <feMorphology in="solid" operator="dilate" radius="1" result="outer" />
+          <feMorphology in="solid" operator="erode" radius="1" result="inner" />
+          <feComposite in="outer" in2="inner" operator="out" result="ring" />
+          <feFlood floodColor="rgb(220,38,38)" floodOpacity="0.22" result="ink" />
+          <feComposite in="ink" in2="ring" operator="in" />
+        </filter>
+      </svg>
       <p
         aria-hidden="true"
-        className="pointer-events-none absolute -top-6 right-6 hidden select-none font-redux-display text-[clamp(6.5rem,11vw,13rem)] font-bold leading-none tracking-tight text-transparent lg:block lg:right-10"
-        style={{ WebkitTextStroke: '2px rgba(220,38,38,0.22)' }}
+        lang="hi"
+        data-testid="hero-background-word"
+        className="pointer-events-none absolute right-4 top-[4.75rem] select-none font-[family-name:var(--font-noto-serif-devanagari)] text-[clamp(4rem,14vw,16.5rem)] font-bold leading-[1.6] text-[rgba(220,38,38,0.22)] [filter:url(#hero-word-outline)] sm:right-6 sm:top-20 lg:right-10"
       >
-        YATRA
+        यात्रा
       </p>
 
       <div className="relative mx-auto w-full max-w-[1320px] px-4 pb-24 pt-44 sm:px-10 sm:pb-28">
