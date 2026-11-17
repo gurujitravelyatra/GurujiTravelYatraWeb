@@ -73,7 +73,11 @@ export function Navbar({ activePath, pageLabel, contact }: NavbarProps) {
 
 function Logo() {
   return (
-    <Link href="/" className="relative z-[2] flex flex-none items-center gap-[11px]">
+    // Round 3 (2026-11-17), Part 4: the wordmark used to be hidden below 760px
+    // (symbol only). It now shows at every width, scaled down below 760px so
+    // symbol + text + the menu button fit a 360px-wide screen on one line;
+    // from 760px up every size here is exactly what it was.
+    <Link href="/" className="relative z-[2] flex flex-none items-center gap-2 760:gap-[11px]">
       <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden">
         <Image
           src="/logo/gty-icon-red.webp"
@@ -84,11 +88,11 @@ function Logo() {
           priority
         />
       </span>
-      <span className="hidden flex-col leading-none 760:flex">
-        <span className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.06em] text-stone-900">
+      <span className="flex flex-col leading-none">
+        <span className="whitespace-nowrap text-[12px] font-extrabold tracking-[0.04em] text-stone-900 760:text-[15px] 760:tracking-[0.06em]">
           GURUJI TRAVEL YATRA
         </span>
-        <span className="mt-1.5 whitespace-nowrap text-[9px] font-bold tracking-[0.22em] text-redux-crimson">
+        <span className="mt-1 whitespace-nowrap text-[6.5px] font-bold tracking-[0.12em] text-redux-crimson 760:mt-1.5 760:text-[9px] 760:tracking-[0.22em]">
           KEEP GUESSING, WHERE&#39;S NEXT TRIP?
         </span>
       </span>
