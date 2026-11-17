@@ -258,15 +258,21 @@ describe('LeadModal variant="enquiry"', () => {
    * a single stacked column below the card's own 781px breakpoint, not
    * Tailwind's default `sm:`.
    */
-  it('lays out every field in one shared 2-column grid from 781px up, stacked below it', () => {
+  // Reference match (2026-11-17): the pairs are the reference's own `.form-row`s (two columns, 14px gap from 781px up), Message full width below them.
+  it('lays out the fields in three 2-up rows (Name|City, Mobile|Email, Travel date|Travellers) from 781px up, stacked below it', () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
-    const fieldGrid = screen.getByLabelText('Mobile Number *').closest('.grid');
-    expect(fieldGrid).toHaveClass('grid-cols-1', 'min-[781px]:grid-cols-2');
-    // Name, City, Mobile, Email, Travel date and Travellers are all direct
-    // children of that SAME grid — not four separate 2-up sub-grids.
-    expect(screen.getByLabelText('Travel Date (Optional)').closest('.grid')).toBe(fieldGrid);
-    expect(screen.getByLabelText('Name *').closest('.grid')).toBe(fieldGrid);
+    const rows = screen.getAllByTestId('lead-form-row');
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(row).toHaveClass('grid', 'grid-cols-1', 'gap-3.5', 'enquiry:grid-cols-2');
+    const rowOf = (label: string) => screen.getByLabelText(label).closest('[data-testid="lead-form-row"]');
+    expect(rowOf('Name *')).toBe(rows[0]);
+    expect(rowOf('City (Optional)')).toBe(rows[0]);
+    expect(rowOf('Mobile Number *')).toBe(rows[1]);
+    expect(rowOf('Email (Optional)')).toBe(rows[1]);
+    expect(rowOf('Travel Date (Optional)')).toBe(rows[2]);
+    expect(rowOf('Travellers (Optional)')).toBe(rows[2]);
+    expect(rowOf('Message (Optional)')).toBeNull();
   });
 
   /**
@@ -280,10 +286,16 @@ describe('LeadModal variant="enquiry"', () => {
   it("the phone field's box is the same height as the Name field's", () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
+    // Reference match (2026-11-17): no min-height any more — both get their
+    // height from the same line-height + vertical padding token (49.5px at
+    // the reference size, never under 44px; checked in a real browser in
+    // design-review/enquiry-card/).
     const phoneBox = screen.getByLabelText('Mobile Number *').closest('div');
+    const phoneNumber = screen.getByLabelText('Mobile Number *');
     const nameInput = screen.getByLabelText('Name *');
-    expect(phoneBox).toHaveClass('min-h-[clamp(32px,6vh,44px)]');
-    expect(nameInput).toHaveClass('min-h-[clamp(32px,6vh,44px)]');
+    expect(phoneBox).toHaveClass('rounded-10', 'border', 'border-enquiry-line');
+    expect(phoneBox?.className).not.toMatch(/p[xy]?-/);
+    for (const el of [phoneNumber, nameInput]) expect(el).toHaveClass('py-enquiry-field-y', 'leading-[19.5px]');
   });
 
   /** New brief (2026-11-15), item 3: belt-and-braces — never a native GET-reload submit, on an empty OR a filled form. */
@@ -419,7 +431,7 @@ describe('LeadModal — final corrections', () => {
     await screen.findByText('Please enter a valid mobile number.');
     const phoneBox = screen.getByLabelText('Mobile Number *').closest('div');
     expect(phoneBox).toHaveAttribute('data-invalid', 'true');
-    expect(phoneBox).toHaveClass('data-[invalid=true]:border-[#d92d32]');
+    expect(phoneBox).toHaveClass('data-[invalid=true]:border-enquiry-red');
   });
 
   // Item 8: clicking the date box anywhere (not only the native calendar icon) opens the picker.
@@ -473,9 +485,9 @@ describe('LeadModal — final corrections', () => {
   it('puts the 32px radius and overflow:hidden on the dialog element itself, not an inner wrapper', () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
     const dialog = screen.getByRole('dialog');
-    expect(dialog).toHaveClass('min-[781px]:rounded-[32px]');
-    expect(dialog).toHaveClass('min-[781px]:overflow-hidden');
-    expect(dialog).not.toHaveClass('min-[781px]:overflow-visible');
+    expect(dialog).toHaveClass('enquiry:rounded-enquiry-card');
+    expect(dialog).toHaveClass('enquiry:overflow-hidden');
+    expect(dialog).not.toHaveClass('enquiry:overflow-visible');
   });
 
   // Item 2: the heading is 3 lines with the specified colours.
@@ -483,9 +495,9 @@ describe('LeadModal — final corrections', () => {
     render(<LeadModal variant="enquiry" open context={context} onClose={jest.fn()} />);
 
     const heading = screen.getByRole('heading', { name: /Tell us where your heart leads\./ });
-    expect(heading).toHaveClass('text-[#211c1c]');
+    expect(heading).toHaveClass('text-enquiry-ink');
     expect(heading.querySelector('em')).toHaveTextContent('your heartleads.');
-    expect(heading.querySelector('em')).toHaveClass('italic', 'text-[#d92d32]');
+    expect(heading.querySelector('em')).toHaveClass('italic', 'text-enquiry-red');
   });
 
   // Item 3: proof pill and context chip use the cream colour, not white.
@@ -500,7 +512,7 @@ describe('LeadModal — final corrections', () => {
       />
     );
 
-    expect(screen.getByText('Enquiring about').closest('div')).toHaveClass('bg-[#fff5f2]', 'border-[#f6d8d3]');
-    expect(screen.getByText('10,000+ happy travellers').closest('div')).toHaveClass('bg-[#fff5f2]', 'border-[#f6d8d3]');
+    expect(screen.getByText('Enquiring about').closest('div')).toHaveClass('bg-enquiry-blush', 'border-enquiry-blush-line');
+    expect(screen.getByText('10,000+ happy travellers').closest('div')).toHaveClass('bg-enquiry-blush', 'border-enquiry-blush-line');
   });
 });

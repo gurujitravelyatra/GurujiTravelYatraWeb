@@ -71,7 +71,7 @@ import { ModalShell } from '../ModalShell';
 
 /** The dialog panel is the motion element carrying the `scale`/`y` enter transform. */
 function contentProps() {
-  return capturedMotionProps.find((p) => p.className?.includes('rounded-[32px]'));
+  return capturedMotionProps.find((p) => p.className?.includes('rounded-enquiry-card'));
 }
 
 /** The backdrop is the fixed-inset motion element that only ever animates opacity. */
