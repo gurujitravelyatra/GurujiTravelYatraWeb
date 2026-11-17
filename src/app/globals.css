@@ -267,6 +267,36 @@
   }
 }
 
+/*
+  Round 3 (2026-11-17), Part 6: the home page's postcards, in their mobile
+  scroll row only (below 768px). Each card rests at its own small tilt and
+  floats slowly up and down; `--postcard-*` are set per card inline.
+  Uses the individual `rotate`/`translate` properties so it never fights a
+  `transform`. The float exists only when the visitor has NOT asked for
+  reduced motion - the tilt (a static look, not motion) stays either way.
+*/
+@keyframes redux-postcard-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .postcard-float {
+    rotate: var(--postcard-tilt, 0deg);
+  }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: no-preference) {
+  .postcard-float {
+    animation: redux-postcard-float var(--postcard-duration, 5s) ease-in-out var(--postcard-delay, 0s) infinite;
+  }
+}
+
 @keyframes redux-pulse-ring {
   0% {
     transform: scale(1);
