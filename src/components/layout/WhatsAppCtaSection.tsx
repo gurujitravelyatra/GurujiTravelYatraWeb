@@ -1,7 +1,7 @@
 import { FileText, Phone, UserRound, Zap } from 'lucide-react';
 
 import type { SiteContact } from '@/lib/site-contact';
-import { Reveal } from './Reveal';
+import { Reveal } from '@/components/home/Reveal';
 
 export interface WhatsAppCtaSectionProps {
   contact: SiteContact;
@@ -21,17 +21,21 @@ const WHATSAPP_ICON = (
 );
 
 /**
- * "Redux" redesign (brief §10, 2026-11-14) — a standalone, full-width
- * WhatsApp CTA section in the home page's normal flow.
+ * "Redux" redesign (brief §10, 2026-11-14) — the full-width WhatsApp CTA
+ * card (heading, phone/WhatsApp CTAs, 4 perks).
  *
- * This is the SAME real content `BottomContactStrip` already renders —
- * same heading, same phone/WhatsApp CTAs, same 4 perks (Quick Response,
- * Personalized Assistance, Get Itinerary & Quotes, Travel Consultation) —
- * not a second, independently-worded card. Showing both on the SAME page
- * would duplicate it; `SiteShell` now skips rendering `BottomContactStrip`
- * specifically on `/` for exactly that reason (see its own header), while
- * leaving `BottomContactStrip` itself fully unchanged for every other
- * route, where it still renders as shared chrome overlapping the footer.
+ * Round 3 (2026-11-17), Part 3: this is now the ONE contact box on the whole
+ * site. It used to render on the home page only, while every other route
+ * showed the older `BottomContactStrip` (a small white bar absolutely
+ * positioned over the top of the footer). That strip is deleted;
+ * `SiteShell` renders this section once, in normal flow directly above the
+ * footer, for every route — so it cannot overlap the footer and no page
+ * places it itself.
+ *
+ * Same round: the decorative script line "Journeys that stay forever" was
+ * absolutely positioned at the card's top-left and sat on top of the green
+ * WhatsApp icon. It is now in the normal flow, on its own line above the
+ * icon, at every width.
  */
 export function WhatsAppCtaSection({ contact }: WhatsAppCtaSectionProps) {
   return (
@@ -52,15 +56,18 @@ export function WhatsAppCtaSection({ contact }: WhatsAppCtaSectionProps) {
               strokeLinecap="round"
             />
           </svg>
-          <p aria-hidden="true" className="pointer-events-none absolute left-7 top-6 hidden -rotate-3 font-redux-display text-2xl italic text-redux-crimson/50 lg:block">
-            Journeys that stay forever
-          </p>
           <p aria-hidden="true" className="pointer-events-none absolute bottom-6 right-9 hidden rotate-2 font-redux-display text-2xl italic text-redux-crimson lg:block">
             We&#39;re here for you!
           </p>
 
-          <div className="relative grid gap-10 p-8 sm:p-12 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+          <div className="relative grid gap-10 p-6 sm:p-12 lg:grid-cols-[1.15fr_1fr] lg:items-center">
             <div>
+              <p
+                aria-hidden="true"
+                className="pointer-events-none mb-5 origin-left -rotate-3 font-redux-display text-xl italic leading-tight text-redux-crimson/50 sm:text-2xl"
+              >
+                Journeys that stay forever
+              </p>
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-[#25D366]/15 text-[#1DAA55]">{WHATSAPP_ICON}</span>
               <h2 className="mt-5 font-redux-display text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
                 Let&#39;s Plan Your <em className="italic text-redux-crimson">Next Journey!</em>
@@ -74,19 +81,19 @@ export function WhatsAppCtaSection({ contact }: WhatsAppCtaSectionProps) {
               >
                 {contact.phoneDisplay}
               </a>
-              <div className="mt-7 flex flex-wrap items-center gap-3.5">
+              <div className="mt-7 flex flex-col gap-3.5 sm:flex-row sm:flex-wrap sm:items-center">
                 <a
                   href={contact.whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-shine group inline-flex items-center gap-2.5 rounded-full bg-[#25D366] px-6 py-3.5 text-[15px] font-bold text-white shadow-[0_18px_35px_-12px_rgba(37,211,102,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#1DA851]"
+                  className="btn-shine group inline-flex items-center justify-center gap-2.5 rounded-full bg-[#25D366] px-6 py-3.5 text-[15px] font-bold text-white shadow-[0_18px_35px_-12px_rgba(37,211,102,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#1DA851]"
                 >
                   {WHATSAPP_ICON}
                   Chat on WhatsApp
                 </a>
                 <a
                   href={`tel:${contact.phoneTel}`}
-                  className="inline-flex items-center gap-2.5 rounded-full border border-stone-300 bg-white px-6 py-3.5 text-[15px] font-bold text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:border-redux-crimson/50 hover:text-redux-crimson"
+                  className="inline-flex items-center justify-center gap-2.5 rounded-full border border-stone-300 bg-white px-6 py-3.5 text-[15px] font-bold text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:border-redux-crimson/50 hover:text-redux-crimson"
                 >
                   <Phone size={16} aria-hidden="true" />
                   Call Us

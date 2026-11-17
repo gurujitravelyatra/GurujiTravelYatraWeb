@@ -37,9 +37,8 @@ const QUICK_LINKS = [
  *   business actually uses, both resolving to a real URL via
  *   `resolveSiteContact`.
  *
- * Composition note: this does NOT render `<BottomContactStrip />` — see
- * `SiteShell`'s own header for the current wiring (skipped on `/` entirely
- * now that the home page has its own `WhatsAppCtaSection`).
+ * Composition note: the WhatsApp contact box (`WhatsAppCtaSection`) is a
+ * separate section `SiteShell` renders directly above this footer.
  */
 export function Footer({ contact }: FooterProps) {
   return (

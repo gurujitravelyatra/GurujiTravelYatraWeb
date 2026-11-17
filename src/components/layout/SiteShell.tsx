@@ -2,7 +2,7 @@ import { getSite } from '@/server/crm/client';
 import { resolveSiteContact } from '@/lib/site-contact';
 import { Navbar } from './Navbar';
 import { MobileActionBar } from './MobileActionBar';
-import { BottomContactStrip } from './BottomContactStrip';
+import { WhatsAppCtaSection } from './WhatsAppCtaSection';
 import { Footer } from './Footer';
 
 export interface SiteShellProps {
@@ -20,7 +20,7 @@ export interface SiteShellProps {
  * CRM-migration Step 2: now an async Server Component. It is the ONE place
  * that fetches `GET /public/site` for the chrome (contact info) — every page
  * composing `<SiteShell>` gets it for free instead of re-fetching, and every
- * contact-info consumer (`Navbar`/`Footer`/`BottomContactStrip`/
+ * contact-info consumer (`Navbar`/`Footer`/`WhatsAppCtaSection`/
  * `MobileActionBar`) reads the SAME resolved values, so they cannot drift
  * the way four separately-imported constants once did.
  *
@@ -43,8 +43,7 @@ export interface SiteShellProps {
  *
  * DOM order matters here: `MobileActionBar` is `position: sticky; bottom: 0`
  * and relies on being the LAST element in the document flow for the "sticky
- * footer bar" trick to work — it must render after the Footer/BottomContactStrip
- * wrapper, not before it.
+ * footer bar" trick to work — it must render after the Footer, not before it.
  *
  * "Redux" redesign (2026-11-14): `Navbar` switched from `position: sticky`
  * (took real space in document flow) to `position: fixed` (brief §2) so the
@@ -54,12 +53,11 @@ export interface SiteShellProps {
  * here instead, conditionally, rather than touching each of those pages —
  * this is the one shared place that already knows `activePath`.
  *
- * `BottomContactStrip` is also skipped on `/` specifically: the home page
- * now has its own full `WhatsAppCtaSection` (brief §10) with the exact same
- * content (heading, phone/WhatsApp CTAs, 4 perks) in the normal page flow,
- * so showing BOTH would duplicate the same card twice in a row, right above
- * the footer. Every other route is unaffected — `BottomContactStrip` still
- * renders there exactly as before.
+ * Round 3 (2026-11-17), Part 3: the WhatsApp contact box is placed HERE,
+ * once, for every route — `WhatsAppCtaSection`, in normal flow directly
+ * above the footer. It replaces both the home page's own copy of that
+ * section and the old `BottomContactStrip` (absolutely positioned over the
+ * footer's top edge on every other route), which is deleted.
  */
 export async function SiteShell({ activePath, pageLabel, children }: SiteShellProps) {
   const site = await getSite();
@@ -70,10 +68,8 @@ export async function SiteShell({ activePath, pageLabel, children }: SiteShellPr
     <div className="site relative w-full bg-gty-white">
       <Navbar activePath={activePath} pageLabel={pageLabel} contact={contact} />
       <main className={isHome ? undefined : 'pt-[104px] sm:pt-[112px]'}>{children}</main>
-      <div className="relative">
-        {!isHome && <BottomContactStrip contact={contact} />}
-        <Footer contact={contact} />
-      </div>
+      <WhatsAppCtaSection contact={contact} />
+      <Footer contact={contact} />
       <MobileActionBar pageLabel={pageLabel} contact={contact} />
     </div>
   );

@@ -5,7 +5,7 @@ import { Navbar } from '../Navbar';
 import { Footer } from '../Footer';
 import { MobileMenu } from '../MobileMenu';
 import { MobileActionBar } from '../MobileActionBar';
-import { BottomContactStrip } from '../BottomContactStrip';
+import { WhatsAppCtaSection } from '../WhatsAppCtaSection';
 import { MobileMenuProvider, useMobileMenu } from '../mobile-menu-context';
 import { resolveSiteContact } from '@/lib/site-contact';
 
@@ -94,8 +94,8 @@ describe('no public navigation surface links to /admin', () => {
     assertNoAdminSurface(container);
   });
 
-  it('BottomContactStrip', () => {
-    const { container } = render(<BottomContactStrip contact={contact} />);
+  it('WhatsAppCtaSection', () => {
+    const { container } = render(<WhatsAppCtaSection contact={contact} />);
     assertNoAdminSurface(container);
   });
 

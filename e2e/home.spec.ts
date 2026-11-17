@@ -106,8 +106,8 @@ test.describe('/ (Home)', () => {
   });
 
   /** M4 — the desktop card invited a WhatsApp chat but offered no way to start one. */
-  test('offers a real WhatsApp link in the desktop contact strip', async ({ page }) => {
-    const link = page.getByRole('link', { name: 'Chat with Guruji Travel Yatra on WhatsApp' });
+  test('offers a real WhatsApp link in the contact box above the footer', async ({ page }) => {
+    const link = page.getByRole('link', { name: 'Chat on WhatsApp' });
 
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute('href', 'https://wa.me/919099957658');
